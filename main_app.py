@@ -1,52 +1,43 @@
-from fastapi import FastAPI,Request,UploadFile, File
-from fastapi.responses import HTMLResponse,JSONResponse,RedirectResponse
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-import json
-from pydantic import BaseModel
-import matplotlib.pyplot as plt
-from fastapi.middleware.cors import CORSMiddleware
-from pathlib import Path
-import pandas as pd
-import io
+from fastapi import FastAPI, Request
+from fastapi.responses import RedirectResponse
+from google_auth_oauthlib.flow import Flow
+from googleapiclient.discovery import build
+import os
 
 app = FastAPI()
-templates = Jinja2Templates(directory="templates")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
+os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
-@app.get("/user_dashboard")
-def dashboard(request: Request):
-    return templates.TemplateResponse("user_dashboard.html", {"request": request})
+CLIENT_SECRETS_FILE = "client_secret.json"
+SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
+@app.get("/auth")
+def auth():
+    flow = Flow.from_client_secrets_file(
+        CLIENT_SECRETS_FILE,
+        scopes=SCOPES,
+        redirect_uri="http://localhost:8000/auth/callback"
+    )
+    auth_url, _ = flow.authorization_url(prompt="consent")
+    return RedirectResponse(auth_url)
 
+@app.get("/auth/callback")
+def callback(request: Request):
+    flow = Flow.from_client_secrets_file(
+        CLIENT_SECRETS_FILE,
+        scopes=SCOPES,
+        redirect_uri="http://localhost:8000/auth/callback"
+    )
+    flow.fetch_token(authorization_response=str(request.url))
+    credentials = flow.credentials
 
-@app.get("/about", response_class=HTMLResponse)
-def home(request: Request):
-    return templates.TemplateResponse("about.html", {"request": request})
+    service = build("calendar", "v3", credentials=credentials)
+    
+    event = {
+        'summary': 'Study Session: Math',
+        'start': {'dateTime': '2025-10-10T10:00:00', 'timeZone': 'Europe/Istanbul'},
+        'end': {'dateTime': '2025-10-10T12:00:00', 'timeZone': 'Europe/Istanbul'},
+    }
 
-
-
-
-@app.get("/services", response_class=HTMLResponse)
-def home(request: Request):
-    return templates.TemplateResponse("services.html", {"request": request})
-
-
-
-
-@app.get("/contact", response_class=HTMLResponse)
-def home(request: Request):
-    return templates.TemplateResponse("contact.html", {"request": request})
-
-
-
-@app.get("/signup", response_class=HTMLResponse)
-def signup_form(request: Request):
-    return templates.TemplateResponse("signup.html", {"request": request})
+    event_result = service.events().insert(calendarId='primary', body=event).execute()
+    return {"message": "Event created", "event_link": event_result.get("htmlLink")}
