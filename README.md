@@ -169,23 +169,4 @@ git pull --rebase origin main
 git push
 ```
 
-🧾 Next Steps
- Calendar API endpoints implemented and tested locally
-
- Archived legacy backend for review (archive/main_app_v1.py)
-
- Updated README with setup and QA instructions
-
- PR under review (SCRUM-35)
-
- Once approved → Prepare final QA and documentation report
-
-Maintainer: Damilola Fashola
-
-Course: Software Analysis and Design
-
-Sprint: SCRUM-35
-
-Role: Backend Developer / QA & Documentation
-
 
