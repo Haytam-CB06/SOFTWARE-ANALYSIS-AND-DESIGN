@@ -32,3 +32,4 @@ dist/
 build/
 client_secret.json:Zone.Identifier
 client_secret.json:Zone.Identifier
+main_app_v1.py
