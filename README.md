@@ -15,7 +15,7 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn main_app:app --reload --port 8000
-
+```
 ## Database Setup (PostgreSQL)
 ## Sign-in / Sign-up Database (PostgreSQL 16)
 
@@ -42,7 +42,7 @@ DB_PASSWORD=changeme
 ```bash
 psql -U postgres -h $DB_HOST -p $DB_PORT -c "CREATE ROLE $DB_USER LOGIN PASSWORD '$DB_PASSWORD';"
 psql -U postgres -h $DB_HOST -p $DB_PORT -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;"
-
+```
 
 (Optional) Restore the dump
 
