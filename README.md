@@ -21,6 +21,10 @@ source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn main_app:app --reload --port 8000
 ```
+Maintainer: Damilola FAshola
+Course: Software Analysis and Design
+Sprint: SCRUM-29
+Role: Backend Developer / QA & Documentation
 
 # SCRUM-35: Google Calendar Integration & QA Setup
 ## Overview
