@@ -31,3 +31,6 @@ git push -f   # rebase rewrites history, so force-push
 # DB dumps (keep tracked ones only)
 db/dumps/*.dump
 
+
+# DB dumps (keep tracked ones only)
+db/dumps/*.dump
