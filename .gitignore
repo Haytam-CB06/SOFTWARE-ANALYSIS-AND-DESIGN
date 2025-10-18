@@ -1,0 +1,15 @@
+# Ignore virtual environment
+.venv/
+
+# Ignore cache files
+__pycache__/
+*.pyc
+
+# Ignore environment and secret files
+.env
+token.json
+client_secret.json
+
+# Ignore IDE/project settings
+.vscode/
+.idea/
