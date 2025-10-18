@@ -1,7 +1,7 @@
 # SOFTWARE-ANALYSIS-AND-DESIGN
 SSTG
 
-# Backend Setup (SCRUM-29)
+# Setup virtual environment / dependencies (SCRUM-29)
 
 ## Requirements
 - Python 3.11+
