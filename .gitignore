@@ -30,3 +30,4 @@ client_secret.json
 # Build artifacts
 dist/
 build/
+client_secret.json:Zone.Identifier
