@@ -6,30 +6,29 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-*.pid
+# Logs / PIDs
 *.log
-
+*.pid
 # Env & secrets (never commit)
 .env
 .env.*
 !.env.example
 token.json
 client_secret.json
-
 # IDE/project settings
 .vscode/
 .idea/
-
-# OS / tooling
+# OS / tooling caches
 .DS_Store
-.python-version
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-
+.python-version
 # Build artifacts
 dist/
 build/
-client_secret.json:Zone.Identifier
+# DB dumps (keep tracked ones only)
+db/dumps/*.dump
+# OS / tooling
 client_secret.json:Zone.Identifier
 /main_app_v1.py
