@@ -20,6 +20,8 @@ python -m venv .venv
 source .venv/bin/activate   # or .venv\Scripts\activate on Windows
 pip install -r requirements.txt
 uvicorn main_app:app --reload --port 8000
+```bash
+
 🧩 SCRUM-35: Google Calendar Integration & QA Setup
 Overview
 This sprint introduces the Google Calendar API integration and QA/test setup for the backend service.
