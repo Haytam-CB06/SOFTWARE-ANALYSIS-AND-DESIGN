@@ -1,15 +1,32 @@
-# Ignore virtual environment
+# Virtual environment
 .venv/
 
-# Ignore cache files
+# Python caches
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+*.pid
+*.log
 
-# Ignore environment and secret files
+# Env & secrets (never commit)
 .env
+.env.*
+!.env.example
 token.json
 client_secret.json
 
-# Ignore IDE/project settings
+# IDE/project settings
 .vscode/
 .idea/
+
+# OS / tooling
+.DS_Store
+.python-version
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Build artifacts
+dist/
+build/
