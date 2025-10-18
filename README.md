@@ -9,7 +9,7 @@ SSTG
 
 ## Setup Instructions
 ```bash
-git clone <repo-url>
+git git clone git@github.com:Haytam-CB06/SOFTWARE-ANALYSIS-AND-DESIGN.git
 cd SOFTWARE-ANALYSIS-AND-DESIGN
 python -m venv .venv
 source .venv/bin/activate
