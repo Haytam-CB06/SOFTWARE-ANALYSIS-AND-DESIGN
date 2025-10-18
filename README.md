@@ -1,5 +1,5 @@
-# SOFTWARE-ANALYSIS-AND-DESIGN
-Smart Study Time-table Generator
+SOFTWARE-ANALYSIS-AND-DESIGN
+# Smart Study Time-table Generator
 
 # Setup virtual environment / dependencies (SCRUM-29)
 
