@@ -2,12 +2,12 @@
 -- PostgreSQL database dump
 --
 
-\restrict YVshzARJ8fjUnJBxuhHlDH5nrw66UaaaCX9ZBthFBhzpi5aTwwtKo0QUHgD4jys
+\restrict z7XvfWW4xdtPaYsKSWTa7SNNBw3KL5scFyBAdPLtJYUgPUN7TRgphNlRSwhYcaB
 
 -- Dumped from database version 16.10
 -- Dumped by pg_dump version 16.10
 
--- Started on 2025-10-18 22:20:43
+-- Started on 2025-10-19 23:43:03
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -20,145 +20,112 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
---
--- TOC entry 8 (class 2615 OID 16398)
--- Name: pgagent; Type: SCHEMA; Schema: -; Owner: postgres
---
+SET default_tablespace = '';
 
-CREATE SCHEMA pgagent;
-
-
-ALTER SCHEMA pgagent OWNER TO postgres;
+SET default_table_access_method = heap;
 
 --
--- TOC entry 5000 (class 0 OID 0)
--- Dependencies: 8
--- Name: SCHEMA pgagent; Type: COMMENT; Schema: -; Owner: postgres
+-- TOC entry 216 (class 1259 OID 16583)
+-- Name: users; Type: TABLE; Schema: public; Owner: postgres
 --
 
-COMMENT ON SCHEMA pgagent IS 'pgAgent system tables';
+CREATE TABLE public.users (
+    id integer NOT NULL,
+    username character varying(50) NOT NULL,
+    email character varying(100) NOT NULL,
+    password_hash character varying(255) NOT NULL,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+);
 
 
---
--- TOC entry 2 (class 3079 OID 16384)
--- Name: adminpack; Type: EXTENSION; Schema: -; Owner: -
---
-
-CREATE EXTENSION IF NOT EXISTS adminpack WITH SCHEMA pg_catalog;
-
-
---
--- TOC entry 5001 (class 0 OID 0)
--- Dependencies: 2
--- Name: EXTENSION adminpack; Type: COMMENT; Schema: -; Owner: 
---
-
-COMMENT ON EXTENSION adminpack IS 'administrative functions for PostgreSQL';
-
+ALTER TABLE public.users OWNER TO postgres;
 
 --
--- TOC entry 3 (class 3079 OID 16399)
--- Name: pgagent; Type: EXTENSION; Schema: -; Owner: -
+-- TOC entry 215 (class 1259 OID 16582)
+-- Name: users_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
-CREATE EXTENSION IF NOT EXISTS pgagent WITH SCHEMA pgagent;
+CREATE SEQUENCE public.users_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
 
+
+ALTER SEQUENCE public.users_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5002 (class 0 OID 0)
--- Dependencies: 3
--- Name: EXTENSION pgagent; Type: COMMENT; Schema: -; Owner: 
+-- TOC entry 4893 (class 0 OID 0)
+-- Dependencies: 215
+-- Name: users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
-COMMENT ON EXTENSION pgagent IS 'A PostgreSQL job scheduler';
+ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
 
 
 --
--- TOC entry 4780 (class 0 OID 16400)
--- Dependencies: 220
--- Data for Name: pga_jobagent; Type: TABLE DATA; Schema: pgagent; Owner: postgres
+-- TOC entry 4735 (class 2604 OID 16586)
+-- Name: users id; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
-COPY pgagent.pga_jobagent (jagpid, jaglogintime, jagstation) FROM stdin;
-5936	2025-10-16 23:56:38.085963+03	Hayrunnisa
+ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_id_seq'::regclass);
+
+
+--
+-- TOC entry 4887 (class 0 OID 16583)
+-- Dependencies: 216
+-- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.users (id, username, email, password_hash, created_at) FROM stdin;
+1	testuser	test@example.com	hashing_sifre	2025-10-18 21:56:45.406878
+3	testuser2	test2@example.com	hashing2_sifre	2025-10-18 21:58:39.566196
 \.
 
 
 --
--- TOC entry 4781 (class 0 OID 16409)
--- Dependencies: 222
--- Data for Name: pga_jobclass; Type: TABLE DATA; Schema: pgagent; Owner: postgres
+-- TOC entry 4894 (class 0 OID 0)
+-- Dependencies: 215
+-- Name: users_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-COPY pgagent.pga_jobclass (jclid, jclname) FROM stdin;
-\.
-
-
---
--- TOC entry 4782 (class 0 OID 16419)
--- Dependencies: 224
--- Data for Name: pga_job; Type: TABLE DATA; Schema: pgagent; Owner: postgres
---
-
-COPY pgagent.pga_job (jobid, jobjclid, jobname, jobdesc, jobhostagent, jobenabled, jobcreated, jobchanged, jobagentid, jobnextrun, joblastrun) FROM stdin;
-\.
+SELECT pg_catalog.setval('public.users_id_seq', 3, true);
 
 
 --
--- TOC entry 4784 (class 0 OID 16467)
--- Dependencies: 228
--- Data for Name: pga_schedule; Type: TABLE DATA; Schema: pgagent; Owner: postgres
+-- TOC entry 4738 (class 2606 OID 16593)
+-- Name: users users_email_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
-COPY pgagent.pga_schedule (jscid, jscjobid, jscname, jscdesc, jscenabled, jscstart, jscend, jscminutes, jschours, jscweekdays, jscmonthdays, jscmonths) FROM stdin;
-\.
-
-
---
--- TOC entry 4785 (class 0 OID 16495)
--- Dependencies: 230
--- Data for Name: pga_exception; Type: TABLE DATA; Schema: pgagent; Owner: postgres
---
-
-COPY pgagent.pga_exception (jexid, jexscid, jexdate, jextime) FROM stdin;
-\.
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key UNIQUE (email);
 
 
 --
--- TOC entry 4786 (class 0 OID 16509)
--- Dependencies: 232
--- Data for Name: pga_joblog; Type: TABLE DATA; Schema: pgagent; Owner: postgres
+-- TOC entry 4740 (class 2606 OID 16589)
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
-COPY pgagent.pga_joblog (jlgid, jlgjobid, jlgstatus, jlgstart, jlgduration) FROM stdin;
-\.
-
-
---
--- TOC entry 4783 (class 0 OID 16443)
--- Dependencies: 226
--- Data for Name: pga_jobstep; Type: TABLE DATA; Schema: pgagent; Owner: postgres
---
-
-COPY pgagent.pga_jobstep (jstid, jstjobid, jstname, jstdesc, jstenabled, jstkind, jstcode, jstconnstr, jstdbname, jstonerror, jscnextrun) FROM stdin;
-\.
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_pkey PRIMARY KEY (id);
 
 
 --
--- TOC entry 4787 (class 0 OID 16525)
--- Dependencies: 234
--- Data for Name: pga_jobsteplog; Type: TABLE DATA; Schema: pgagent; Owner: postgres
+-- TOC entry 4742 (class 2606 OID 16591)
+-- Name: users users_username_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
-COPY pgagent.pga_jobsteplog (jslid, jsljlgid, jsljstid, jslstatus, jslresult, jslstart, jslduration, jsloutput) FROM stdin;
-\.
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_username_key UNIQUE (username);
 
 
--- Completed on 2025-10-18 22:20:43
+-- Completed on 2025-10-19 23:43:04
 
 --
 -- PostgreSQL database dump complete
 --
 
-\unrestrict YVshzARJ8fjUnJBxuhHlDH5nrw66UaaaCX9ZBthFBhzpi5aTwwtKo0QUHgD4jys
+\unrestrict z7XvfWW4xdtPaYsKSWTa7SNNBw3KL5scFyBAdPLtJYUgPUN7TRgphNlRSwhYcaB
 
