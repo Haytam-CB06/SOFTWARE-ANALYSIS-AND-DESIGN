@@ -37,3 +37,11 @@ db/dumps/*.dump
 
 # DB dumps (keep tracked ones only)
 db/dumps/*.dump
+
+# secrets & local
+.env
+*.env
+*.secret
+smartstudy.db
+client_secret.json
+token.json
