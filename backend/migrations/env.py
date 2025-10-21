@@ -1,29 +1,13 @@
 import os
-from pathlib import Path
 from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
-
-# load .env automatically so Windows/Git Bash quirks don’t bite
-try:
-    from dotenv import load_dotenv
-    env_path = Path(__file__).resolve().parent.parent / ".env"
-    if env_path.exists():
-        load_dotenv(env_path)
-    else:
-        # also try repo root
-        root_env = Path(__file__).resolve().parents[2] / ".env"
-        if root_env.exists():
-            load_dotenv(root_env)
-except Exception:
-    pass
 
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# import metadata from your models
-from app.models import target_metadata
+from app.models import target_metadata  # <- our models metadata
 
 db_url = os.getenv("DATABASE_URL")
 if db_url:
