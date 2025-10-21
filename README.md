@@ -21,8 +21,8 @@ source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn main_app:app --reload --port 8000
 ```
-
-erDiagram
+# S1-3 (Design ERD)
+##erDiagram
   USERS ||--o{ SUBJECTS : "has"
   USERS ||--o{ AVAILABILITY_WINDOWS : "defines"
   USERS ||--|| PREFERENCES : "has 1"
