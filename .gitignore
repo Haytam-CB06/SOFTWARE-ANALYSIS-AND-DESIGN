@@ -38,3 +38,4 @@ db/dumps/*.dump
 # DB dumps (keep tracked ones only)
 db/dumps/*.dump
 
+frontend/node_modules/
