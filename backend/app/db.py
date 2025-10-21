@@ -10,7 +10,6 @@ def init_engine():
     db_url = os.getenv("DATABASE_URL")
     if not db_url:
         raise RuntimeError("DATABASE_URL is not set")
-    # echo=False keeps logs quiet; SQLite works too
     ENGINE = create_engine(db_url, future=True, pool_pre_ping=True, echo=False)
     SessionLocal = sessionmaker(bind=ENGINE, autoflush=False, autocommit=False, future=True)
 
