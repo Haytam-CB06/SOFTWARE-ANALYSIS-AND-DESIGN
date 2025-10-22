@@ -34,3 +34,11 @@ backend/migrations/*/cache/*
 # secrets/artifacts
 smartstudy.db
 *.sqlite
+
+# secrets & local
+.env
+*.env
+*.secret
+smartstudy.db
+client_secret.json
+token.json

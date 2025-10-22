@@ -45,3 +45,11 @@ db/dumps/*.dump
 smartstudy.db
 client_secret.json
 token.json
+
+# secrets & local
+.env
+*.env
+*.secret
+smartstudy.db
+client_secret.json
+token.json
