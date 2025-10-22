@@ -53,3 +53,11 @@ token.json
 smartstudy.db
 client_secret.json
 token.json
+
+# local only
+.env
+*.env
+*.secret
+backend/app.db
+__pycache__/
+*.pyc
