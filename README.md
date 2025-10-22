@@ -22,7 +22,9 @@ pip install -r requirements.txt
 uvicorn main_app:app --reload --port 8000
 ```
 # S1-3 (Design ERD)
-mermaid
+# S1-3 (Design ERD)
+
+```mermaid
 erDiagram
     USERS ||--o{ SUBJECTS : has
     USERS ||--o{ AVAILABILITY_WINDOWS : defines
