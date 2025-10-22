@@ -21,7 +21,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn main_app:app --reload --port 8000
 ```
-# S1-3 (Design ERD)
+
 # S1-3 (Design ERD)
 
 ```mermaid
