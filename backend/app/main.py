@@ -1,17 +1,23 @@
 import os
 from datetime import datetime, timedelta, timezone
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from pathlib import Path
+from uuid import uuid4
 
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, APIRouter, Query
 from fastapi.responses import RedirectResponse, JSONResponse
+from starlette.middleware.sessions import SessionMiddleware
+from pydantic import BaseModel, field_validator, EmailStr
+from dotenv import load_dotenv
+
+# Google APIs
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from google.oauth2.credentials import Credentials
-from starlette.middleware.sessions import SessionMiddleware
-from pydantic import BaseModel, field_validator
-from dotenv import load_dotenv
+
+# SQLAlchemy (DB smoke tests)
+from sqlalchemy import create_engine, text
 
 # ---------- Environment ----------
 load_dotenv()
@@ -136,7 +142,7 @@ class EventCreate(BaseModel):
             raise ValueError("end must be after start")
         return v
 
-# ---------- Routes ----------
+# ---------- Calendar Routes ----------
 @app.get("/health")
 async def health():
     return {
@@ -161,7 +167,6 @@ async def auth(request: Request):
         request.session["oauth_state"] = state
         return RedirectResponse(auth_url)
     except Exception as e:
-        # Log a clear traceback to the console for debugging
         import traceback; traceback.print_exc()
         raise
 
@@ -239,3 +244,120 @@ async def delete_event(event_id: str):
     except HttpError as e:
         raise HTTPException(status_code=e.resp.status, detail=str(e))
     return {"deleted": True, "id": event_id}
+
+# =====================================================================
+#                   TEMPORARY DB SMOKE TEST ENDPOINTS
+#    (Prove the DB schema from Alembic actually works end-to-end)
+#    Safe for SQLite or Postgres. Remove after you’re satisfied.
+# =====================================================================
+
+# DB config
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
+CONNECT_ARGS = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+engine = create_engine(DATABASE_URL, future=True, connect_args=CONNECT_ARGS)
+
+def _get_user_table_columns(conn) -> List[str]:
+    """
+    Discover columns of the 'users' table at runtime so we can
+    adapt to UUID vs INT ids and optional columns.
+    """
+    # SQLite path
+    if DATABASE_URL.startswith("sqlite"):
+        rows = conn.execute(text("PRAGMA table_info(users)")).all()
+        return [r[1] for r in rows]  # (cid, name, type, notnull, dflt_value, pk)
+    # Generic path (works on Postgres too)
+    rows = conn.execute(
+        text("""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'users'
+        """)
+    ).all()
+    return [r[0] for r in rows]
+
+class UserIn(BaseModel):
+    email: EmailStr
+    full_name: str
+    timezone: str = "UTC"
+
+db_router = APIRouter(prefix="/test-db", tags=["test-db"])
+
+@db_router.post("/users")
+def create_user(payload: UserIn):
+    """
+    Inserts a row into 'users'.
+    - If 'id' is required (e.g., UUID PK with no default), we auto-generate one.
+    - If 'full_name' or 'timezone' are missing in the table, we omit them.
+    """
+    with engine.begin() as conn:
+        cols = set(_get_user_table_columns(conn))
+        # minimal required columns
+        data: Dict[str, Any] = {}
+
+        if "email" not in cols:
+            raise HTTPException(500, detail="Table 'users' has no 'email' column. Check your migration.")
+        data["email"] = payload.email
+
+        if "full_name" in cols:
+            data["full_name"] = payload.full_name
+        if "timezone" in cols:
+            data["timezone"] = payload.timezone
+
+        # If 'id' exists and is NOT NULL without default, provide a UUID
+        needs_id = False
+        if "id" in cols:
+            # Try to detect if id is required by attempting a dry-run insert inside a savepoint
+            try:
+                conn.exec_driver_sql("SAVEPOINT sp_test")
+                placeholders = ", ".join([f":{k}" for k in data.keys()])
+                columns = ", ".join(data.keys())
+                conn.execute(text(f"INSERT INTO users ({columns}) VALUES ({placeholders})"))
+                conn.exec_driver_sql("ROLLBACK TO SAVEPOINT sp_test")
+            except Exception:
+                needs_id = True
+                conn.exec_driver_sql("ROLLBACK TO SAVEPOINT sp_test")
+        if "id" in cols and needs_id:
+            data["id"] = str(uuid4())
+
+        # Final insert
+        placeholders = ", ".join([f":{k}" for k in data.keys()])
+        columns = ", ".join(data.keys())
+        try:
+            conn.execute(text(f"INSERT INTO users ({columns}) VALUES ({placeholders})"), data)
+        except Exception as e:
+            # Most likely UNIQUE(email) violation or type mismatch
+            raise HTTPException(status_code=409, detail=str(e))
+
+    return {"ok": True, "email": payload.email}
+
+@db_router.get("/users")
+def list_users(limit: int = Query(10, ge=1, le=100)):
+    """
+    Returns the most recent users. We dynamically select available columns.
+    If 'id' column doesn't exist, we use SQLite rowid as a fallback (SQLite only).
+    """
+    with engine.begin() as conn:
+        cols = set(_get_user_table_columns(conn))
+        select_cols: List[str] = []
+        if "id" in cols:
+            select_cols.append("id")
+        elif DATABASE_URL.startswith("sqlite"):
+            select_cols.append("rowid AS id")
+
+        for candidate in ["email", "full_name", "timezone"]:
+            if candidate in cols:
+                select_cols.append(candidate)
+
+        if not select_cols:
+            # extremely unlikely: no visible columns?
+            raise HTTPException(500, detail="Could not determine columns to select from 'users'.")
+
+        sql = f"SELECT {', '.join(select_cols)} FROM users ORDER BY ROWID DESC LIMIT :limit" \
+              if DATABASE_URL.startswith("sqlite") else \
+              f"SELECT {', '.join(select_cols)} FROM users ORDER BY 1 DESC LIMIT :limit"
+
+        rows = conn.execute(text(sql), {"limit": limit}).mappings().all()
+        return {"count": len(rows), "items": list(rows)}
+
+app.include_router(db_router)
+# ========================= END DB SMOKE ================================

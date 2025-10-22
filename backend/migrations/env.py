@@ -1,10 +1,15 @@
+<<<<<<< Updated upstream
 # backend/migrations/env.py
 import os
 import sys
+=======
+import os, sys
+>>>>>>> Stashed changes
 from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
+<<<<<<< Updated upstream
 # --- Load .env if present (optional but handy for local dev)
 try:
     from dotenv import load_dotenv  # pip install python-dotenv (you have it)
@@ -38,6 +43,33 @@ if backend_dir not in sys.path:
 from app.models import target_metadata  # noqa: E402
 
 # Set DB URL from env var (do NOT hardcode here)
+=======
+# --- Ensure 'backend' is on sys.path so 'import app' works ---
+HERE = os.path.dirname(os.path.abspath(__file__))           # .../backend/migrations
+BACKEND_DIR = os.path.abspath(os.path.join(HERE, ".."))     # .../backend
+if BACKEND_DIR not in sys.path:
+    sys.path.insert(0, BACKEND_DIR)
+
+# --- (Optional) load .env from repo root and backend/ ---
+try:
+    from dotenv import load_dotenv
+    REPO_ROOT = os.path.abspath(os.path.join(BACKEND_DIR, ".."))
+    load_dotenv(os.path.join(REPO_ROOT, ".env"))
+    load_dotenv(os.path.join(BACKEND_DIR, ".env"))
+except Exception:
+    pass
+
+config = context.config
+
+# Logging (requires full logging sections in alembic.ini)
+if config.config_file_name is not None:
+    fileConfig(config.config_file_name)
+
+# Import models metadata for autogenerate
+from app.models import target_metadata
+
+# Inject DB URL from env (do NOT hardcode)
+>>>>>>> Stashed changes
 db_url = os.getenv("DATABASE_URL")
 if db_url:
     config.set_main_option("sqlalchemy.url", db_url)
