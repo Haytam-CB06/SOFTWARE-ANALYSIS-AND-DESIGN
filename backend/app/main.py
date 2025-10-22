@@ -1,6 +1,7 @@
 import os
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Optional, List
+from pathlib import Path
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import RedirectResponse, JSONResponse
@@ -12,6 +13,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from pydantic import BaseModel, field_validator
 from dotenv import load_dotenv
 
+# ---------- Environment ----------
 load_dotenv()
 
 app = FastAPI(title="Calendar API")
@@ -21,33 +23,89 @@ app.add_middleware(
     secret_key=os.getenv("SESSION_SECRET", "dev-session-secret"),
 )
 
+# Allow HTTP for local dev (don't use in production)
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = os.getenv("OAUTHLIB_INSECURE_TRANSPORT", "1")
 
-CLIENT_SECRETS_FILE = os.getenv("GOOGLE_CLIENT_SECRETS_FILE", "client_secret.json")
-SCOPES = [os.getenv("GOOGLE_SCOPES", "https://www.googleapis.com/auth/calendar")]
+# ---------- Robust path resolution ----------
+def project_root_from_this_file(levels_up: int = 3) -> Path:
+    """
+    Resolve project root by walking up from this file location.
+    main.py is at backend/app/main.py -> 3 levels up == project root
+    """
+    here = Path(__file__).resolve()
+    root = here
+    for _ in range(levels_up):
+        root = root.parent
+    return root
+
+def resolve_existing_path(env_value: Optional[str], default_name: str) -> Path:
+    """
+    Resolve a path to an existing file, trying in order:
+      1) env absolute path (as-is, must exist)
+      2) env relative -> CWD
+      3) env relative -> project root
+      4) default_name in CWD
+      5) default_name in project root
+    Returns the first existing Path; otherwise returns the last tried (project root default) for visibility.
+    """
+    candidates: List[Path] = []
+    proj_root = project_root_from_this_file(3)
+    cwd = Path.cwd()
+
+    if env_value:
+        env_path = Path(env_value)
+        if env_path.is_absolute():
+            candidates.append(env_path)
+        else:
+            candidates.append(cwd / env_path)
+            candidates.append(proj_root / env_path)
+
+    # Defaults
+    candidates.append(cwd / default_name)
+    candidates.append(proj_root / default_name)
+
+    for p in candidates:
+        if p.exists():
+            return p.resolve()
+
+    # Nothing existed; return the last candidate (project-root default) so /health shows where we looked
+    return candidates[-1].resolve()
+
+# ---------- Config (with safe defaults) ----------
+_scopes_raw = os.getenv("GOOGLE_SCOPES", "https://www.googleapis.com/auth/calendar")
+SCOPES: List[str] = [s for s in (x.strip() for x in _scopes_raw.replace(",", " ").split()) if s]
+
 REDIRECT_URI = os.getenv("OAUTH_REDIRECT_URI", "http://localhost:8000/auth/callback")
-TOKEN_FILE = os.getenv("GOOGLE_TOKEN_FILE", "token.json")
 
+CLIENT_SECRETS_FILE = resolve_existing_path(
+    os.getenv("GOOGLE_CLIENT_SECRETS_FILE"),
+    "client_secret.json",
+)
 
+TOKEN_FILE = (project_root_from_this_file(3) / os.getenv("GOOGLE_TOKEN_FILE", "token.json")).resolve()
+TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+# ---------- Google helpers ----------
 def get_flow(state: Optional[str] = None) -> Flow:
+    if not CLIENT_SECRETS_FILE.exists():
+        raise HTTPException(
+            status_code=500,
+            detail=f"Google client secrets not found at: {CLIENT_SECRETS_FILE}"
+        )
     return Flow.from_client_secrets_file(
-        CLIENT_SECRETS_FILE,
+        str(CLIENT_SECRETS_FILE),
         scopes=SCOPES,
         redirect_uri=REDIRECT_URI,
         state=state,
     )
 
-
 def load_credentials() -> Optional[Credentials]:
-    if os.path.exists(TOKEN_FILE):
-        return Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
+    if TOKEN_FILE.exists():
+        return Credentials.from_authorized_user_file(str(TOKEN_FILE), SCOPES)
     return None
 
-
 def save_credentials(creds: Credentials):
-    with open(TOKEN_FILE, "w") as f:
-        f.write(creds.to_json())
-
+    TOKEN_FILE.write_text(creds.to_json(), encoding="utf-8")
 
 def get_service(creds: Optional[Credentials] = None):
     if creds is None:
@@ -56,7 +114,7 @@ def get_service(creds: Optional[Credentials] = None):
         raise HTTPException(status_code=401, detail="Not authorized. Start at /auth")
     return build("calendar", "v3", credentials=creds)
 
-
+# ---------- Models ----------
 class EventCreate(BaseModel):
     summary: str
     description: Optional[str] = None
@@ -78,23 +136,34 @@ class EventCreate(BaseModel):
             raise ValueError("end must be after start")
         return v
 
-
+# ---------- Routes ----------
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
-
+    return {
+        "status": "ok",
+        "client_secrets_exists": CLIENT_SECRETS_FILE.exists(),
+        "client_secrets_path": str(CLIENT_SECRETS_FILE),
+        "token_path": str(TOKEN_FILE),
+        "scopes": SCOPES,
+        "redirect_uri": REDIRECT_URI,
+        "cwd": str(Path.cwd()),
+    }
 
 @app.get("/auth")
 async def auth(request: Request):
-    flow = get_flow()
-    auth_url, state = flow.authorization_url(
-        prompt="consent",
-        include_granted_scopes="true",
-        access_type="offline",
-    )
-    request.session["oauth_state"] = state
-    return RedirectResponse(auth_url)
-
+    try:
+        flow = get_flow()
+        auth_url, state = flow.authorization_url(
+            prompt="consent",
+            include_granted_scopes="true",
+            access_type="offline",
+        )
+        request.session["oauth_state"] = state
+        return RedirectResponse(auth_url)
+    except Exception as e:
+        # Log a clear traceback to the console for debugging
+        import traceback; traceback.print_exc()
+        raise
 
 @app.get("/auth/callback")
 async def callback(request: Request):
@@ -127,7 +196,6 @@ async def callback(request: Request):
         {"message": "Event created", "event_link": event_result.get("htmlLink")}
     )
 
-
 @app.get("/me/events")
 async def list_events():
     service = get_service()
@@ -148,7 +216,6 @@ async def list_events():
 
     return {"authorized": True, "events": resp.get("items", [])}
 
-
 @app.post("/events")
 async def create_event(payload: EventCreate):
     service = get_service()
@@ -163,7 +230,6 @@ async def create_event(payload: EventCreate):
     except HttpError as e:
         raise HTTPException(status_code=e.resp.status, detail=str(e))
     return {"id": result.get("id"), "link": result.get("htmlLink")}
-
 
 @app.delete("/events/{event_id}")
 async def delete_event(event_id: str):
