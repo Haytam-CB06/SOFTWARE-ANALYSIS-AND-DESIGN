@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 from __future__ import annotations
 
 # make the 'app' package importable when running alembic from backend/
@@ -9,10 +10,35 @@ from sqlalchemy import engine_from_config, pool, text
 from alembic import context
 
 # Alembic config
+=======
+import os, sys
+from logging.config import fileConfig
+from alembic import context
+from sqlalchemy import engine_from_config, pool
+
+# --- Ensure 'backend' is on sys.path so 'import app' works ---
+HERE = os.path.dirname(os.path.abspath(__file__))           # .../backend/migrations
+BACKEND_DIR = os.path.abspath(os.path.join(HERE, ".."))     # .../backend
+if BACKEND_DIR not in sys.path:
+    sys.path.insert(0, BACKEND_DIR)
+
+# --- (Optional) load .env from repo root and backend/ ---
+try:
+    from dotenv import load_dotenv
+    REPO_ROOT = os.path.abspath(os.path.join(BACKEND_DIR, ".."))
+    load_dotenv(os.path.join(REPO_ROOT, ".env"))
+    load_dotenv(os.path.join(BACKEND_DIR, ".env"))
+except Exception:
+    pass
+
+>>>>>>> Stashed changes
 config = context.config
+
+# Logging (requires full logging sections in alembic.ini)
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+<<<<<<< Updated upstream
 # DB URL from alembic.ini (hard-coded) or env fallback
 db_url = os.getenv("DATABASE_URL", "postgresql+psycopg://smartstudy:changeme@localhost:5432/smartstudy")
 config.set_main_option("sqlalchemy.url", db_url)
@@ -20,6 +46,15 @@ config.set_main_option("sqlalchemy.url", db_url)
 # ---- IMPORTANT: ensure ALL model modules are imported so Base.metadata is populated
 import importlib, pkgutil
 import app.models as models_pkg
+=======
+# Import models metadata for autogenerate
+from app.models import target_metadata
+
+# Inject DB URL from env (do NOT hardcode)
+db_url = os.getenv("DATABASE_URL")
+if db_url:
+    config.set_main_option("sqlalchemy.url", db_url)
+>>>>>>> Stashed changes
 
 for _finder, _name, _ispkg in pkgutil.iter_modules(models_pkg.__path__):
     importlib.import_module(f"app.models.{_name}")

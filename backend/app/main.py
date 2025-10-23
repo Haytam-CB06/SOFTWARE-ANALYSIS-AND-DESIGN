@@ -4,10 +4,10 @@ from typing import Optional, List, Dict, Any
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import FastAPI, Request, HTTPException, APIRouter, Query
+from fastapi import FastAPI, Request, HTTPException, APIRouter, Query, Depends
 from fastapi.responses import RedirectResponse, JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
-from pydantic import BaseModel, field_validator, EmailStr
+from pydantic import BaseModel, field_validator, EmailStr, constr
 from dotenv import load_dotenv
 
 # Google APIs
@@ -16,13 +16,17 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from google.oauth2.credentials import Credentials
 
-# SQLAlchemy (DB smoke tests)
+# SQLAlchemy
 from sqlalchemy import create_engine, text
+from sqlalchemy.engine import Engine
+
+# Password hashing
+from passlib.context import CryptContext
 
 # ---------- Environment ----------
 load_dotenv()
 
-app = FastAPI(title="Calendar API")
+app = FastAPI(title="Calendar API + Auth")
 
 app.add_middleware(
     SessionMiddleware,
@@ -74,7 +78,7 @@ def resolve_existing_path(env_value: Optional[str], default_name: str) -> Path:
         if p.exists():
             return p.resolve()
 
-    # Nothing existed; return the last candidate (project-root default) so /health shows where we looked
+    # Nothing existed; return the last candidate (project-root default)
     return candidates[-1].resolve()
 
 # ---------- Config (with safe defaults) ----------
@@ -90,6 +94,54 @@ CLIENT_SECRETS_FILE = resolve_existing_path(
 
 TOKEN_FILE = (project_root_from_this_file(3) / os.getenv("GOOGLE_TOKEN_FILE", "token.json")).resolve()
 TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+# ---------- DB engine ----------
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
+CONNECT_ARGS = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+engine: Engine = create_engine(DATABASE_URL, future=True, pool_pre_ping=True, connect_args=CONNECT_ARGS)
+
+# ---------- Password hashing ----------
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def hash_password(raw: str) -> str:
+    return pwd_context.hash(raw)
+
+def verify_password(raw: str, hashed: str) -> bool:
+    return pwd_context.verify(raw, hashed)
+
+# ---------- Startup checks ----------
+def _table_has_column(conn, table: str, col: str) -> bool:
+    if DATABASE_URL.startswith("sqlite"):
+        rows = conn.execute(text(f"PRAGMA table_info({table})")).all()
+        names = [r[1] for r in rows]  # (cid, name, type, ...)
+        return col in names
+    # Postgres path
+    rows = conn.execute(
+        text(
+            "SELECT 1 FROM information_schema.columns "
+            "WHERE table_name = :t AND column_name = :c"
+        ),
+        {"t": table, "c": col},
+    ).fetchall()
+    return len(rows) > 0
+
+def _ensure_password_hash_column():
+    with engine.begin() as conn:
+        # Create column if missing
+        if not _table_has_column(conn, "users", "password_hash"):
+            if DATABASE_URL.startswith("sqlite"):
+                # SQLite supports simple ADD COLUMN
+                conn.execute(text("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255)"))
+            else:
+                # Postgres: IF NOT EXISTS
+                conn.execute(text("ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255)"))
+
+@app.on_event("startup")
+def _on_startup():
+    # Verify DB connectivity and ensure password_hash exists
+    with engine.connect() as conn:
+        conn.execute(text("SELECT 1"))
+    _ensure_password_hash_column()
 
 # ---------- Google helpers ----------
 def get_flow(state: Optional[str] = None) -> Flow:
@@ -120,7 +172,7 @@ def get_service(creds: Optional[Credentials] = None):
         raise HTTPException(status_code=401, detail="Not authorized. Start at /auth")
     return build("calendar", "v3", credentials=creds)
 
-# ---------- Models ----------
+# ---------- Models for requests ----------
 class EventCreate(BaseModel):
     summary: str
     description: Optional[str] = None
@@ -142,7 +194,7 @@ class EventCreate(BaseModel):
             raise ValueError("end must be after start")
         return v
 
-# ---------- Calendar Routes ----------
+# ---------- Health ----------
 @app.get("/health")
 async def health():
     return {
@@ -153,8 +205,10 @@ async def health():
         "scopes": SCOPES,
         "redirect_uri": REDIRECT_URI,
         "cwd": str(Path.cwd()),
+        "db": DATABASE_URL,
     }
 
+# ---------- OAuth Routes ----------
 @app.get("/auth")
 async def auth(request: Request):
     try:
@@ -246,26 +300,17 @@ async def delete_event(event_id: str):
     return {"deleted": True, "id": event_id}
 
 # =====================================================================
-#                   TEMPORARY DB SMOKE TEST ENDPOINTS
-#    (Prove the DB schema from Alembic actually works end-to-end)
-#    Safe for SQLite or Postgres. Remove after you’re satisfied.
+#                TEMPORARY DB SMOKE TEST ENDPOINTS (users)
 # =====================================================================
-
-# DB config
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
-CONNECT_ARGS = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
-engine = create_engine(DATABASE_URL, future=True, connect_args=CONNECT_ARGS)
 
 def _get_user_table_columns(conn) -> List[str]:
     """
     Discover columns of the 'users' table at runtime so we can
     adapt to UUID vs INT ids and optional columns.
     """
-    # SQLite path
     if DATABASE_URL.startswith("sqlite"):
         rows = conn.execute(text("PRAGMA table_info(users)")).all()
-        return [r[1] for r in rows]  # (cid, name, type, notnull, dflt_value, pk)
-    # Generic path (works on Postgres too)
+        return [r[1] for r in rows]
     rows = conn.execute(
         text("""
             SELECT column_name
@@ -291,7 +336,6 @@ def create_user(payload: UserIn):
     """
     with engine.begin() as conn:
         cols = set(_get_user_table_columns(conn))
-        # minimal required columns
         data: Dict[str, Any] = {}
 
         if "email" not in cols:
@@ -303,10 +347,8 @@ def create_user(payload: UserIn):
         if "timezone" in cols:
             data["timezone"] = payload.timezone
 
-        # If 'id' exists and is NOT NULL without default, provide a UUID
         needs_id = False
         if "id" in cols:
-            # Try to detect if id is required by attempting a dry-run insert inside a savepoint
             try:
                 conn.exec_driver_sql("SAVEPOINT sp_test")
                 placeholders = ", ".join([f":{k}" for k in data.keys()])
@@ -319,23 +361,17 @@ def create_user(payload: UserIn):
         if "id" in cols and needs_id:
             data["id"] = str(uuid4())
 
-        # Final insert
         placeholders = ", ".join([f":{k}" for k in data.keys()])
         columns = ", ".join(data.keys())
         try:
             conn.execute(text(f"INSERT INTO users ({columns}) VALUES ({placeholders})"), data)
         except Exception as e:
-            # Most likely UNIQUE(email) violation or type mismatch
             raise HTTPException(status_code=409, detail=str(e))
 
     return {"ok": True, "email": payload.email}
 
 @db_router.get("/users")
 def list_users(limit: int = Query(10, ge=1, le=100)):
-    """
-    Returns the most recent users. We dynamically select available columns.
-    If 'id' column doesn't exist, we use SQLite rowid as a fallback (SQLite only).
-    """
     with engine.begin() as conn:
         cols = set(_get_user_table_columns(conn))
         select_cols: List[str] = []
@@ -349,7 +385,6 @@ def list_users(limit: int = Query(10, ge=1, le=100)):
                 select_cols.append(candidate)
 
         if not select_cols:
-            # extremely unlikely: no visible columns?
             raise HTTPException(500, detail="Could not determine columns to select from 'users'.")
 
         sql = f"SELECT {', '.join(select_cols)} FROM users ORDER BY ROWID DESC LIMIT :limit" \
@@ -360,4 +395,87 @@ def list_users(limit: int = Query(10, ge=1, le=100)):
         return {"count": len(rows), "items": list(rows)}
 
 app.include_router(db_router)
-# ========================= END DB SMOKE ================================
+
+# =====================================================================
+#                AUTH (signup/login) for Postman grading
+# =====================================================================
+
+class SignUpIn(BaseModel):
+    email: EmailStr
+    full_name: constr(strip_whitespace=True, min_length=1)
+    password: constr(min_length=6)
+    timezone: str = "UTC"
+
+class LoginIn(BaseModel):
+    email: EmailStr
+    password: constr(min_length=6)
+
+auth_router = APIRouter(prefix="/auth", tags=["auth"])
+
+@auth_router.post("/signup")
+def signup(payload: SignUpIn):
+    with engine.begin() as conn:
+        # ensure password_hash column exists (safety if startup hook didn't run)
+        _ensure_password_hash_column()
+
+        # check if email exists
+        exists = conn.execute(
+            text("SELECT 1 FROM users WHERE email = :e LIMIT 1"),
+            {"e": payload.email},
+        ).fetchone()
+        if exists:
+            raise HTTPException(status_code=409, detail="Email already registered")
+
+        # build insert dynamically based on available columns
+        cols = set(_get_user_table_columns(conn))
+        data: Dict[str, Any] = {
+            "email": payload.email,
+        }
+        if "full_name" in cols:
+            data["full_name"] = payload.full_name
+        if "timezone" in cols:
+            data["timezone"] = payload.timezone
+        if "password_hash" in cols:
+            data["password_hash"] = hash_password(payload.password)
+
+        # handle id if necessary
+        if "id" in cols:
+            try:
+                # dry run to detect NOT NULL without default
+                conn.exec_driver_sql("SAVEPOINT sp_ins")
+                columns = ", ".join(data.keys())
+                placeholders = ", ".join([f":{k}" for k in data.keys()])
+                conn.execute(text(f"INSERT INTO users ({columns}) VALUES ({placeholders})"), data)
+                conn.exec_driver_sql("ROLLBACK TO SAVEPOINT sp_ins")
+            except Exception:
+                conn.exec_driver_sql("ROLLBACK TO SAVEPOINT sp_ins")
+                data["id"] = str(uuid4())
+
+        columns = ", ".join(data.keys())
+        placeholders = ", ".join([f":{k}" for k in data.keys()])
+        conn.execute(text(f"INSERT INTO users ({columns}) VALUES ({placeholders})"), data)
+
+    return {"message": "signup ok"}
+
+@auth_router.post("/login")
+def login(payload: LoginIn):
+    with engine.begin() as conn:
+        row = conn.execute(
+            text("SELECT password_hash FROM users WHERE email = :e"),
+            {"e": payload.email},
+        ).mappings().fetchone()
+
+        if row is None:
+            raise HTTPException(status_code=401, detail="invalid credentials")
+
+        ph = row.get("password_hash")
+        if not ph:
+            raise HTTPException(status_code=500, detail="password column missing on users (run migrations)")
+
+        if not verify_password(payload.password, ph):
+            raise HTTPException(status_code=401, detail="invalid credentials")
+
+    # If you later need JWTs, generate and return here.
+    return {"message": "login ok"}
+
+app.include_router(auth_router)
