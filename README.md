@@ -24,6 +24,35 @@ uvicorn main_app:app --reload --port 8000
 
 # S1-3 (Design ERD)
 
+## Quickstart
+
+### 1) Create venv
+```bash
+# Windows (PowerShell)
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+```
+# macOS/Linux/Git Bash
+```bash
+python -m venv venv
+source venv/bin/activate
+```
+### 2) Install deps
+```bash
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+### 3) Configure env (optional)
+```bash
+cp .env.example .env   # then edit values
+```
+### 4) Run
+```bash
+python -m uvicorn app.main:app --reload --port 8000
+```
+```bash
+# or: ./run.sh / .\run.ps1
+```
 ```mermaid
 erDiagram
     USERS ||--o{ SUBJECTS : has
@@ -159,3 +188,4 @@ erDiagram
         uuid entity_id
         timestamptz created_at
     }
+
