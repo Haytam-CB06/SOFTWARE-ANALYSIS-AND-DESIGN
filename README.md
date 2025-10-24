@@ -189,8 +189,8 @@ erDiagram
         timestamptz created_at
     }
 ```
-#S1-7: Define ORM models
-##Teammate Quickstart
+# S1-7: Define ORM models
+## Teammate Quickstart
 Prereqs
 
 Python 3.10+, pip, virtualenv
@@ -234,7 +234,7 @@ alembic upgrade head
 # run API
 uvicorn app.main:app --reload
 ```
-Postman
+# Postman
 
 Import SSTG_Postman_Collection.json.
 Set base_url env var to http://localhost:8000.
