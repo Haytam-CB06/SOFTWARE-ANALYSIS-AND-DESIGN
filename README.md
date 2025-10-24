@@ -234,7 +234,7 @@ alembic upgrade head
 # run API
 uvicorn app.main:app --reload
 ```
-# Postman
+Postman
 
 Import SSTG_Postman_Collection.json.
 Set base_url env var to http://localhost:8000.
