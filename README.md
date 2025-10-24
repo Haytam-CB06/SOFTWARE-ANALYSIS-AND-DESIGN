@@ -188,4 +188,54 @@ erDiagram
         uuid entity_id
         timestamptz created_at
     }
+```
+#S1-7: Define ORM models
+##Teammate Quickstart
+Prereqs
 
+Python 3.10+, pip, virtualenv
+Postgres 14+ (local or Docker)
+
+Create DB (option A: local Postgres)
+```bash
+psql -U postgres -h localhost -p 5432
+-- inside psql:
+CREATE ROLE smartstudy LOGIN PASSWORD 'changeme';
+CREATE DATABASE smartstudy OWNER smartstudy;
+GRANT ALL PRIVILEGES ON DATABASE smartstudy TO smartstudy;
+\q
+```
+
+Create DB (option B: Docker)
+```bash
+docker run -d --name sstg-pg -p 5432:5432 \
+  -e POSTGRES_USER=smartstudy -e POSTGRES_PASSWORD=changeme -e POSTGRES_DB=smartstudy \
+  postgres:16
+```
+
+Project setup
+```bash
+git clone https://github.com/Haytam-CB06/SOFTWARE-ANALYSIS-AND-DESIGN.git
+cd ANALYSIS-AND-DESIGN/backend
+
+python -m venv venv
+source venv/Scripts/activate  # Windows PowerShell: venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+pip install "psycopg[binary]>=3.1"
+
+# copy the example env and set DATABASE_URL to Postgres
+copy .env.example .env   # Windows
+# edit .env to:
+# DATABASE_URL=postgresql+psycopg://smartstudy:changeme@localhost:5432/smartstudy
+
+# build schema
+alembic upgrade head
+
+# run API
+uvicorn app.main:app --reload
+```
+Postman
+
+Import SSTG_Postman_Collection.json.
+Set base_url env var to http://localhost:8000.
+Run: GET /health → then Auth folder: signup → login.

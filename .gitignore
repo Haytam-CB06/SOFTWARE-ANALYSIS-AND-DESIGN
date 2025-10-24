@@ -50,3 +50,7 @@ token.json
 backend/app.db
 __pycache__/
 *.pyc
+
+# local db files
+*.db
+
