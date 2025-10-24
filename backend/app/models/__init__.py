@@ -1,22 +1,16 @@
-from .base import Base, metadata
+# Ensure all models register on Base.metadata
+from .base import Base  # re-export Base
 
-from .user import User
-from .subject import Subject
-from .study_session import StudySession
-from .session_feedback import SessionFeedback
-from .class_meeting import ClassMeeting
-from .assessment import Assessment
-
-# Make sure this matches the class defined in availability.py
-# e.g., if the class is AvailabilityWindow, import that exact name.
-from .availability import AvailabilityWindow
-
-from .preferences import Preferences
-from .goals import Goal                 # <-- singular to match the class
-from .calendar_account import CalendarAccount
-from .calendar_event import CalendarEvent
-from .activity_log import ActivityLog
-from .notification import Notification
-
-# Alembic will read this
-target_metadata = metadata
+from .user import *
+from .subject import *
+from .study_session import *
+from .preferences import *
+from .availability import *
+from .goals import *
+from .session_feedback import *
+from .class_meeting import *
+from .assessment import *
+from .calendar_account import *
+from .calendar_event import *
+from .activity_log import *
+from .notification import *

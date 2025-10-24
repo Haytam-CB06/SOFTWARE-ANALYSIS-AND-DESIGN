@@ -1,96 +1,82 @@
-<<<<<<< Updated upstream
-from __future__ import annotations
-
-# make the 'app' package importable when running alembic from backend/
-import os, sys
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
+import os
 from logging.config import fileConfig
-from sqlalchemy import engine_from_config, pool, text
-from alembic import context
-
-# Alembic config
-=======
-import os, sys
-from logging.config import fileConfig
-from alembic import context
 from sqlalchemy import engine_from_config, pool
+from alembic import context
 
-# --- Ensure 'backend' is on sys.path so 'import app' works ---
-HERE = os.path.dirname(os.path.abspath(__file__))           # .../backend/migrations
-BACKEND_DIR = os.path.abspath(os.path.join(HERE, ".."))     # .../backend
-if BACKEND_DIR not in sys.path:
-    sys.path.insert(0, BACKEND_DIR)
-
-# --- (Optional) load .env from repo root and backend/ ---
+# --- Load .env if present (local dev) ---
 try:
-    from dotenv import load_dotenv
-    REPO_ROOT = os.path.abspath(os.path.join(BACKEND_DIR, ".."))
-    load_dotenv(os.path.join(REPO_ROOT, ".env"))
-    load_dotenv(os.path.join(BACKEND_DIR, ".env"))
+    from dotenv import load_dotenv  # type: ignore
+    load_dotenv()
 except Exception:
     pass
 
->>>>>>> Stashed changes
+# Interpret the config file for Python logging.
 config = context.config
-
-# Logging (requires full logging sections in alembic.ini)
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-<<<<<<< Updated upstream
-# DB URL from alembic.ini (hard-coded) or env fallback
-db_url = os.getenv("DATABASE_URL", "postgresql+psycopg://smartstudy:changeme@localhost:5432/smartstudy")
+# --- DATABASE_URL from environment (preferred) ---
+db_url = os.getenv("DATABASE_URL")
+if not db_url:
+    raise RuntimeError("DATABASE_URL is not set. Put it in your .env for local dev.")
 config.set_main_option("sqlalchemy.url", db_url)
 
-# ---- IMPORTANT: ensure ALL model modules are imported so Base.metadata is populated
-import importlib, pkgutil
-import app.models as models_pkg
-=======
-# Import models metadata for autogenerate
-from app.models import target_metadata
+# --- Import models & metadata ---
+# Your models live in app/models/*.py. We import them so they register on Base.metadata.
+from app.models.base import Base  # Base = declarative base
+# Import all model modules so autogenerate sees tables
+from app.models import (
+    user,
+    subject,
+    study_session,
+    preferences,
+    availability,
+    goals,
+    session_feedback,
+    class_meeting,
+    assessment,
+    calendar_account,
+    calendar_event,
+    activity_log,
+    notification,
+)
 
-# Inject DB URL from env (do NOT hardcode)
-db_url = os.getenv("DATABASE_URL")
-if db_url:
-    config.set_main_option("sqlalchemy.url", db_url)
->>>>>>> Stashed changes
-
-for _finder, _name, _ispkg in pkgutil.iter_modules(models_pkg.__path__):
-    importlib.import_module(f"app.models.{_name}")
-
-from app.models.base import Base
 target_metadata = Base.metadata
-# ----------------------------------------------------
 
-def run_migrations_offline() -> None:
+# --- Offline / Online runners ---
+def run_migrations_offline():
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
         target_metadata=target_metadata,
-        compare_type=True,
-        compare_server_default=True,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        compare_type=True,      # detect column type diffs
+        compare_server_default=True,
     )
+
     with context.begin_transaction():
         context.run_migrations()
 
-def run_migrations_online() -> None:
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-        future=True,
-    )
+
+from sqlalchemy import create_engine
+
+def run_migrations_online():
+    url = config.get_main_option("sqlalchemy.url")
+    if not url:
+        raise RuntimeError("sqlalchemy.url not set in Alembic config")
+
+    connectable = create_engine(url, poolclass=pool.NullPool, future=True)
+
     with connectable.connect() as connection:
-        connection.execute(text("SELECT 1"))
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
             compare_type=True,
             compare_server_default=True,
+            render_as_batch=False,
         )
+
         with context.begin_transaction():
             context.run_migrations()
 
