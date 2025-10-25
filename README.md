@@ -189,15 +189,16 @@ CREATE DATABASE smartstudy OWNER smartstudy;
 \q
 ```
 
-## VScode simple setup: run the command in the main directory
+## Then go back to your git bash directory int the "SOFTWARE-ANALYSIS-AND-DESIGN (main)", run the command
+```bash
+./scripts/dev-setup.sh
+```
+
+## This setup is for VSCODE or POWERSHELL USERS
+run the command in the SOFTWARE-ANALYSIS-AND-DESIGN (main) directory
 ```bash
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 .\scripts\dev-setup.ps1
-```
-
-Then go back to your git bash directory to run this command in the folder directory: SOFTWARE-ANALYSIS-AND-DESIGN (main)
-```bash
-./scripts/dev-setup.sh
 ```
 
 Postman
