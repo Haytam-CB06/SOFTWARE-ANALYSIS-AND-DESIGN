@@ -189,6 +189,12 @@ CREATE DATABASE smartstudy OWNER smartstudy;
 \q
 ```
 
+VScode simple setup: run the command in the main directory
+```bash
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+.\scripts\dev-setup.ps1
+```
+
 Then go back to your git bash directory to run this command in the folder directory: SOFTWARE-ANALYSIS-AND-DESIGN (main)
 ```bash
 ./scripts/dev-setup.sh
