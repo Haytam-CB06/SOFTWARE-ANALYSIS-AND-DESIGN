@@ -189,6 +189,11 @@ CREATE DATABASE smartstudy OWNER smartstudy;
 \q
 ```
 
+Then go back to your git bash directory to run this command in the folder directory: SOFTWARE-ANALYSIS-AND-DESIGN (main)
+```bash
+./scripts/dev-setup.sh
+```
+
 Postman
 
 Import SSTG_Postman_Collection.json.
