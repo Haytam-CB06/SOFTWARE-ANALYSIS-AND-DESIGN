@@ -1,0 +1,56 @@
+# Virtual environment
+.venv/
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+# Env & secrets (never commit)
+.env
+.env.*
+!.env.example
+token.json
+client_secret.json
+# IDE/project settings
+.vscode/
+.idea/
+# OS / tooling
+.DS_Store
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+EOF
+git add .gitignore
+git rebase --continue
+git push -f   # rebase rewrites history, so force-push
+# DB dumps (keep tracked ones only)
+db/dumps/*.dump
+# secrets
+*.env
+*.secret
+# python
+venv/
+# alembic cache
+backend/migrations/*/cache/*
+# secrets/artifacts
+smartstudy.db
+*.sqlite
+
+# secrets & local
+.env
+*.env
+*.secret
+smartstudy.db
+client_secret.json
+token.json
+
+# Local dev only
+.env
+*.env
+*.secret
+backend/app.db
+__pycache__/
+*.pyc
+
+# local db files
+*.db
+
