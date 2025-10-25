@@ -189,7 +189,7 @@ CREATE DATABASE smartstudy OWNER smartstudy;
 \q
 ```
 
-## Go back to your git bash directory int the "SOFTWARE-ANALYSIS-AND-DESIGN (main)", run the command
+## Go back to your git bash directory in the "SOFTWARE-ANALYSIS-AND-DESIGN (main)", run the command
 ```bash
 ./scripts/dev-setup.sh
 ```
