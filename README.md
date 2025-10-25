@@ -182,14 +182,14 @@ If you prefer to drop into the Postgres 18 shell first: run
 ```bash
 & "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres
 ```
-## Then inside the psql prompt (you’ll see something like postgres=#), run:
+## Inside the psql prompt (you’ll see something like postgres=#), run:
 ```bash
 CREATE ROLE smartstudy LOGIN PASSWORD 'changeme';
 CREATE DATABASE smartstudy OWNER smartstudy;
 \q
 ```
 
-## Then go back to your git bash directory int the "SOFTWARE-ANALYSIS-AND-DESIGN (main)", run the command
+## Go back to your git bash directory int the "SOFTWARE-ANALYSIS-AND-DESIGN (main)", run the command
 ```bash
 ./scripts/dev-setup.sh
 ```
