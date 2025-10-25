@@ -162,13 +162,13 @@ erDiagram
 ```
 # S1-7: Define ORM models
 ## Teammate Quickstart
-Prereqs
+
+## Requirements: 
 
 Python 3.10+, pip, virtualenv
 Postgres 16+ (local or Docker)
 
-Create DB (local Postgres)
-On Powershell: 
+## Create DB (local Postgres) using Powershell: RUN
 
 If you prefer to drop into the Postgres 16 shell first: run
 ```bash
@@ -182,14 +182,14 @@ If you prefer to drop into the Postgres 18 shell first: run
 ```bash
 & "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres
 ```
-Then inside the psql prompt (you’ll see something like postgres=#), run:
+## Then inside the psql prompt (you’ll see something like postgres=#), run:
 ```bash
 CREATE ROLE smartstudy LOGIN PASSWORD 'changeme';
 CREATE DATABASE smartstudy OWNER smartstudy;
 \q
 ```
 
-VScode simple setup: run the command in the main directory
+## VScode simple setup: run the command in the main directory
 ```bash
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 .\scripts\dev-setup.ps1
