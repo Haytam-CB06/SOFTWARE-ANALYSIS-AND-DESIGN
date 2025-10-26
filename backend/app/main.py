@@ -1,10 +1,11 @@
+# backend/app/main.py
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict, Any
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import FastAPI, Request, HTTPException, APIRouter, Query, Depends
+from fastapi import FastAPI, Request, HTTPException, APIRouter, Query
 from fastapi.responses import RedirectResponse, JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
 from pydantic import BaseModel, field_validator, EmailStr, constr
@@ -101,7 +102,8 @@ CONNECT_ARGS = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite")
 engine: Engine = create_engine(DATABASE_URL, future=True, pool_pre_ping=True, connect_args=CONNECT_ARGS)
 
 # ---------- Password hashing ----------
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Use bcrypt_sha256 to avoid backend 72-byte limits and Windows wheel quirks.
+pwd_context = CryptContext(schemes=["bcrypt_sha256"], deprecated="auto")
 
 def hash_password(raw: str) -> str:
     return pwd_context.hash(raw)
@@ -208,158 +210,101 @@ async def health():
         "db": DATABASE_URL,
     }
 
-# ---------- OAuth Routes ----------
-@app.get("/auth")
-async def auth(request: Request):
+# =====================================================================
+#                         GOOGLE OAUTH & EVENTS
+# =====================================================================
+
+oauth_router = APIRouter(tags=["google"])
+
+@oauth_router.get("/auth")
+def oauth_start():
+    flow = get_flow()
+    auth_url, state = flow.authorization_url(
+        access_type="offline",
+        include_granted_scopes="true",
+        prompt="consent",
+    )
+    # Store the state in session to validate callback (basic CSRF protection)
+    response = RedirectResponse(auth_url)
+    return response
+
+@oauth_router.get("/auth/callback")
+def oauth_callback(request: Request):
     try:
         flow = get_flow()
-        auth_url, state = flow.authorization_url(
-            prompt="consent",
-            include_granted_scopes="true",
-            access_type="offline",
-        )
-        request.session["oauth_state"] = state
-        return RedirectResponse(auth_url)
+        flow.fetch_token(authorization_response=str(request.url))
+        creds = flow.credentials
+        save_credentials(creds)
+        return JSONResponse({"message": "Authorized", "scopes": creds.scopes})
     except Exception as e:
-        import traceback; traceback.print_exc()
-        raise
+        raise HTTPException(status_code=401, detail=f"OAuth error: {e}")
 
-@app.get("/auth/callback")
-async def callback(request: Request):
-    sent_state = request.query_params.get("state")
-    saved_state = request.session.get("oauth_state")
-    if not sent_state or sent_state != saved_state:
-        raise HTTPException(status_code=400, detail="Invalid OAuth state")
-
-    flow = get_flow(state=sent_state)
-    flow.fetch_token(authorization_response=str(request.url))
-    creds = flow.credentials
-    save_credentials(creds)
-
-    service = build("calendar", "v3", credentials=creds)
-
-    start = datetime.now(timezone.utc) + timedelta(hours=1)
-    end = start + timedelta(hours=1)
-    event = {
-        "summary": "Study Session: Math",
-        "start": {"dateTime": start.isoformat()},
-        "end": {"dateTime": end.isoformat()},
-    }
-
+@oauth_router.get("/me/events")
+def list_events():
     try:
-        event_result = service.events().insert(calendarId="primary", body=event).execute()
+        service = get_service()
+        now = datetime.now(timezone.utc).isoformat()
+        results = service.events().list(
+            calendarId="primary",
+            timeMin=now,
+            maxResults=10,
+            singleEvents=True,
+            orderBy="startTime",
+        ).execute()
+        return results.get("items", [])
     except HttpError as e:
         raise HTTPException(status_code=e.resp.status, detail=str(e))
 
-    return JSONResponse(
-        {"message": "Event created", "event_link": event_result.get("htmlLink")}
-    )
-
-@app.get("/me/events")
-async def list_events():
-    service = get_service()
+@oauth_router.post("/events")
+def create_event(payload: EventCreate):
     try:
-        resp = (
-            service.events()
-            .list(
-                calendarId="primary",
-                maxResults=5,
-                singleEvents=True,
-                orderBy="startTime",
-                timeMin=datetime.now(timezone.utc).isoformat(),
-            )
-            .execute()
-        )
+        service = get_service()
+        event_body = {
+            "summary": payload.summary,
+            "description": payload.description,
+            "start": {"dateTime": payload.start.isoformat()},
+            "end": {"dateTime": payload.end.isoformat()},
+        }
+        event = service.events().insert(calendarId="primary", body=event_body).execute()
+        return {"id": event.get("id"), "htmlLink": event.get("htmlLink")}
     except HttpError as e:
         raise HTTPException(status_code=e.resp.status, detail=str(e))
 
-    return {"authorized": True, "events": resp.get("items", [])}
-
-@app.post("/events")
-async def create_event(payload: EventCreate):
-    service = get_service()
-    body = {
-        "summary": payload.summary,
-        "description": payload.description,
-        "start": {"dateTime": payload.start.isoformat()},
-        "end": {"dateTime": payload.end.isoformat()},
-    }
+@oauth_router.delete("/events/{event_id}")
+def delete_event(event_id: str):
     try:
-        result = service.events().insert(calendarId="primary", body=body).execute()
-    except HttpError as e:
-        raise HTTPException(status_code=e.resp.status, detail=str(e))
-    return {"id": result.get("id"), "link": result.get("htmlLink")}
-
-@app.delete("/events/{event_id}")
-async def delete_event(event_id: str):
-    service = get_service()
-    try:
+        service = get_service()
         service.events().delete(calendarId="primary", eventId=event_id).execute()
+        return {"deleted": True, "id": event_id}
     except HttpError as e:
+        # 404 when not found, 410 when already gone, etc.
         raise HTTPException(status_code=e.resp.status, detail=str(e))
-    return {"deleted": True, "id": event_id}
+
+app.include_router(oauth_router)
 
 # =====================================================================
-#                TEMPORARY DB SMOKE TEST ENDPOINTS (users)
+#                         TEST-DB HELPERS
 # =====================================================================
-
-def _get_user_table_columns(conn) -> List[str]:
-    """
-    Discover columns of the 'users' table at runtime so we can
-    adapt to UUID vs INT ids and optional columns.
-    """
-    if DATABASE_URL.startswith("sqlite"):
-        rows = conn.execute(text("PRAGMA table_info(users)")).all()
-        return [r[1] for r in rows]
-    rows = conn.execute(
-        text("""
-            SELECT column_name
-            FROM information_schema.columns
-            WHERE table_name = 'users'
-        """)
-    ).all()
-    return [r[0] for r in rows]
-
-class UserIn(BaseModel):
-    email: EmailStr
-    full_name: str
-    timezone: str = "UTC"
 
 db_router = APIRouter(prefix="/test-db", tags=["test-db"])
 
+def _get_user_table_columns(conn) -> List[str]:
+    if DATABASE_URL.startswith("sqlite"):
+        rows = conn.execute(text("PRAGMA table_info(users)")).all()
+        return [r[1] for r in rows]  # name at index 1
+    rows = conn.execute(text(
+        "SELECT column_name FROM information_schema.columns WHERE table_name = 'users'"
+    )).fetchall()
+    return [r[0] for r in rows]
+
 @db_router.post("/users")
-def create_user(payload: UserIn):
-    """
-    Inserts a row into 'users'.
-    - If 'id' is required (e.g., UUID PK with no default), we auto-generate one.
-    - If 'full_name' or 'timezone' are missing in the table, we omit them.
-    """
+def create_user(payload: Dict[str, Any]):
     with engine.begin() as conn:
         cols = set(_get_user_table_columns(conn))
-        data: Dict[str, Any] = {}
+        data = {k: v for k, v in payload.items() if k in cols}
 
-        if "email" not in cols:
-            raise HTTPException(500, detail="Table 'users' has no 'email' column. Check your migration.")
-        data["email"] = payload.email
-
-        if "full_name" in cols:
-            data["full_name"] = payload.full_name
-        if "timezone" in cols:
-            data["timezone"] = payload.timezone
-
-        needs_id = False
-        if "id" in cols:
-            try:
-                conn.exec_driver_sql("SAVEPOINT sp_test")
-                placeholders = ", ".join([f":{k}" for k in data.keys()])
-                columns = ", ".join(data.keys())
-                conn.execute(text(f"INSERT INTO users ({columns}) VALUES ({placeholders})"))
-                conn.exec_driver_sql("ROLLBACK TO SAVEPOINT sp_test")
-            except Exception:
-                needs_id = True
-                conn.exec_driver_sql("ROLLBACK TO SAVEPOINT sp_test")
-        if "id" in cols and needs_id:
-            data["id"] = str(uuid4())
+        if "id" in cols and "id" not in data:
+            data["id"] = str(uuid4())  # allow explicit id if needed
 
         placeholders = ", ".join([f":{k}" for k in data.keys()])
         columns = ", ".join(data.keys())
@@ -368,7 +313,7 @@ def create_user(payload: UserIn):
         except Exception as e:
             raise HTTPException(status_code=409, detail=str(e))
 
-    return {"ok": True, "email": payload.email}
+    return {"ok": True, "email": payload.get("email")}
 
 @db_router.get("/users")
 def list_users(limit: int = Query(10, ge=1, le=100)):
@@ -387,9 +332,11 @@ def list_users(limit: int = Query(10, ge=1, le=100)):
         if not select_cols:
             raise HTTPException(500, detail="Could not determine columns to select from 'users'.")
 
-        sql = f"SELECT {', '.join(select_cols)} FROM users ORDER BY ROWID DESC LIMIT :limit" \
-              if DATABASE_URL.startswith("sqlite") else \
-              f"SELECT {', '.join(select_cols)} FROM users ORDER BY 1 DESC LIMIT :limit"
+        sql = (
+            f"SELECT {', '.join(select_cols)} FROM users ORDER BY ROWID DESC LIMIT :limit"
+            if DATABASE_URL.startswith("sqlite")
+            else f"SELECT {', '.join(select_cols)} FROM users ORDER BY 1 DESC LIMIT :limit"
+        )
 
         rows = conn.execute(text(sql), {"limit": limit}).mappings().all()
         return {"count": len(rows), "items": list(rows)}
