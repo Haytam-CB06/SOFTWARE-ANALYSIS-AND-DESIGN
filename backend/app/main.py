@@ -23,6 +23,29 @@ from sqlalchemy.engine import Engine
 
 # Password hashing
 from passlib.context import CryptContext
+# backend/app/main.py
+from .db import init_engine, get_db
+from . import schemas
+# backend/app/main.py  (add/keep these)
+import os
+from fastapi import FastAPI
+
+from dotenv import load_dotenv
+load_dotenv()  # make sure DATABASE_URL is loaded
+
+from .db import init_engine, get_db
+
+app = FastAPI(title="SmartStudy API")
+
+@app.on_event("startup")
+def _startup():
+    # Initialize SQLAlchemy engine / session factory
+    init_engine()
+
+# (OPTIONAL) health check
+@app.get("/health")
+def health():
+    return {"ok": True}
 
 # ---------- Environment ----------
 load_dotenv()
@@ -127,23 +150,6 @@ def _table_has_column(conn, table: str, col: str) -> bool:
     ).fetchall()
     return len(rows) > 0
 
-def _ensure_password_hash_column():
-    with engine.begin() as conn:
-        # Create column if missing
-        if not _table_has_column(conn, "users", "password_hash"):
-            if DATABASE_URL.startswith("sqlite"):
-                # SQLite supports simple ADD COLUMN
-                conn.execute(text("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255)"))
-            else:
-                # Postgres: IF NOT EXISTS
-                conn.execute(text("ALTER TABLE IF EXISTS users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255)"))
-
-@app.on_event("startup")
-def _on_startup():
-    # Verify DB connectivity and ensure password_hash exists
-    with engine.connect() as conn:
-        conn.execute(text("SELECT 1"))
-    _ensure_password_hash_column()
 
 # ---------- Google helpers ----------
 def get_flow(state: Optional[str] = None) -> Flow:
@@ -426,3 +432,32 @@ def login(payload: LoginIn):
     return {"message": "login ok"}
 
 app.include_router(auth_router)
+
+
+# ------------------------------
+# Validation-only endpoints (for your Sprint-1 tasks)
+# ------------------------------
+# --- safe no-op stub (prevents NameError in signup)
+def _ensure_password_hash_column():
+    # previously used to alter DB schema; now disabled
+    return None
+
+@app.post("/_validate/auth/signup", tags=["_validate"])
+def _validate_signup(payload: schemas.UserCreate):
+    return {"ok": True}
+
+@app.post("/_validate/auth/login", tags=["_validate"])
+def _validate_login(payload: schemas.LoginIn):
+    return {"ok": True}
+
+@app.post("/_validate/subjects", tags=["_validate"])
+def _validate_subject(payload: schemas.SubjectCreate):
+    return {"ok": True}
+
+@app.post("/_validate/preferences", tags=["_validate"])
+def _validate_preferences(payload: schemas.PreferencesUpdate):
+    return {"ok": True}
+
+@app.post("/_validate/sessions", tags=["_validate"])
+def _validate_sessions(payload: schemas.SessionCreate):
+    return {"ok": True}
