@@ -1,7 +1,8 @@
 from sqlalchemy.orm import declarative_base, declared_attr
 from sqlalchemy import Column, DateTime, text
 from sqlalchemy.dialects.postgresql import UUID
-
+from app.models.base import Base
+target_metadata = Base.metadata
 Base = declarative_base()
 
 class UUIDPkMixin:

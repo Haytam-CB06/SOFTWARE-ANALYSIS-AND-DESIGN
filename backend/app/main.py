@@ -1,6 +1,6 @@
 # backend/app/main.py
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date
 from typing import Optional, List, Dict, Any
 from pathlib import Path
 from uuid import uuid4
@@ -358,12 +358,22 @@ class SignUpIn(BaseModel):
     full_name: constr(strip_whitespace=True, min_length=1)
     password: constr(min_length=6)
     timezone: str = "UTC"
+    gender: constr( max_length=1)  
+    date_of_birth: date
 
 class LoginIn(BaseModel):
     email: EmailStr
     password: constr(min_length=6)
 
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
+
+class userdata(BaseModel):
+    email: str
+    password: str
+    full_name: str
+    timezone:  str 
+    gender:  str
+    date_of_birth: date
 
 @auth_router.post("/signup")
 def signup(payload: SignUpIn):
@@ -386,11 +396,15 @@ def signup(payload: SignUpIn):
         }
         if "full_name" in cols:
             data["full_name"] = payload.full_name
+        if "date_of_birth" in cols:
+            data["date_of_birth"] = payload.date_of_birth
+        if "gender" in cols:
+            data["gender"] = payload.gender
         if "timezone" in cols:
             data["timezone"] = payload.timezone
         if "password_hash" in cols:
             data["password_hash"] = hash_password(payload.password)
-
+        print(cols)
         # handle id if necessary
         if "id" in cols:
             try:
