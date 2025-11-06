@@ -331,7 +331,7 @@ def list_users(limit: int = Query(10, ge=1, le=100)):
         elif DATABASE_URL.startswith("sqlite"):
             select_cols.append("rowid AS id")
 
-        for candidate in ["email", "full_name", "timezone"]:
+        for candidate in ["email", "full_name","timezone","gender","date_of_birth"]:
             if candidate in cols:
                 select_cols.append(candidate)
 
