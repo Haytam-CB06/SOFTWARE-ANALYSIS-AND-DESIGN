@@ -2,7 +2,7 @@ import uuid
 from sqlalchemy import Column, String, DateTime, ForeignKey, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-from app.db.base import Base
+from app.models.base import Base
 
 
 class User(Base):
@@ -15,8 +15,8 @@ class User(Base):
     username = Column(String(50), unique=True, nullable=True)  # opsiyonel
     email = Column(Text, nullable=False, unique=True)
     full_name = Column(Text, nullable=True)
-    gender = Column(Text, nullable=True)
-    date_of_birth = Column(Text, nullable=True)
+    gender = Column(Text, nullable=False)
+    date_of_birth = Column(Text, nullable=False)
     timezone = Column(Text, nullable=False, default="UTC")
     password_hash = Column(String(255), nullable=False)
 

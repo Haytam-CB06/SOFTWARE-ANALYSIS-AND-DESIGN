@@ -8,7 +8,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     full_name: Optional[constr(strip_whitespace=True, min_length=1, max_length=100)] = None
     password: constr(min_length=8, max_length=128)
-
+    
     @field_validator("password")
     @classmethod
     def strong_pwd(cls, v: str) -> str:

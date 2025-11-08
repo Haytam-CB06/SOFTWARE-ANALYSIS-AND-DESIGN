@@ -1,10 +1,10 @@
 from sqlalchemy.orm import declarative_base, declared_attr
 from sqlalchemy import Column, DateTime, text
 from sqlalchemy.dialects.postgresql import UUID
-from app.models.base import Base
-target_metadata = Base.metadata
-Base = declarative_base()
+#from app.models.base import Base
 
+Base = declarative_base()
+target_metadata = Base.metadata
 class UUIDPkMixin:
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
 
