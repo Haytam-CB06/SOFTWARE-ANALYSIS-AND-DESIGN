@@ -1,7 +1,8 @@
 import uuid
 from sqlalchemy import Column, Text, DateTime
 from sqlalchemy.dialects.postgresql import UUID
-from .base import Base
+from app.db import Base
+
 
 class ActivityLog(Base):
     __tablename__ = "activity_log"
@@ -13,3 +14,4 @@ class ActivityLog(Base):
     entity_id = Column(UUID(as_uuid=True))
     details = Column(Text)                           # ✅ changed
     created_at = Column(DateTime(timezone=True), nullable=False)
+
