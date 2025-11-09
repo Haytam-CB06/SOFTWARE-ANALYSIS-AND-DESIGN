@@ -3,7 +3,7 @@ from app.models.subject import Subject
 from app.models.study_session import StudySession
 from app.models.class_meeting import ClassMeeting
 from app.models.goals import Goal
-from app.models.preferences import Preference
+from app.models.preferences import Preferences
 from app.models.availability import AvailabilityWindow
 from app.models.assessment import Assessment
 from app.models.calendar_account import CalendarAccount
@@ -18,7 +18,7 @@ __all__ = [
     "StudySession",
     "ClassMeeting",
     "Goal",
-    "Preference",
+    "Preferences",
     "AvailabilityWindow",
     "Assessment",
     "CalendarAccount",
@@ -27,3 +27,4 @@ __all__ = [
     "Notification",
     "SessionFeedback",
 ]
+
