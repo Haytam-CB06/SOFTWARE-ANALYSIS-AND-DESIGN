@@ -2,7 +2,7 @@ import uuid
 from sqlalchemy import Column, String, DateTime, ForeignKey, Text, func, Date
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-from app.db.base import Base
+from app.db import Base
 from sqlalchemy import Enum
 from .subject import Subject
 
@@ -18,7 +18,7 @@ class User(Base):
     full_name = Column(Text, nullable=True)
     gender = Column(Enum('Female', 'Male', 'Other',
                     name='gender_enum', native_enum=False), nullable=True)
-    date_of_birth = Column(Date, nullable = False)
+    date_of_birth = Column(Date, nullable=False)
     timezone = Column(Text, nullable=False, default="UTC")
     password_hash = Column(String(255), nullable=False)
 
