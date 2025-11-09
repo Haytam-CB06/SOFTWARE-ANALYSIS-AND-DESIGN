@@ -1,12 +1,18 @@
-from sqlalchemy import Column, SmallInteger, Time
+import uuid
+from sqlalchemy import Column, ForeignKey, String, Text, DateTime
 from sqlalchemy.dialects.postgresql import UUID
-from .base import Base
+from sqlalchemy.sql import func
+from app.db import Base  # <-- fix: import from .base
 
-class Preferences(Base):
-    __tablename__ = "preferences"
-    user_id = Column(UUID(as_uuid=True), primary_key=True)
-    default_session_minutes = Column(SmallInteger, nullable=False, default=50)
-    daily_cap_minutes       = Column(SmallInteger, nullable=False, default=240)
-    weekly_cap_minutes      = Column(SmallInteger, nullable=False, default=1200)
-    quiet_hours_start       = Column(Time)
-    quiet_hours_end         = Column(Time)
+
+class SessionFeedback(Base):
+    __tablename__ = "session_feedback"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    session_id = Column(UUID(as_uuid=True), ForeignKey(
+        "study_sessions.id"), nullable=False)
+    # e.g., "done" | "partial" | "skipped" (or keep your labels)
+    rating = Column(String(10), nullable=False)
+    comments = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
