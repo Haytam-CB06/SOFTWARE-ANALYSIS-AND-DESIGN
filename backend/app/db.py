@@ -3,11 +3,31 @@ import os
 from contextlib import contextmanager
 from typing import Generator
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine, Column, DateTime, text
+from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.dialects.postgresql import UUID
+
+# ==================== BASE & MIXINS ====================
+Base = declarative_base()
+
+
+class UUIDPkMixin:
+    """Mixin providing UUID primary key with server-side generation."""
+    id = Column(UUID(as_uuid=True), primary_key=True,
+                server_default=text("gen_random_uuid()"))
+
+
+class TimestampMixin:
+    """Mixin providing created_at and updated_at timestamps."""
+    created_at = Column(DateTime(timezone=True),
+                        nullable=False, server_default=text("now()"))
+    updated_at = Column(DateTime(timezone=True),
+                        nullable=False, server_default=text("now()"))
+
 
 _ENGINE = None
 _SessionLocal = None
+
 
 def init_engine() -> None:
     """Initialize global engine + session factory from DATABASE_URL."""
@@ -32,11 +52,13 @@ def init_engine() -> None:
         future=True,
     )
 
+
 def get_session():
     """Return a new SQLAlchemy Session. Use this in scripts."""
     if _SessionLocal is None:
         raise RuntimeError("DB not initialized. Call init_engine() first.")
     return _SessionLocal()
+
 
 @contextmanager
 def session_scope():
@@ -52,6 +74,8 @@ def session_scope():
         sess.close()
 
 # ---------- FastAPI dependency ----------
+
+
 def get_db() -> Generator:
     """Yield a Session per-request. FastAPI will close it afterward."""
     if _SessionLocal is None:
