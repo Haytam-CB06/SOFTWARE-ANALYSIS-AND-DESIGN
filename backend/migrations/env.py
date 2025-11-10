@@ -1,9 +1,7 @@
 """Alembic environment configuration."""
-
 import sys
 from pathlib import Path
 from logging.config import fileConfig
-
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from alembic import context
@@ -20,7 +18,7 @@ print("=" * 50)
 # SATIR 2: app.db.base'i import et
 print("STEP 2: Importing Base from app.db.base")
 try:
-    from app.db.base import Base
+    from app.models.base import Base
     print("  ✓ Base imported successfully")
 except ImportError as e:
     print(f"  ✗ FAILED: {e}")
@@ -46,7 +44,9 @@ print("=" * 50)
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
     print("STEP 5: Running offline migrations")
-    url = config.get_main_option("sqlalchemy.url")
+    import os
+    url = os.getenv("DATABASE_URL")
+    config.set_main_option("sqlalchemy.url", url)
     context.configure(
         url=url,
         target_metadata=target_metadata,

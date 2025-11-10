@@ -1,10 +1,8 @@
 import uuid
-from sqlalchemy import Column, String, DateTime, ForeignKey, Text, func, Date
+from sqlalchemy import Column, String, DateTime, ForeignKey, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-from app.db import Base
-from sqlalchemy import Enum
-from .subject import Subject
+from app.models.base import Base
 
 
 class User(Base):
@@ -13,23 +11,24 @@ class User(Base):
     # UUID primary key
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
+    # Temel bilgiler
     username = Column(String(50), unique=True, nullable=True)  # opsiyonel
     email = Column(Text, nullable=False, unique=True)
     full_name = Column(Text, nullable=True)
-    gender = Column(Enum('Female', 'Male', 'Other',
-                    name='gender_enum', native_enum=False), nullable=True)
-    date_of_birth = Column(Date, nullable=False)
+    gender = Column(Text, nullable=False)
+    date_of_birth = Column(Text, nullable=False)
     timezone = Column(Text, nullable=False, default="UTC")
     password_hash = Column(String(255), nullable=False)
 
+    # Tarihler
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True),
                         default=func.now(), onupdate=func.now())
 
-    subjects = relationship(
-        "Subject", back_populates="user", cascade="all, delete")
+    # İlişkiler
     login_history = relationship(
-        "LoginHistory", back_populates="user", cascade="all, delete")
+        "LoginHistory", back_populates="user", cascade="all, delete"
+    )
 
     def __repr__(self):
         return f"<User(username='{self.username}', email='{self.email}')>"
