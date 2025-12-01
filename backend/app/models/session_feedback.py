@@ -5,7 +5,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.types import DateTime
 from sqlalchemy.sql import text
 
-from app.db import Base
+from app.models.base import Base
 
 
 class SessionFeedback(Base):

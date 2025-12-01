@@ -5,7 +5,6 @@ from typing import Generator
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from app.models.base import Base  # re-export Base so old imports still work
 
 _ENGINE = None
 _SessionLocal = None
