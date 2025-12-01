@@ -1,52 +1,34 @@
-"""Alembic environment configuration."""
-import sys
-from pathlib import Path
+"""Minimal Alembic env.py that does NOT import application models.
+
+This is enough to run `alembic upgrade head` using manually-written
+migration scripts. Autogenerate is disabled (target_metadata = None).
+"""
+
 from logging.config import fileConfig
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+
 from alembic import context
+from sqlalchemy import engine_from_config, pool
 
-# SATIR 1: Backend klasörünü PATH'e ekle
-print("=" * 50)
-print("STEP 1: Adding backend to sys.path")
-backend_dir = Path(__file__).resolve().parent.parent
-print(f"  backend_dir: {backend_dir}")
-sys.path.insert(0, str(backend_dir))
-print(f"  sys.path[0]: {sys.path[0]}")
-print("=" * 50)
-
-# SATIR 2: app.db.base'i import et
-print("STEP 2: Importing Base from app.db.base")
-try:
-    from app.models.base import Base
-    print("  ✓ Base imported successfully")
-except ImportError as e:
-    print(f"  ✗ FAILED: {e}")
-    sys.exit(1)
-print("=" * 50)
-
-# SATIR 3: Alembic config
-print("STEP 3: Setting up Alembic config")
+# ---------------------------------------------------------------------------
+# Alembic Config object
+# ---------------------------------------------------------------------------
 config = context.config
 
+# Interpret the config file for Python logging.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
-    print(f"  ✓ Config file loaded: {config.config_file_name}")
-print("=" * 50)
 
-# SATIR 4: Target metadata
-print("STEP 4: Setting target_metadata")
-target_metadata = Base.metadata
-print(f"  ✓ target_metadata set: {target_metadata}")
-print("=" * 50)
+# ---------------------------------------------------------------------------
+# We are NOT importing Base or any models here.
+# This avoids the "Table 'study_sessions' is already defined" error.
+# Autogenerate will not work, but manual migrations run fine.
+# ---------------------------------------------------------------------------
+target_metadata = None
 
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
-    print("STEP 5: Running offline migrations")
-    import os
-    url = os.getenv("DATABASE_URL")
-    config.set_main_option("sqlalchemy.url", url)
+    url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -60,30 +42,23 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
-    print("STEP 5: Running online migrations")
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        config.get_section(config.config_ini_section),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
         )
 
         with context.begin_transaction():
             context.run_migrations()
 
 
-print("FINAL: Checking if offline or online mode")
 if context.is_offline_mode():
-    print("  → OFFLINE MODE")
     run_migrations_offline()
 else:
-    print("  → ONLINE MODE")
     run_migrations_online()
-
-print("=" * 50)
-print("✓ Migration complete!")
-print("=" * 50)
