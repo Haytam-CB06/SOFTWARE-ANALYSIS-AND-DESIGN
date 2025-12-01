@@ -10,6 +10,7 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
 from pydantic import BaseModel, field_validator, EmailStr, constr
 from dotenv import load_dotenv
+from app.routers import chat as chat_router
 
 # Google APIs
 from google_auth_oauthlib.flow import Flow
@@ -287,7 +288,7 @@ def delete_event(event_id: str):
         raise HTTPException(status_code=e.resp.status, detail=str(e))
 
 app.include_router(oauth_router)
-
+app.include_router(chat_router.router)
 # =====================================================================
 #                         TEST-DB HELPERS
 # =====================================================================
