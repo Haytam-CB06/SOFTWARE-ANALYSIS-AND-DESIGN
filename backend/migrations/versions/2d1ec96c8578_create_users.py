@@ -1,7 +1,7 @@
 """create users
 
 Revision ID: 2d1ec96c8578
-Revises: 
+Revises: d6a2ae1ee15b
 Create Date: 2025-10-21 20:58:37.927154
 
 """

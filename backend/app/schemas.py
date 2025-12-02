@@ -68,3 +68,19 @@ class UserOut(BaseModel):
     email: EmailStr
     full_name: Optional[str] = None
     timezone: str
+ 
+ #------------reset password schema ----------
+
+class ResetRequest(BaseModel):
+    email: EmailStr
+
+
+class VerifyCode(BaseModel):
+    email: EmailStr
+    code: str
+
+
+class ResetPassword(BaseModel):
+    email: EmailStr
+    code: str
+    new_password: str
