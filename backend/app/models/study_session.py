@@ -2,7 +2,7 @@ import uuid
 from sqlalchemy import Column, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.types import DateTime, Boolean
-from app.db import Base
+from app.models.base import Base
 
 
 class StudySession(Base):

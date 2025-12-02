@@ -1,21 +1,25 @@
 import uuid
-from sqlalchemy import Column, Text
+
+from sqlalchemy import Column, Text, String, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.types import DateTime, Boolean
-from app.db import Base
+from sqlalchemy.types import DateTime
+from sqlalchemy.sql import text
+
+from app.models.base import Base
 
 
-class StudySession(Base):
-    __tablename__ = "study_sessions"
+class SessionFeedback(Base):
+    __tablename__ = "session_feedback"
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), nullable=False)
-    subject_id = Column(UUID(as_uuid=True))         # keep FK simple for now
-    # 'generated'|'manual'|'edited'
-    source = Column(Text, nullable=False, default="planned")
-    start_at = Column(DateTime(timezone=True), nullable=False)
-    end_at = Column(DateTime(timezone=True), nullable=False)
-    # 'planned'|'completed'|'skipped'
-    status = Column(Text, nullable=False, default="planned")
-    locked = Column(Boolean, nullable=False, default=False)
-    notes = Column(Text)
+    # links to study_sessions.id
+    session_id = Column(UUID(as_uuid=True), ForeignKey("study_sessions.id"), nullable=False)
 
+    # keep in sync with migration: rating VARCHAR(10), comments TEXT, created_at timestamptz default now()
+    rating = Column(String(10), nullable=False)
+    comments = Column(Text, nullable=True)
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=text("now()"),
+        nullable=True,
+    )

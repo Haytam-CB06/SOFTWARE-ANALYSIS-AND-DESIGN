@@ -1,6 +1,6 @@
 from sqlalchemy import Column, SmallInteger, Time
 from sqlalchemy.dialects.postgresql import UUID
-from app.db import Base
+from app.models.base import Base
 
 
 class Preferences(Base):
