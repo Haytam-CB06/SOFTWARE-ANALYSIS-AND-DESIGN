@@ -1,14 +1,25 @@
 import uuid
-from sqlalchemy import Column, ForeignKey, String, Text, DateTime
+
+from sqlalchemy import Column, Text, String, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.sql import func
-from .base import Base  # <-- fix: import from .base
+from sqlalchemy.types import DateTime
+from sqlalchemy.sql import text
+
+from app.models.base import Base
+
 
 class SessionFeedback(Base):
     __tablename__ = "session_feedback"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    # links to study_sessions.id
     session_id = Column(UUID(as_uuid=True), ForeignKey("study_sessions.id"), nullable=False)
-    rating = Column(String(10), nullable=False)  # e.g., "done" | "partial" | "skipped" (or keep your labels)
-    comments = Column(Text)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # keep in sync with migration: rating VARCHAR(10), comments TEXT, created_at timestamptz default now()
+    rating = Column(String(10), nullable=False)
+    comments = Column(Text, nullable=True)
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=text("now()"),
+        nullable=True,
+    )

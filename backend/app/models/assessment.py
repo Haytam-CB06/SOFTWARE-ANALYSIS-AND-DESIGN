@@ -1,7 +1,8 @@
 import uuid
 from sqlalchemy import Column, Text, Numeric, DateTime
 from sqlalchemy.dialects.postgresql import UUID
-from .base import Base
+from app.models.base import Base
+
 
 class Assessment(Base):
     __tablename__ = "assessments"
@@ -11,3 +12,4 @@ class Assessment(Base):
     title = Column(Text, nullable=False)
     due_at = Column(DateTime(timezone=True), nullable=False)
     estimate_hours = Column(Numeric(5, 2))
+

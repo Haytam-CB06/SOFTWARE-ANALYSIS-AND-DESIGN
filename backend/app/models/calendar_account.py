@@ -1,7 +1,8 @@
 import uuid
 from sqlalchemy import Column, Text
 from sqlalchemy.dialects.postgresql import UUID
-from .base import Base
+from app.models.base import Base
+
 
 class CalendarAccount(Base):
     __tablename__ = "calendar_accounts"
@@ -9,6 +10,8 @@ class CalendarAccount(Base):
     user_id = Column(UUID(as_uuid=True), nullable=False)
     provider = Column(Text, nullable=False)          # 'google' | 'microsoft'
     account_email = Column(Text, nullable=False)
-    refresh_token_ref = Column(Text)                 # reference/handle to secret store
+    # reference/handle to secret store
+    refresh_token_ref = Column(Text)
     scope = Column(Text)
-    status = Column(Text, nullable=False, default="active")  # 'active' | 'revoked' | 'error'
+    # 'active' | 'revoked' | 'error'
+    status = Column(Text, nullable=False, default="active")
