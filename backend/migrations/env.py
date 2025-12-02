@@ -6,6 +6,7 @@ from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from alembic import context
 
+
 # SATIR 1: Backend klasörünü PATH'e ekle
 print("=" * 50)
 print("STEP 1: Adding backend to sys.path")

@@ -126,7 +126,10 @@ engine: Engine = create_engine(DATABASE_URL, future=True, pool_pre_ping=True, co
 
 # ---------- Password hashing ----------
 # Use bcrypt_sha256 to avoid backend 72-byte limits and Windows wheel quirks.
-pwd_context = CryptContext(schemes=["bcrypt_sha256"], deprecated="auto")
+pwd_context = CryptContext(
+    schemes=["bcrypt_sha256", "bcrypt"],  # try bcrypt as a fallback
+    deprecated="auto"
+)
 
 def hash_password(raw: str) -> str:
     return pwd_context.hash(raw)
@@ -446,6 +449,116 @@ def login(payload: LoginIn):
     return {"message": "login ok"}
 
 app.include_router(auth_router)
+ #=============================== reset password =====================================
+
+
+import smtplib
+from email.mime.text import MIMEText
+from random import randint
+from fastapi import Depends, HTTPException
+from sqlalchemy.orm import Session
+from datetime import datetime, timedelta, timezone
+
+from .models.user import User
+from .db import get_db
+from app.schemas import ResetRequest, VerifyCode, ResetPassword
+from .main import hash_password
+
+from datetime import datetime, timedelta, timezone
+
+def is_code_expired(created_at: datetime, minutes: int = 10):
+    if not created_at:
+        return True
+    return datetime.now(timezone.utc) > created_at + timedelta(minutes=minutes)
+
+SMTP_HOST = "smtp.gmail.com"
+SMTP_PORT = 587
+SMTP_EMAIL = "haytamcharafi@gmail.com"
+SMTP_PASSWORD = "eyjjoqnkdrqlhbza"  # NO SPACES
+
+
+def send_reset_email(email: str, code: str):
+    body = f"""
+    Hello,
+
+    You requested a password reset. Use the code below to reset your password:
+
+        {code}
+
+    This code will expire in 10 minutes.
+
+    
+    Thanks,
+    SMART STUDYING TIMETABLE GENERATOR 
+    """
+    msg = MIMEText(f"{body}")
+    msg["From"] = SMTP_EMAIL
+    msg["To"] = email
+    msg["Subject"] = "Password Reset Code"
+
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        server.starttls()
+        server.login(SMTP_EMAIL, SMTP_PASSWORD)
+        server.send_message(msg)
+
+
+# 1️⃣ REQUEST CODE
+@app.post("/request_reset")
+def request_reset(data: ResetRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == data.email).first()
+    if not user:
+        raise HTTPException(404, "Email not found")
+
+    code = str(randint(100000, 999999))
+
+    user.reset_code = code
+    user.reset_code_created_at = datetime.now(timezone.utc)
+    db.commit()
+
+    send_reset_email(user.email, code)
+
+    return {"message": "Reset code sent"}
+
+
+# 2️⃣ VERIFY CODE
+@app.post("/verify_code")
+def verify_code(data: VerifyCode, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == data.email).first()
+    if not user:
+        raise HTTPException(404, "Email not found")
+
+    # Check if code expired
+    if is_code_expired(user.reset_code_created_at):
+        raise HTTPException(400, "Reset code expired, request a new one")
+
+    if user.reset_code != data.code:
+        raise HTTPException(400, "Invalid reset code")
+
+    return {"message": "Code verified successfully"}
+
+# 3️⃣ RESET PASSWORD
+@app.post("/reset_password")
+def reset_password(data: ResetPassword, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == data.email).first()
+    if not user:
+        raise HTTPException(404, "Email not found")
+
+    # code expired?
+    if is_code_expired(user.reset_code_created_at):
+        raise HTTPException(400, "Reset code expired, request a new one")
+
+    # code wrong?
+    if user.reset_code != data.code:
+        raise HTTPException(400, "Invalid reset code")
+
+    # update password
+    user.password_hash = hash_password(data.new_password)
+    user.reset_code = None
+    user.reset_code_created_at = None
+
+    db.commit()
+    return {"message": "Password reset successful"}
+
 
 
 # ------------------------------
