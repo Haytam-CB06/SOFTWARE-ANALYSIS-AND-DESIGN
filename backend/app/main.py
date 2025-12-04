@@ -1,3 +1,5 @@
+from app.routers import timetable  # if not already added
+from app.routers import notifications
 # backend/app/main.py
 import os
 from datetime import datetime, timedelta, timezone, date
@@ -449,6 +451,9 @@ def login(payload: LoginIn):
     return {"message": "login ok"}
 
 app.include_router(auth_router)
+# domain routers
+app.include_router(timetable.router)
+app.include_router(notifications.router)
  #=============================== reset password =====================================
 
 
