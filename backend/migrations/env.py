@@ -7,7 +7,6 @@ from sqlalchemy import pool
 from alembic import context
 
 
-# SATIR 1: Backend klasörünü PATH'e ekle
 print("=" * 50)
 print("STEP 1: Adding backend to sys.path")
 backend_dir = Path(__file__).resolve().parent.parent
@@ -16,17 +15,16 @@ sys.path.insert(0, str(backend_dir))
 print(f"  sys.path[0]: {sys.path[0]}")
 print("=" * 50)
 
-# SATIR 2: app.db.base'i import et
-print("STEP 2: Importing Base from app.db.base")
+print("STEP 2: Importing Base from app.models.workspace")
 try:
-    from app.models.base import Base
+    from app.models.workspace import Base
     print("  ✓ Base imported successfully")
 except ImportError as e:
     print(f"  ✗ FAILED: {e}")
     sys.exit(1)
 print("=" * 50)
 
-# SATIR 3: Alembic config
+# STEP 3: Alembic config
 print("STEP 3: Setting up Alembic config")
 config = context.config
 
@@ -35,7 +33,7 @@ if config.config_file_name is not None:
     print(f"  ✓ Config file loaded: {config.config_file_name}")
 print("=" * 50)
 
-# SATIR 4: Target metadata
+# STEP 4: Target metadata
 print("STEP 4: Setting target_metadata")
 target_metadata = Base.metadata
 print(f"  ✓ target_metadata set: {target_metadata}")

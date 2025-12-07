@@ -9,6 +9,7 @@ from sqlalchemy.orm import sessionmaker
 _ENGINE = None
 _SessionLocal = None
 
+
 def init_engine() -> None:
     """Initialize global engine + session factory from DATABASE_URL."""
     global _ENGINE, _SessionLocal
@@ -31,12 +32,16 @@ def init_engine() -> None:
         autocommit=False,
         future=True,
     )
+    from app.models.workspace import Base
+    Base.metadata.create_all(bind=_ENGINE)
+
 
 def get_session():
     """Return a new SQLAlchemy Session. Use this in scripts."""
     if _SessionLocal is None:
         raise RuntimeError("DB not initialized. Call init_engine() first.")
     return _SessionLocal()
+
 
 @contextmanager
 def session_scope():
@@ -52,6 +57,8 @@ def session_scope():
         sess.close()
 
 # ---------- FastAPI dependency ----------
+
+
 def get_db() -> Generator:
     """Yield a Session per-request. FastAPI will close it afterward."""
     if _SessionLocal is None:

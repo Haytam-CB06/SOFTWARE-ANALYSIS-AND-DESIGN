@@ -1,3 +1,13 @@
+from app.schemas import ResetRequest, VerifyCode, ResetPassword
+from .db import get_db
+from .models.user import User
+from datetime import datetime, timedelta, timezone
+from sqlalchemy.orm import Session
+from fastapi import Depends, HTTPException
+from random import randint
+from email.mime.text import MIMEText
+import smtplib
+from app.routers import workspaces, members, permission, chat
 from app.routers import timetable  # if not already added
 from app.routers import notifications
 # backend/app/main.py
@@ -35,24 +45,22 @@ from fastapi import FastAPI
 from dotenv import load_dotenv
 load_dotenv()  # make sure DATABASE_URL is loaded
 
-from .db import init_engine, get_db
 
 app = FastAPI(title="SmartStudy API")
+
 
 @app.on_event("startup")
 def _startup():
     # Initialize SQLAlchemy engine / session factory
     init_engine()
+    from models.workspace import Base
+    from db import _ENGINE
+    Base.metadata.create_all(bind=_ENGINE)
 
-# (OPTIONAL) health check
-@app.get("/health")
-def health():
-    return {"ok": True}
 
 # ---------- Environment ----------
 load_dotenv()
 
-app = FastAPI(title="Calendar API + Auth")
 
 app.add_middleware(
     SessionMiddleware,
@@ -60,9 +68,12 @@ app.add_middleware(
 )
 
 # Allow HTTP for local dev (don't use in production)
-os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = os.getenv("OAUTHLIB_INSECURE_TRANSPORT", "1")
+os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = os.getenv(
+    "OAUTHLIB_INSECURE_TRANSPORT", "1")
 
 # ---------- Robust path resolution ----------
+
+
 def project_root_from_this_file(levels_up: int = 3) -> Path:
     """
     Resolve project root by walking up from this file location.
@@ -73,6 +84,7 @@ def project_root_from_this_file(levels_up: int = 3) -> Path:
     for _ in range(levels_up):
         root = root.parent
     return root
+
 
 def resolve_existing_path(env_value: Optional[str], default_name: str) -> Path:
     """
@@ -107,24 +119,31 @@ def resolve_existing_path(env_value: Optional[str], default_name: str) -> Path:
     # Nothing existed; return the last candidate (project-root default)
     return candidates[-1].resolve()
 
-# ---------- Config (with safe defaults) ----------
-_scopes_raw = os.getenv("GOOGLE_SCOPES", "https://www.googleapis.com/auth/calendar")
-SCOPES: List[str] = [s for s in (x.strip() for x in _scopes_raw.replace(",", " ").split()) if s]
 
-REDIRECT_URI = os.getenv("OAUTH_REDIRECT_URI", "http://localhost:8000/auth/callback")
+# ---------- Config (with safe defaults) ----------
+_scopes_raw = os.getenv(
+    "GOOGLE_SCOPES", "https://www.googleapis.com/auth/calendar")
+SCOPES: List[str] = [s for s in (
+    x.strip() for x in _scopes_raw.replace(",", " ").split()) if s]
+
+REDIRECT_URI = os.getenv("OAUTH_REDIRECT_URI",
+                         "http://localhost:8000/auth/callback")
 
 CLIENT_SECRETS_FILE = resolve_existing_path(
     os.getenv("GOOGLE_CLIENT_SECRETS_FILE"),
     "client_secret.json",
 )
 
-TOKEN_FILE = (project_root_from_this_file(3) / os.getenv("GOOGLE_TOKEN_FILE", "token.json")).resolve()
+TOKEN_FILE = (project_root_from_this_file(
+    3) / os.getenv("GOOGLE_TOKEN_FILE", "token.json")).resolve()
 TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 # ---------- DB engine ----------
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
-CONNECT_ARGS = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
-engine: Engine = create_engine(DATABASE_URL, future=True, pool_pre_ping=True, connect_args=CONNECT_ARGS)
+CONNECT_ARGS = {"check_same_thread": False} if DATABASE_URL.startswith(
+    "sqlite") else {}
+engine: Engine = create_engine(
+    DATABASE_URL, future=True, pool_pre_ping=True, connect_args=CONNECT_ARGS)
 
 # ---------- Password hashing ----------
 # Use bcrypt_sha256 to avoid backend 72-byte limits and Windows wheel quirks.
@@ -133,13 +152,17 @@ pwd_context = CryptContext(
     deprecated="auto"
 )
 
+
 def hash_password(raw: str) -> str:
     return pwd_context.hash(raw)
+
 
 def verify_password(raw: str, hashed: str) -> bool:
     return pwd_context.verify(raw, hashed)
 
 # ---------- Startup checks ----------
+
+
 def _table_has_column(conn, table: str, col: str) -> bool:
     if DATABASE_URL.startswith("sqlite"):
         rows = conn.execute(text(f"PRAGMA table_info({table})")).all()
@@ -170,22 +193,28 @@ def get_flow(state: Optional[str] = None) -> Flow:
         state=state,
     )
 
+
 def load_credentials() -> Optional[Credentials]:
     if TOKEN_FILE.exists():
         return Credentials.from_authorized_user_file(str(TOKEN_FILE), SCOPES)
     return None
 
+
 def save_credentials(creds: Credentials):
     TOKEN_FILE.write_text(creds.to_json(), encoding="utf-8")
+
 
 def get_service(creds: Optional[Credentials] = None):
     if creds is None:
         creds = load_credentials()
     if not creds:
-        raise HTTPException(status_code=401, detail="Not authorized. Start at /auth")
+        raise HTTPException(
+            status_code=401, detail="Not authorized. Start at /auth")
     return build("calendar", "v3", credentials=creds)
 
 # ---------- Models for requests ----------
+
+
 class EventCreate(BaseModel):
     summary: str
     description: Optional[str] = None
@@ -196,7 +225,8 @@ class EventCreate(BaseModel):
     @classmethod
     def must_be_timezone_aware(cls, v: datetime) -> datetime:
         if v.tzinfo is None or v.tzinfo.utcoffset(v) is None:
-            raise ValueError("datetime must be timezone-aware (e.g., 2025-10-10T10:00:00+03:00)")
+            raise ValueError(
+                "datetime must be timezone-aware (e.g., 2025-10-10T10:00:00+03:00)")
         return v
 
     @field_validator("end")
@@ -208,6 +238,8 @@ class EventCreate(BaseModel):
         return v
 
 # ---------- Health ----------
+
+
 @app.get("/health")
 async def health():
     return {
@@ -227,6 +259,7 @@ async def health():
 
 oauth_router = APIRouter(tags=["google"])
 
+
 @oauth_router.get("/auth")
 def oauth_start():
     flow = get_flow()
@@ -239,6 +272,7 @@ def oauth_start():
     response = RedirectResponse(auth_url)
     return response
 
+
 @oauth_router.get("/auth/callback")
 def oauth_callback(request: Request):
     try:
@@ -249,6 +283,7 @@ def oauth_callback(request: Request):
         return JSONResponse({"message": "Authorized", "scopes": creds.scopes})
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"OAuth error: {e}")
+
 
 @oauth_router.get("/me/events")
 def list_events():
@@ -266,6 +301,7 @@ def list_events():
     except HttpError as e:
         raise HTTPException(status_code=e.resp.status, detail=str(e))
 
+
 @oauth_router.post("/events")
 def create_event(payload: EventCreate):
     try:
@@ -281,6 +317,7 @@ def create_event(payload: EventCreate):
     except HttpError as e:
         raise HTTPException(status_code=e.resp.status, detail=str(e))
 
+
 @oauth_router.delete("/events/{event_id}")
 def delete_event(event_id: str):
     try:
@@ -291,6 +328,7 @@ def delete_event(event_id: str):
         # 404 when not found, 410 when already gone, etc.
         raise HTTPException(status_code=e.resp.status, detail=str(e))
 
+
 app.include_router(oauth_router)
 
 # =====================================================================
@@ -298,6 +336,7 @@ app.include_router(oauth_router)
 # =====================================================================
 
 db_router = APIRouter(prefix="/test-db", tags=["test-db"])
+
 
 def _get_user_table_columns(conn) -> List[str]:
     if DATABASE_URL.startswith("sqlite"):
@@ -307,6 +346,7 @@ def _get_user_table_columns(conn) -> List[str]:
         "SELECT column_name FROM information_schema.columns WHERE table_name = 'users'"
     )).fetchall()
     return [r[0] for r in rows]
+
 
 @db_router.post("/users")
 def create_user(payload: Dict[str, Any]):
@@ -320,11 +360,13 @@ def create_user(payload: Dict[str, Any]):
         placeholders = ", ".join([f":{k}" for k in data.keys()])
         columns = ", ".join(data.keys())
         try:
-            conn.execute(text(f"INSERT INTO users ({columns}) VALUES ({placeholders})"), data)
+            conn.execute(
+                text(f"INSERT INTO users ({columns}) VALUES ({placeholders})"), data)
         except Exception as e:
             raise HTTPException(status_code=409, detail=str(e))
 
     return {"ok": True, "email": payload.get("email")}
+
 
 @db_router.get("/users")
 def list_users(limit: int = Query(10, ge=1, le=100)):
@@ -336,12 +378,13 @@ def list_users(limit: int = Query(10, ge=1, le=100)):
         elif DATABASE_URL.startswith("sqlite"):
             select_cols.append("rowid AS id")
 
-        for candidate in ["email", "full_name","timezone","gender","date_of_birth"]:
+        for candidate in ["email", "full_name", "timezone", "gender", "date_of_birth"]:
             if candidate in cols:
                 select_cols.append(candidate)
 
         if not select_cols:
-            raise HTTPException(500, detail="Could not determine columns to select from 'users'.")
+            raise HTTPException(
+                500, detail="Could not determine columns to select from 'users'.")
 
         sql = (
             f"SELECT {', '.join(select_cols)} FROM users ORDER BY ROWID DESC LIMIT :limit"
@@ -352,33 +395,39 @@ def list_users(limit: int = Query(10, ge=1, le=100)):
         rows = conn.execute(text(sql), {"limit": limit}).mappings().all()
         return {"count": len(rows), "items": list(rows)}
 
+
 app.include_router(db_router)
 
 # =====================================================================
 #                AUTH (signup/login) for Postman grading
 # =====================================================================
 
+
 class SignUpIn(BaseModel):
     email: EmailStr
     full_name: constr(strip_whitespace=True, min_length=1)
     password: constr(min_length=6)
     timezone: str = "UTC"
-    gender: constr( max_length=1)  
+    gender: constr(max_length=1)
     date_of_birth: date
+
 
 class LoginIn(BaseModel):
     email: EmailStr
     password: constr(min_length=6)
 
+
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
+
 
 class userdata(BaseModel):
     email: str
     password: str
     full_name: str
-    timezone:  str 
+    timezone:  str
     gender:  str
     date_of_birth: date
+
 
 @auth_router.post("/signup")
 def signup(payload: SignUpIn):
@@ -392,7 +441,8 @@ def signup(payload: SignUpIn):
             {"e": payload.email},
         ).fetchone()
         if exists:
-            raise HTTPException(status_code=409, detail="Email already registered")
+            raise HTTPException(
+                status_code=409, detail="Email already registered")
 
         # build insert dynamically based on available columns
         cols = set(_get_user_table_columns(conn))
@@ -417,7 +467,8 @@ def signup(payload: SignUpIn):
                 conn.exec_driver_sql("SAVEPOINT sp_ins")
                 columns = ", ".join(data.keys())
                 placeholders = ", ".join([f":{k}" for k in data.keys()])
-                conn.execute(text(f"INSERT INTO users ({columns}) VALUES ({placeholders})"), data)
+                conn.execute(
+                    text(f"INSERT INTO users ({columns}) VALUES ({placeholders})"), data)
                 conn.exec_driver_sql("ROLLBACK TO SAVEPOINT sp_ins")
             except Exception:
                 conn.exec_driver_sql("ROLLBACK TO SAVEPOINT sp_ins")
@@ -425,9 +476,11 @@ def signup(payload: SignUpIn):
 
         columns = ", ".join(data.keys())
         placeholders = ", ".join([f":{k}" for k in data.keys()])
-        conn.execute(text(f"INSERT INTO users ({columns}) VALUES ({placeholders})"), data)
+        conn.execute(
+            text(f"INSERT INTO users ({columns}) VALUES ({placeholders})"), data)
 
     return {"message": "signup ok"}
+
 
 @auth_router.post("/login")
 def login(payload: LoginIn):
@@ -442,7 +495,8 @@ def login(payload: LoginIn):
 
         ph = row.get("password_hash")
         if not ph:
-            raise HTTPException(status_code=500, detail="password column missing on users (run migrations)")
+            raise HTTPException(
+                status_code=500, detail="password column missing on users (run migrations)")
 
         if not verify_password(payload.password, ph):
             raise HTTPException(status_code=401, detail="invalid credentials")
@@ -450,36 +504,28 @@ def login(payload: LoginIn):
     # If you later need JWTs, generate and return here.
     return {"message": "login ok"}
 
+
 app.include_router(auth_router)
 # domain routers
 app.include_router(timetable.router)
 app.include_router(notifications.router)
- #=============================== reset password =====================================
+app.include_router(workspaces.router)
+app.include_router(members.router)
+app.include_router(permission.router)
+# =============================== reset password =====================================
 
-
-import smtplib
-from email.mime.text import MIMEText
-from random import randint
-from fastapi import Depends, HTTPException
-from sqlalchemy.orm import Session
-from datetime import datetime, timedelta, timezone
-
-from .models.user import User
-from .db import get_db
-from app.schemas import ResetRequest, VerifyCode, ResetPassword
-from .main import hash_password
-
-from datetime import datetime, timedelta, timezone
 
 def is_code_expired(created_at: datetime, minutes: int = 10):
     if not created_at:
         return True
     return datetime.now(timezone.utc) > created_at + timedelta(minutes=minutes)
 
+
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 587
-SMTP_EMAIL = "haytamcharafi@gmail.com"
-SMTP_PASSWORD = "eyjjoqnkdrqlhbza"  # NO SPACES
+SMTP_EMAIL = os.getenv("SMTP_EMAIL")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+# NO SPACES
 
 
 def send_reset_email(email: str, code: str):
@@ -542,6 +588,8 @@ def verify_code(data: VerifyCode, db: Session = Depends(get_db)):
     return {"message": "Code verified successfully"}
 
 # 3️⃣ RESET PASSWORD
+
+
 @app.post("/reset_password")
 def reset_password(data: ResetPassword, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == data.email).first()
@@ -565,7 +613,6 @@ def reset_password(data: ResetPassword, db: Session = Depends(get_db)):
     return {"message": "Password reset successful"}
 
 
-
 # ------------------------------
 # Validation-only endpoints (for your Sprint-1 tasks)
 # ------------------------------
@@ -574,21 +621,26 @@ def _ensure_password_hash_column():
     # previously used to alter DB schema; now disabled
     return None
 
+
 @app.post("/_validate/auth/signup", tags=["_validate"])
 def _validate_signup(payload: schemas.UserCreate):
     return {"ok": True}
+
 
 @app.post("/_validate/auth/login", tags=["_validate"])
 def _validate_login(payload: schemas.LoginIn):
     return {"ok": True}
 
+
 @app.post("/_validate/subjects", tags=["_validate"])
 def _validate_subject(payload: schemas.SubjectCreate):
     return {"ok": True}
 
+
 @app.post("/_validate/preferences", tags=["_validate"])
 def _validate_preferences(payload: schemas.PreferencesUpdate):
     return {"ok": True}
+
 
 @app.post("/_validate/sessions", tags=["_validate"])
 def _validate_sessions(payload: schemas.SessionCreate):

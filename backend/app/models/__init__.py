@@ -11,6 +11,7 @@ from app.models.calendar_event import CalendarEvent
 from app.models.activity_log import ActivityLog
 from app.models.notification import Notification
 from app.models.session_feedback import SessionFeedback
+from app.models.workspace import Workspace, WorkspaceMember, MemberPermission, Message, WorkspaceDeleteLog, MemberDeleteLog
 
 __all__ = [
     "User", "LoginHistory",
@@ -26,5 +27,5 @@ __all__ = [
     "ActivityLog",
     "Notification",
     "SessionFeedback",
+    "Workspace", "WorkspaceMember", "MemberPermission", "Message", "WorkspaceDeleteLog", "MemberDeleteLog",
 ]
-

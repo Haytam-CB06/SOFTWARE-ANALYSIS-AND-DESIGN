@@ -4,24 +4,31 @@ from typing import Optional, Literal
 from pydantic import BaseModel, Field, EmailStr, constr, field_validator, ValidationInfo
 
 # ---------- AUTH ----------
+
+
 class UserCreate(BaseModel):
     email: EmailStr
-    full_name: Optional[constr(strip_whitespace=True, min_length=1, max_length=100)] = None
+    full_name: Optional[constr(
+        strip_whitespace=True, min_length=1, max_length=100)] = None
     password: constr(min_length=8, max_length=128)
-    
+
     @field_validator("password")
     @classmethod
     def strong_pwd(cls, v: str) -> str:
         # Require at least one letter and one digit
         if not any(c.isalpha() for c in v) or not any(c.isdigit() for c in v):
-            raise ValueError("password must contain at least one letter and one digit")
+            raise ValueError(
+                "password must contain at least one letter and one digit")
         return v
+
 
 class LoginIn(BaseModel):
     email: EmailStr
     password: constr(min_length=8, max_length=128)
 
 # ---------- SUBJECTS / COURSES ----------
+
+
 class SubjectCreate(BaseModel):
     title: constr(strip_whitespace=True, min_length=2, max_length=120)
     code: constr(strip_whitespace=True, min_length=2, max_length=30)
@@ -31,6 +38,8 @@ class SubjectCreate(BaseModel):
     credit_weight: Optional[int] = Field(default=None, ge=0, le=30)
 
 # ---------- PREFERENCES ----------
+
+
 class PreferencesUpdate(BaseModel):
     default_session_minutes: int = Field(30, ge=15, le=240)
     daily_limit_minutes: int = Field(240, ge=30, le=720)
@@ -44,10 +53,13 @@ class PreferencesUpdate(BaseModel):
         # In Pydantic v2, use info.data to access other fields
         start = info.data.get("preferred_start_hour", 8)
         if v <= start:
-            raise ValueError("preferred_end_hour must be greater than preferred_start_hour")
+            raise ValueError(
+                "preferred_end_hour must be greater than preferred_start_hour")
         return v
 
 # ---------- STUDY SESSIONS ----------
+
+
 class SessionCreate(BaseModel):
     subject_id: constr(strip_whitespace=True, min_length=1)  # uuid as string
     start_time: datetime
@@ -63,13 +75,16 @@ class SessionCreate(BaseModel):
         return v
 
 # ---------- RESPONSES (example) ----------
+
+
 class UserOut(BaseModel):
     id: str
     email: EmailStr
     full_name: Optional[str] = None
     timezone: str
- 
- #------------reset password schema ----------
+
+ # ------------reset password schema ----------
+
 
 class ResetRequest(BaseModel):
     email: EmailStr
@@ -84,3 +99,77 @@ class ResetPassword(BaseModel):
     email: EmailStr
     code: str
     new_password: str
+
+# ---------- WORKSPACE ----------
+
+
+class WorkspaceMemberResponse(BaseModel):
+    id: int
+    workspace_id: int
+    user_id: int
+    username: Optional[str]
+    email: Optional[str]
+    role: str
+    joined_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class UpdateMemberRoleRequest(BaseModel):
+    new_role: str
+
+
+class MemberPermissionResponse(BaseModel):
+    id: int
+    workspace_member_id: int
+    permission_name: str
+    is_granted: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class UpdatePermissionRequest(BaseModel):
+    permission_name: str
+    is_granted: bool
+
+
+class MessageResponse(BaseModel):
+    id: int
+    workspace_id: int
+    user_id: Optional[int]
+    username: str
+    content: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class SendMessageRequest(BaseModel):
+    user_id: int
+    username: str
+    content: str
+
+
+class AddMemberRequest(BaseModel):
+    user_id: int
+    username: str
+    email: str
+    requester_role: str
+
+
+class WorkspaceResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str]
+    owner_id: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class SendMessageRequest(BaseModel):
+    user_id: int
+    username: str
+    content: str
