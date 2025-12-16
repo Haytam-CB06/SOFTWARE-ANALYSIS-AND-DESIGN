@@ -32,7 +32,7 @@ def init_engine() -> None:
         autocommit=False,
         future=True,
     )
-    from app.models.workspace import Base
+    from app.models.base import Base
     Base.metadata.create_all(bind=_ENGINE)
 
 

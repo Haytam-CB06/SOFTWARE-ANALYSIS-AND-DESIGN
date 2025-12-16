@@ -23,6 +23,7 @@ print("=" * 50)
 print("STEP 2: Importing Base from app.models.base")
 try:
     from app.models.base import Base   # 👈 DO NOT CHANGE THIS LINE
+    target_metadata = Base.metadata
     print("  ✓ Base imported successfully")
 except Exception as e:
     print(f"  ✗ FAILED: {e}")

@@ -9,9 +9,9 @@ from app.db import get_db
 from app.models.chat import ChatRoom, ChatMember, ChatMessage
 from app.models.user import User  # existing user model
 from app.chat_ws import manager
-from app.models.workspace import Workspace, Message  # Workspace models
-from models.permissions import has_permission
-from schemas import SendMessageRequest
+from app.models.workspace import Workspace  # Workspace models
+from app.models.permissions import has_permission
+from app.schemas import SendMessageRequest
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 # ---------- Schemas ----------

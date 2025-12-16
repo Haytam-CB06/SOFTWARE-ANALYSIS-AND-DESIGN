@@ -1,15 +1,15 @@
 # backend/app/schemas.py
 from datetime import datetime
 from typing import Optional, Literal
-from pydantic import BaseModel, Field, EmailStr, constr, field_validator, ValidationInfo
-
+from pydantic import BaseModel, Field,ConfigDict, EmailStr, constr, field_validator, ValidationInfo
+from uuid import UUID
 # ---------- AUTH ----------
 
 
 class UserCreate(BaseModel):
     email: EmailStr
     full_name: Optional[constr(
-        strip_whitespace=True, min_length=1, max_length=100)] = None
+    strip_whitespace=True, min_length=1, max_length=100)] = None
     password: constr(min_length=8, max_length=128)
 
     @field_validator("password")
@@ -101,12 +101,14 @@ class ResetPassword(BaseModel):
     new_password: str
 
 # ---------- WORKSPACE ----------
-
-
+class WorkspaceCreate(BaseModel):
+    name: str
+    description: Optional[str] 
+    
 class WorkspaceMemberResponse(BaseModel):
     id: int
     workspace_id: int
-    user_id: int
+    user_id: UUID
     username: Optional[str]
     email: Optional[str]
     role: str
@@ -134,42 +136,26 @@ class UpdatePermissionRequest(BaseModel):
     is_granted: bool
 
 
-class MessageResponse(BaseModel):
-    id: int
-    workspace_id: int
-    user_id: Optional[int]
-    username: str
-    content: str
-    created_at: datetime
-
-    model_config = {"from_attributes": True}
 
 
-class SendMessageRequest(BaseModel):
-    user_id: int
-    username: str
-    content: str
+
 
 
 class AddMemberRequest(BaseModel):
-    user_id: int
-    username: str
-    email: str
-    requester_role: str
+    email: EmailStr
+    role: str
+
 
 
 class WorkspaceResponse(BaseModel):
     id: int
     name: str
     description: Optional[str]
-    owner_id: int
-    created_at: datetime
-    updated_at: datetime
-
-    model_config = {"from_attributes": True}
+    created_at: Optional[datetime]
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SendMessageRequest(BaseModel):
-    user_id: int
+    user_id: UUID
     username: str
     content: str

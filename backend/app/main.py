@@ -1,13 +1,13 @@
 from app.schemas import ResetRequest, VerifyCode, ResetPassword
-from .db import get_db
-from .models.user import User
+from app.db import get_db
+from app.models.user import User
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from fastapi import Depends, HTTPException
 from random import randint
 from email.mime.text import MIMEText
 import smtplib
-from app.routers import workspaces, members, permission, chat
+from app.routers import workspaces, members, permission,chat
 from app.routers import timetable  # if not already added
 from app.routers import notifications
 # backend/app/main.py
@@ -36,7 +36,7 @@ from sqlalchemy.engine import Engine
 # Password hashing
 from passlib.context import CryptContext
 # backend/app/main.py
-from .db import init_engine, get_db
+from app.db import init_engine, get_db
 from . import schemas
 # backend/app/main.py  (add/keep these)
 import os
@@ -53,8 +53,8 @@ app = FastAPI(title="SmartStudy API")
 def _startup():
     # Initialize SQLAlchemy engine / session factory
     init_engine()
-    from models.workspace import Base
-    from db import _ENGINE
+    from app.models.base import Base
+    from app.db import _ENGINE
     Base.metadata.create_all(bind=_ENGINE)
 
 
@@ -512,6 +512,8 @@ app.include_router(notifications.router)
 app.include_router(workspaces.router)
 app.include_router(members.router)
 app.include_router(permission.router)
+app.include_router(chat.router)
+
 # =============================== reset password =====================================
 
 
