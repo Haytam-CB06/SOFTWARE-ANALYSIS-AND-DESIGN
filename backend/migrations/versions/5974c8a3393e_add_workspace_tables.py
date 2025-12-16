@@ -9,6 +9,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
@@ -26,7 +27,7 @@ def upgrade() -> None:
                     sa.Column('id', sa.Integer(), nullable=False),
                     sa.Column('name', sa.String(length=100), nullable=False),
                     sa.Column('description', sa.Text(), nullable=True),
-                    sa.Column('owner_id', sa.Integer(), nullable=False),
+                    sa.Column('owner_id', postgresql.UUID(as_uuid=True), nullable=False),
                     sa.Column('created_at', sa.DateTime(), nullable=False),
                     sa.Column('updated_at', sa.DateTime(), nullable=False),
                     sa.PrimaryKeyConstraint('id')
@@ -37,14 +38,15 @@ def upgrade() -> None:
     op.create_table('workspace_members',
                     sa.Column('id', sa.Integer(), nullable=False),
                     sa.Column('workspace_id', sa.Integer(), nullable=False),
-                    sa.Column('user_id', sa.Integer(), nullable=False),
+                    sa.Column('user_id', postgresql.UUID(as_uuid=True), nullable=False),
                     sa.Column('username', sa.String(length=50), nullable=True),
                     sa.Column('email', sa.String(length=100), nullable=True),
-                    sa.Column('role', sa.Enum('admin', 'moderator',
-                                              'member', name='role_enum'), nullable=False),
-                    sa.Column('joined_at', sa.DateTime(), nullable=False),
+                    sa.Column('role', sa.String(length=50), nullable=True),
+                    sa.Column('joined_at', sa.DateTime(), nullable=True),
                     sa.ForeignKeyConstraint(
                         ['workspace_id'], ['workspaces.id'], ondelete='CASCADE'),
+                    sa.ForeignKeyConstraint(
+                        ['user_id'], ['users.id'], ondelete='CASCADE'),
                     sa.PrimaryKeyConstraint('id'),
                     sa.UniqueConstraint('workspace_id', 'user_id')
                     )
@@ -76,13 +78,15 @@ def upgrade() -> None:
     op.create_table('messages',
                     sa.Column('id', sa.Integer(), nullable=False),
                     sa.Column('workspace_id', sa.Integer(), nullable=False),
-                    sa.Column('user_id', sa.Integer(), nullable=True),
+                    sa.Column('user_id', postgresql.UUID(as_uuid=True), nullable=True),
                     sa.Column('username', sa.String(length=50), nullable=True),
                     sa.Column('content', sa.Text(), nullable=False),
                     sa.Column('created_at', sa.DateTime(), nullable=False),
                     sa.Column('updated_at', sa.DateTime(), nullable=False),
                     sa.ForeignKeyConstraint(
                         ['workspace_id'], ['workspaces.id'], ondelete='CASCADE'),
+                    sa.ForeignKeyConstraint(
+                        ['user_id'], ['users.id'], ondelete='CASCADE'),
                     sa.PrimaryKeyConstraint('id')
                     )
     op.create_index('ix_messages_workspace_id', 'messages', ['workspace_id'])
@@ -113,6 +117,8 @@ def upgrade() -> None:
                     sa.Column('reason', sa.Text(), nullable=True),
                     sa.ForeignKeyConstraint(
                         ['workspace_id'], ['workspaces.id'], ondelete='CASCADE'),
+                    sa.ForeignKeyConstraint(
+                        ['user_id'], ['users.id'], ondelete='CASCADE'),
                     sa.PrimaryKeyConstraint('id')
                     )
 

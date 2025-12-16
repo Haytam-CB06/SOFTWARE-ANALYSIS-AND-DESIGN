@@ -514,6 +514,19 @@ app.include_router(members.router)
 app.include_router(permission.router)
 app.include_router(chat.router)
 
+# --- MCP (Model Context Protocol) server ---
+# Exposes your FastAPI routes as MCP tools at /mcp so AI agents can call them
+# (e.g., for timetable image extraction).
+try:
+    from fastapi_mcp import FastApiMCP
+    _mcp = FastApiMCP(app)
+    _mcp.mount()
+except Exception as _e:
+    # Optional dependency: if fastapi-mcp isn't installed, the API still runs.
+    # Install backend/requirements.txt to enable /mcp.
+    pass
+
+
 # =============================== reset password =====================================
 
 

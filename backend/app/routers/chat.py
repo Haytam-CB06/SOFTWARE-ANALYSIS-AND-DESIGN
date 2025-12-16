@@ -10,6 +10,7 @@ from app.models.chat import ChatRoom, ChatMember, ChatMessage
 from app.models.user import User  # existing user model
 from app.chat_ws import manager
 from app.models.workspace import Workspace  # Workspace models
+from app.models.message import Message
 from app.models.permissions import has_permission
 from app.schemas import SendMessageRequest
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -25,13 +26,14 @@ class MemberAdd(BaseModel):
     user_id: UUID
     role: str = "member"
 
-
-class MessageOut(BaseModel):
-    id: UUID
-    room_id: UUID
-    sender_id: UUID | None
+class WorkspaceMessageOut(BaseModel):
+    id: int
+    workspace_id: int
+    user_id: UUID | None
+    username: str | None = None
     content: str
     created_at: str
+
 
 # ---------- Helpers ----------
 
@@ -90,7 +92,7 @@ def remove_member(room_id: UUID, user_id: UUID, db: Session = Depends(get_db)):
     return {"ok": True}
 
 
-@router.get("/rooms/{room_id}/messages", response_model=List[MessageOut])
+@router.get("/rooms/{room_id}/messages", response_model=List[WorkspaceMessageOut])
 def list_messages(room_id: UUID, limit: int = Query(50, ge=1, le=200), db: Session = Depends(get_db)):
     msgs = (db.query(ChatMessage)
               .filter_by(room_id=room_id)
@@ -161,7 +163,7 @@ def send_workspace_message(workspace_id: int, payload: SendMessageRequest, db: S
     return {"id": msg.id, "ok": True}
 
 
-@router.get("/workspaces/{workspace_id}/messages", response_model=List[MessageOut])
+@router.get("/workspaces/{workspace_id}/messages", response_model=List[WorkspaceMessageOut])
 def get_workspace_messages(workspace_id: int, limit: int = Query(100, ge=1, le=500), db: Session = Depends(get_db)):
     """Get workspace messages"""
     msgs = (db.query(Message)
@@ -169,9 +171,13 @@ def get_workspace_messages(workspace_id: int, limit: int = Query(100, ge=1, le=5
               .order_by(Message.created_at.desc())
               .limit(limit)
               .all())
-    return [MessageOut(
-        id=m.id, room_id=m.workspace_id, sender_id=m.user_id,
-        content=m.content, created_at=m.created_at.isoformat()
+    return [WorkspaceMessageOut(
+        id=m.id,
+        workspace_id=m.workspace_id,
+        user_id=m.user_id,
+        username=m.username,
+        content=m.content,
+        created_at=m.created_at.isoformat(),
     ) for m in reversed(msgs)]
 
 

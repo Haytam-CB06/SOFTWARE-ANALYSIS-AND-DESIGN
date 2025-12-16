@@ -13,6 +13,7 @@ from app.models.activity_log import ActivityLog
 from app.models.notification import Notification
 from app.models.session_feedback import SessionFeedback
 from app.models.workspace import Workspace, WorkspaceMember, MemberPermission, WorkspaceDeleteLog, MemberDeleteLog
+from app.models.message import Message
 
 __all__ = [
     "User", "LoginHistory",

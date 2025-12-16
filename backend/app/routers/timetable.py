@@ -1,14 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import and_, or_
-from app.db import get_session
+from app.db import get_db
 from app.models.class_meeting import ClassMeeting
 from app.models.subject import Subject
 from app.models.user import User
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from datetime import time
 from typing import List, Optional
 import uuid
+import base64
 
 router = APIRouter(prefix="/timetable", tags=["Timetable"])
 
@@ -41,7 +42,7 @@ class SubjectCreate(BaseModel):
 
 
 @router.get("/user/{user_id}")
-def get_user_timetable(user_id: str, session: Session = Depends(get_session)):
+def get_user_timetable(user_id: str, session: Session = Depends(get_db)):
     """
     Kullanıcının haftalık ders programını optimize edilmiş tek sorguda döner.
     """
@@ -87,7 +88,7 @@ def get_user_timetable(user_id: str, session: Session = Depends(get_session)):
 def get_user_timetable_by_day(
     user_id: str,
     day: int,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_db)
 ):
     """
     Belirli bir günün ders programını döner.
@@ -130,7 +131,7 @@ def get_user_timetable_by_day(
 
 
 @router.get("/admin/all-users")
-def get_all_users_timetables(session: Session = Depends(get_session)):
+def get_all_users_timetables(session: Session = Depends(get_db)):
     """
     Admin: Tüm kullanıcıların ders programlarını döner.
     """
@@ -176,7 +177,7 @@ def get_all_users_timetables(session: Session = Depends(get_session)):
 def create_subject(
     user_id: str,
     subject: SubjectCreate,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_db)
 ):
     """
     Yeni ders ekle.
@@ -223,7 +224,7 @@ def create_subject(
 def create_class_meeting(
     user_id: str,
     meeting: ClassMeetingCreate,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_db)
 ):
     """
     Ders programına yeni saat ekle.
@@ -284,7 +285,7 @@ def update_class_meeting(
     meeting_id: str,
     user_id: str,
     update_data: ClassMeetingUpdate,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_db)
 ):
     
     try:
@@ -325,7 +326,7 @@ def update_class_meeting(
 def delete_class_meeting(
     meeting_id: str,
     user_id: str,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_db)
 ):
     
     try:
@@ -353,7 +354,7 @@ def delete_class_meeting(
 def delete_subject(
     subject_id: str,
     user_id: str,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_db)
 ):
     
     try:
@@ -374,3 +375,295 @@ def delete_subject(
     session.commit()
 
     return {"message": "Subject deleted successfully"}
+
+# ===============================
+# Image -> Timetable extraction (OCR)
+# ===============================
+
+import io
+import re
+from PIL import Image
+
+try:
+    import pytesseract  # type: ignore
+except Exception:  # pragma: no cover
+    pytesseract = None
+
+
+class TimetableExtractItem(BaseModel):
+    """A single extracted row from an uploaded timetable image."""
+
+    day_of_week: Optional[int] = None  # 0-6 (Sun..Sat) if we can infer
+    day_label: Optional[str] = None
+    start_time: Optional[str] = None  # HH:MM
+    end_time: Optional[str] = None
+    subject_title: Optional[str] = None
+    subject_code: Optional[str] = None
+    raw_line: Optional[str] = None
+
+
+class TimetableExtractResponse(BaseModel):
+    text: str
+    items: List[TimetableExtractItem]
+
+
+_DAY_MAP = {
+    "sun": 0,
+    "sunday": 0,
+    "mon": 1,
+    "monday": 1,
+    "tue": 2,
+    "tues": 2,
+    "tuesday": 2,
+    "wed": 3,
+    "wednesday": 3,
+    "thu": 4,
+    "thur": 4,
+    "thurs": 4,
+    "thursday": 4,
+    "fri": 5,
+    "friday": 5,
+    "sat": 6,
+    "saturday": 6,
+}
+
+
+_TIME_RANGE_RE = re.compile(
+    r"(?P<s>\b\d{1,2}[:\.]\d{2}\b)\s*[-–—]\s*(?P<e>\b\d{1,2}[:\.]\d{2}\b)",
+    flags=re.IGNORECASE,
+)
+
+
+def _norm_time(t: str) -> str:
+    # Accept 9.00, 9:00, 09:00
+    t = t.strip().replace(".", ":")
+    hh, mm = t.split(":", 1)
+    return f"{int(hh):02d}:{int(mm):02d}"
+
+
+def _infer_day(line: str) -> tuple[Optional[int], Optional[str]]:
+    lower = re.sub(r"[^a-z]", " ", line.lower())
+    tokens = [t for t in lower.split() if t]
+    for tok in tokens:
+        if tok in _DAY_MAP:
+            return _DAY_MAP[tok], tok
+    return None, None
+
+
+def _infer_subject(line: str, time_span: tuple[str, str] | None) -> tuple[Optional[str], Optional[str]]:
+    # Very lightweight heuristic:
+    # - remove detected time range
+    # - remove common day tokens
+    # - try to split CODE (e.g., CSE101, MATH-201) from title
+    cleaned = line
+    if time_span:
+        s, e = time_span
+        cleaned = cleaned.replace(s, " ").replace(e, " ")
+    for k in _DAY_MAP.keys():
+        cleaned = re.sub(rf"\b{k}\b", " ", cleaned, flags=re.IGNORECASE)
+
+    cleaned = re.sub(r"\s+", " ", cleaned).strip(" -|\t")
+
+    # Find a code-like token
+    m = re.search(r"\b([A-Z]{2,10}\s?[-]?\s?\d{2,4}[A-Z]?)\b", cleaned)
+    code = None
+    if m:
+        code = re.sub(r"\s+", "", m.group(1)).replace("-", "")
+        title = (cleaned[:m.start()] + " " + cleaned[m.end():]).strip()
+    else:
+        title = cleaned
+
+    title = re.sub(r"\s+", " ", title).strip() or None
+    return title, code
+
+
+@router.post("/extract-image", response_model=TimetableExtractResponse)
+async def extract_timetable_from_image(file: UploadFile = File(...)):
+    """Extract timetable-like text from an uploaded image.
+
+    Notes:
+    - This uses OCR (pytesseract). On Windows you must install the Tesseract engine
+      and ensure it's on PATH (or set pytesseract.pytesseract.tesseract_cmd).
+    - The parsing is heuristic; frontend/user may confirm and edit extracted results.
+    """
+
+    if pytesseract is None:
+        raise HTTPException(
+            status_code=500,
+            detail="pytesseract is not installed on the server. Install dependencies (see backend/requirements.txt).",
+        )
+
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Please upload an image file.")
+
+    data = await file.read()
+    try:
+        img = Image.open(io.BytesIO(data)).convert("RGB")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid image: {e}")
+
+    text = pytesseract.image_to_string(img)
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+
+    items: List[TimetableExtractItem] = []
+    for ln in lines:
+        day_idx, day_label = _infer_day(ln)
+        m = _TIME_RANGE_RE.search(ln)
+        time_span = None
+        start_time = end_time = None
+        if m:
+            start_time = _norm_time(m.group("s"))
+            end_time = _norm_time(m.group("e"))
+            time_span = (m.group("s"), m.group("e"))
+
+        title, code = _infer_subject(ln, time_span)
+
+        # Only keep rows that look somewhat timetable-ish
+        if start_time or end_time or day_idx is not None:
+            items.append(
+                TimetableExtractItem(
+                    day_of_week=day_idx,
+                    day_label=day_label,
+                    start_time=start_time,
+                    end_time=end_time,
+                    subject_title=title,
+                    subject_code=code,
+                    raw_line=ln,
+                )
+            )
+
+    return TimetableExtractResponse(text=text, items=items)
+
+
+class TimetableExtractBase64In(BaseModel):
+    """MCP/agent-friendly image input.
+
+    Accepts either:
+    - raw base64 (no prefix)
+    - a data URL (e.g. 'data:image/png;base64,...')
+    """
+
+    image_base64: str
+
+
+@router.post("/extract-image-base64", response_model=TimetableExtractResponse)
+def extract_timetable_from_image_base64(payload: TimetableExtractBase64In):
+    """Extract timetable-like text from a base64-encoded image.
+
+    Why this exists:
+    - UploadFile/multipart is awkward for MCP tools. JSON input works much better.
+    """
+
+    if pytesseract is None:
+        raise HTTPException(
+            status_code=500,
+            detail="pytesseract is not installed on the server. Install dependencies (see backend/requirements.txt).",
+        )
+
+    b64 = payload.image_base64.strip()
+    # Allow data URLs
+    if b64.lower().startswith("data:") and "," in b64:
+        b64 = b64.split(",", 1)[1]
+
+    try:
+        raw = base64.b64decode(b64, validate=True)
+    except Exception:
+        # Some clients send base64 with newlines/spaces; retry a more tolerant decode.
+        try:
+            raw = base64.b64decode(re.sub(r"\s+", "", b64))
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Invalid base64 image: {e}")
+
+    try:
+        img = Image.open(io.BytesIO(raw)).convert("RGB")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid image: {e}")
+
+    text = pytesseract.image_to_string(img)
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+
+    items: List[TimetableExtractItem] = []
+    for ln in lines:
+        day_idx, day_label = _infer_day(ln)
+        m = _TIME_RANGE_RE.search(ln)
+        time_span = None
+        start_time = end_time = None
+        if m:
+            start_time = _norm_time(m.group("s"))
+            end_time = _norm_time(m.group("e"))
+            time_span = (m.group("s"), m.group("e"))
+
+        title, code = _infer_subject(ln, time_span)
+
+        if start_time or end_time or day_idx is not None:
+            items.append(
+                TimetableExtractItem(
+                    day_of_week=day_idx,
+                    day_label=day_label,
+                    start_time=start_time,
+                    end_time=end_time,
+                    subject_title=title,
+                    subject_code=code,
+                    raw_line=ln,
+                )
+            )
+
+    return TimetableExtractResponse(text=text, items=items)
+
+
+# ===============================
+# Course importance (difficulty) update
+# ===============================
+
+
+class SubjectImportanceUpdate(BaseModel):
+    """Client-facing importance levels.
+
+    importance: 1 (low) .. 5 (high)
+    """
+
+    importance: int
+
+    @field_validator("importance")
+    @classmethod
+    def _valid_range(cls, v: int):
+        if v < 1 or v > 5:
+            raise ValueError("importance must be between 1 and 5")
+        return v
+
+
+@router.put("/subject/{subject_id}/importance")
+def update_subject_importance(
+    subject_id: str,
+    user_id: str,
+    payload: SubjectImportanceUpdate,
+    session: Session = Depends(get_db),
+):
+    """Update a subject's importance level.
+
+    For now we store it in the existing `difficulty` field (1..5).
+    """
+
+    try:
+        subject_uuid = uuid.UUID(subject_id)
+        user_uuid = uuid.UUID(user_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid UUID format")
+
+    subject = (
+        session.query(Subject)
+        .filter(Subject.id == subject_uuid, Subject.user_id == user_uuid)
+        .first()
+    )
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+
+    subject.difficulty = payload.importance
+    session.add(subject)
+    session.commit()
+
+    return {
+        "message": "Importance updated successfully",
+        "subject_id": str(subject.id),
+        "importance": subject.difficulty,
+    }
