@@ -33,6 +33,7 @@ def init_engine() -> None:
         future=True,
     )
     from app.models.base import Base
+    from app.models import *  
     Base.metadata.create_all(bind=_ENGINE)
 
 
@@ -72,3 +73,4 @@ def get_db() -> Generator:
         raise
     finally:
         db.close()
+
