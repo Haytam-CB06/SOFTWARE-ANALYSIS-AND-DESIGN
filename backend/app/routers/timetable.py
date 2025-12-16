@@ -10,6 +10,10 @@ from datetime import time
 from typing import List, Optional
 import uuid
 import base64
+<<<<<<< HEAD
+=======
+import csv
+>>>>>>> 80470ab (done)
 
 router = APIRouter(prefix="/timetable", tags=["Timetable"])
 
@@ -611,6 +615,118 @@ def extract_timetable_from_image_base64(payload: TimetableExtractBase64In):
     return TimetableExtractResponse(text=text, items=items)
 
 
+<<<<<<< HEAD
+=======
+
+# ===============================
+# CSV timetable extraction
+# ===============================
+
+class TimetableCsvTextRequest(BaseModel):
+    """MCP/agent-friendly CSV input (no multipart)."""
+    csv: str
+
+
+def _day_to_int(val: str | int | None) -> Optional[int]:
+    if val is None:
+        return None
+    s = str(val).strip()
+    if not s:
+        return None
+    if s.isdigit():
+        d = int(s)
+        return d if 0 <= d <= 6 else None
+    key = re.sub(r"[^a-z]", "", s.lower())
+    if key in _DAY_MAP:
+        return _DAY_MAP[key]
+    # try first 3 letters
+    if len(key) >= 3 and key[:3] in _DAY_MAP:
+        return _DAY_MAP[key[:3]]
+    return None
+
+
+def _read_csv_text(raw: str) -> TimetableExtractResponse:
+    """Parse CSV text into TimetableExtractResponse.
+    Expected columns (case-insensitive):
+      - day / day_of_week
+      - start / start_time
+      - end / end_time
+      - subject / title (optional if code provided)
+      - code / subject_code (optional)
+    """
+    f = io.StringIO(raw)
+    reader = csv.DictReader(f)
+    if not reader.fieldnames:
+        raise HTTPException(status_code=400, detail="CSV has no headers/columns")
+
+    # normalize header names
+    def norm(h: str) -> str:
+        return re.sub(r"[^a-z_]", "", h.strip().lower())
+
+    headers = {norm(h): h for h in reader.fieldnames}
+
+    def get(row, *names):
+        for n in names:
+            k = norm(n)
+            if k in headers:
+                return row.get(headers[k])
+        return None
+
+    items: list[TimetableExtractItem] = []
+    for row in reader:
+        day = _day_to_int(get(row, "day", "day_of_week"))
+        start_raw = get(row, "start", "start_time")
+        end_raw = get(row, "end", "end_time")
+        if not start_raw or not end_raw:
+            # skip empty lines
+            continue
+        try:
+            start = _norm_time(str(start_raw))
+            end = _norm_time(str(end_raw))
+        except Exception:
+            raise HTTPException(status_code=400, detail=f"Invalid time format in row: {row}")
+
+        code = get(row, "code", "subject_code")
+        title = get(row, "subject", "title", "course", "course_title")
+
+        items.append(
+            TimetableExtractItem(
+                day_of_week=day,
+                start_time=start,
+                end_time=end,
+                subject_title=str(title).strip() if title else None,
+                subject_code=str(code).strip() if code else None,
+                raw_line=",".join([str(row.get(h, "")).strip() for h in reader.fieldnames]),
+            )
+        )
+
+    return TimetableExtractResponse(text=raw, items=items)
+
+
+@router.post("/extract-csv", response_model=TimetableExtractResponse)
+async def extract_timetable_from_csv(file: UploadFile = File(...)):
+    """Upload a CSV and extract timetable rows."""
+    if not file.filename.lower().endswith(".csv"):
+        # still allow if content-type is csv
+        if file.content_type not in ("text/csv", "application/csv", "application/vnd.ms-excel"):
+            raise HTTPException(status_code=400, detail="Please upload a .csv file")
+
+    raw_bytes = await file.read()
+    try:
+        raw = raw_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        raw = raw_bytes.decode("utf-8-sig", errors="replace")
+
+    return _read_csv_text(raw)
+
+
+@router.post("/extract-csv-text", response_model=TimetableExtractResponse)
+async def extract_timetable_from_csv_text(payload: TimetableCsvTextRequest):
+    """JSON CSV input (no multipart) - suitable for MCP clients."""
+    return _read_csv_text(payload.csv)
+
+
+>>>>>>> 80470ab (done)
 # ===============================
 # Course importance (difficulty) update
 # ===============================
