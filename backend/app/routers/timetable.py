@@ -10,10 +10,7 @@ from datetime import time
 from typing import List, Optional
 import uuid
 import base64
-<<<<<<< HEAD
-=======
 import csv
->>>>>>> 80470ab (done)
 
 router = APIRouter(prefix="/timetable", tags=["Timetable"])
 
@@ -615,9 +612,6 @@ def extract_timetable_from_image_base64(payload: TimetableExtractBase64In):
     return TimetableExtractResponse(text=text, items=items)
 
 
-<<<<<<< HEAD
-=======
-
 # ===============================
 # CSV timetable extraction
 # ===============================
@@ -726,7 +720,6 @@ async def extract_timetable_from_csv_text(payload: TimetableCsvTextRequest):
     return _read_csv_text(payload.csv)
 
 
->>>>>>> 80470ab (done)
 # ===============================
 # Course importance (difficulty) update
 # ===============================
