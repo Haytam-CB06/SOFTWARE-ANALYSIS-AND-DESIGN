@@ -23,6 +23,8 @@ print("=" * 50)
 print("STEP 2: Importing Base from app.models.base")
 try:
     from app.models.base import Base   # 👈 DO NOT CHANGE THIS LINE
+    # Make sure all model modules are imported so Alembic can detect tables
+    import app.models  # noqa: F401
     target_metadata = Base.metadata
     print("  ✓ Base imported successfully")
 except Exception as e:

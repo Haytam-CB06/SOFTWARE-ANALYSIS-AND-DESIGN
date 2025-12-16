@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # backend/app/db.py
 import os
 from contextlib import contextmanager
@@ -74,3 +75,86 @@ def get_db() -> Generator:
     finally:
         db.close()
 
+=======
+# backend/app/db.py
+import os
+from contextlib import contextmanager
+from typing import Generator
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+# IMPORTANT:
+# Import Base + all models at module import time.
+# This ensures SQLAlchemy registers every model on Base.metadata
+# (so create_all / alembic can "see" every table).
+from app.models.base import Base
+import app.models  # noqa: F401
+
+_ENGINE = None
+_SessionLocal = None
+
+
+def init_engine() -> None:
+    """Initialize global engine + session factory from DATABASE_URL."""
+    global _ENGINE, _SessionLocal
+    if _ENGINE is not None and _SessionLocal is not None:
+        return
+
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        raise RuntimeError("DATABASE_URL is not set")
+
+    _ENGINE = create_engine(
+        db_url,
+        future=True,
+        pool_pre_ping=True,
+        echo=False,  # set True to debug SQL
+    )
+    _SessionLocal = sessionmaker(
+        bind=_ENGINE,
+        autoflush=False,
+        autocommit=False,
+        future=True,
+    )
+    # At this point Base.metadata includes all tables.
+    Base.metadata.create_all(bind=_ENGINE)
+
+
+def get_session():
+    """Return a new SQLAlchemy Session. Use this in scripts."""
+    if _SessionLocal is None:
+        raise RuntimeError("DB not initialized. Call init_engine() first.")
+    return _SessionLocal()
+
+
+@contextmanager
+def session_scope():
+    """Context manager for scripts/jobs."""
+    sess = get_session()
+    try:
+        yield sess
+        sess.commit()
+    except:
+        sess.rollback()
+        raise
+    finally:
+        sess.close()
+
+# ---------- FastAPI dependency ----------
+
+
+def get_db() -> Generator:
+    """Yield a Session per-request. FastAPI will close it afterward."""
+    if _SessionLocal is None:
+        init_engine()
+    db = _SessionLocal()
+    try:
+        yield db
+        db.commit()
+    except:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+>>>>>>> 25b55ef (done)
