@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from models.workspace import WorkspaceMember, MemberDeleteLog, RoleEnum, Workspace
-from schemas import WorkspaceMemberResponse, AddMemberRequest, UpdateMemberRoleRequest
-from models.permissions import has_permission
+from app.models.workspace import WorkspaceMember, MemberDeleteLog, RoleEnum, Workspace
+from app.schemas import WorkspaceMemberResponse, AddMemberRequest, UpdateMemberRoleRequest
+from app.models.permissions import has_permission
 from app.db import get_db
 from typing import Optional
 

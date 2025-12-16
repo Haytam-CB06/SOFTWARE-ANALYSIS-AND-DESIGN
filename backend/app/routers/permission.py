@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from schemas import MemberPermissionResponse, UpdatePermissionRequest
-from models.workspace import WorkspaceMember, MemberPermission
-from models.permissions import has_permission
-from db import get_db
+from app.schemas import MemberPermissionResponse, UpdatePermissionRequest
+from app.models.workspace import WorkspaceMember, MemberPermission
+from app.models.permissions import has_permission
+from app.db import get_db
 
 router = APIRouter(prefix="/members", tags=["permissions"])
 
@@ -26,7 +26,7 @@ def add_permission(
         raise HTTPException(status_code=404, detail="Member not found")
 
     permission = db.query(MemberPermission).filter(
-        (MemberPermission.workspace_member_id == member_id) &
+        (MemberPermission.workspace_id == member_id) &
         (MemberPermission.permission_name == request.permission_name)
     ).first()
 

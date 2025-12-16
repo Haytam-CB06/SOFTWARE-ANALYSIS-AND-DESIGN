@@ -9,16 +9,6 @@ PERMISSIONS = {
         "view_messages": True,
         "edit_permissions": True
     },
-    "moderator": {
-        "add_member": True,
-        "remove_member": False,
-        "edit_member_role": False,
-        "delete_workspace": False,
-        "send_message": True,
-        "delete_message": True,
-        "view_messages": True,
-        "edit_permissions": False
-    },
     "member": {
         "add_member": False,
         "remove_member": False,

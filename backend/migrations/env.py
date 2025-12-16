@@ -15,9 +15,10 @@ sys.path.insert(0, str(backend_dir))
 print(f"  sys.path[0]: {sys.path[0]}")
 print("=" * 50)
 
-print("STEP 2: Importing Base from app.models.workspace")
+print("STEP 2: Importing Base from app.models.models")
 try:
-    from app.models.workspace import Base
+    from app.models.base import Base
+    target_metadata = Base.metadata
     print("  ✓ Base imported successfully")
 except ImportError as e:
     print(f"  ✗ FAILED: {e}")
