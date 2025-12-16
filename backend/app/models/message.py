@@ -1,9 +1,7 @@
-<<<<<<< HEAD
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-=======
 """Workspace message model.
 
 This is used by the "workspace chat" endpoints in routers/chat.py:
@@ -21,13 +19,11 @@ from datetime import datetime
 
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
->>>>>>> 25b55ef (done)
 
 from app.models.base import Base
 
 
 class Message(Base):
-<<<<<<< HEAD
     __tablename__ = "messages"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -43,7 +39,6 @@ class Message(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     workspace = relationship("Workspace", backref="messages")
-=======
     __tablename__ = "workspace_messages"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -64,4 +59,3 @@ class Message(Base):
 
     content = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
->>>>>>> 25b55ef (done)

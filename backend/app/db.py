@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # backend/app/db.py
 import os
 from contextlib import contextmanager
@@ -75,7 +74,6 @@ def get_db() -> Generator:
     finally:
         db.close()
 
-=======
 # backend/app/db.py
 import os
 from contextlib import contextmanager
@@ -157,4 +155,3 @@ def get_db() -> Generator:
         raise
     finally:
         db.close()
->>>>>>> 25b55ef (done)
