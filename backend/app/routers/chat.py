@@ -4,7 +4,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-
+from app.models.message import Message
 from app.db import get_db
 from app.models.chat import ChatRoom, ChatMember, ChatMessage
 from app.models.user import User  # existing user model
