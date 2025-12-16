@@ -1,3 +1,4 @@
+from app.models.message import Message
 from app.models.user import User, LoginHistory
 from app.models.subject import Subject
 from app.models.study_session import StudySession
