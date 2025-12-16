@@ -1,0 +1,956 @@
+{
+  "info": {
+    "_postman_id": "8d52e883-190b-46f9-9af7-adea4acd931c",
+    "name": "SmartStudy Timetable Generator API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Signup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/signup",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "signup"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"demo\",\n  \"email\": \"demo@example.com\",\n  \"password\": \"Passw0rd!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"demo@example.com\",\n  \"password\": \"Passw0rd!\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Timetable",
+      "item": [
+        {
+          "name": "Get User Timetable",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/timetable/user/{user_id}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "timetable",
+                "user",
+                "{user_id}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get User Timetable By Day",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/timetable/user/{user_id}/day/{day}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "timetable",
+                "user",
+                "{user_id}",
+                "day",
+                "{day}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Subject",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/timetable/subject?user_id={user_id}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "timetable",
+                "subject?user_id={user_id}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Calculus\",\n  \"code\": \"MATH101\",\n  \"difficulty\": 3,\n  \"target_grade\": \"A\",\n  \"credit_weight\": 3\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Subject Importance",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/timetable/subject/{subject_id}/importance?user_id={user_id}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "timetable",
+                "subject",
+                "{subject_id}",
+                "importance?user_id={user_id}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"importance\": 5\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Meeting",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/timetable/meeting?user_id={user_id}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "timetable",
+                "meeting?user_id={user_id}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subject_id\": \"{{subject_id}}\",\n  \"day_of_week\": 1,\n  \"start_time\": \"09:00\",\n  \"end_time\": \"10:50\",\n  \"rrule\": null\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Meeting",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/timetable/meeting/{meeting_id}?user_id={user_id}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "timetable",
+                "meeting",
+                "{meeting_id}?user_id={user_id}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"day_of_week\": 1,\n  \"start_time\": \"10:00\",\n  \"end_time\": \"11:50\",\n  \"rrule\": null\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Meeting",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/timetable/meeting/{meeting_id}?user_id={user_id}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "timetable",
+                "meeting",
+                "{meeting_id}?user_id={user_id}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Subject",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/timetable/subject/{subject_id}?user_id={user_id}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "timetable",
+                "subject",
+                "{subject_id}?user_id={user_id}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Extract Timetable From Image (OCR)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/timetable/extract-image",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "timetable",
+                "extract-image"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Workspaces",
+      "item": [
+        {
+          "name": "Create Workspace",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/workspaces",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "workspaces"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Team Alpha\",\n  \"owner_id\": \"{{user_id}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Workspace",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/workspaces/{workspace_id}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "workspaces",
+                "{workspace_id}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Workspace",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/workspaces/{workspace_id}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "workspaces",
+                "{workspace_id}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Add Workspace Member",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/workspaces/{workspace_id}/members",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "workspaces",
+                "{workspace_id}",
+                "members"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"role\": \"member\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Remove All Workspace Members",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/workspaces/{workspace_id}/members",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "workspaces",
+                "{workspace_id}",
+                "members"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Members",
+      "item": [
+        {
+          "name": "Add Member (members router)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/members/{workspace_id}/members",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "members",
+                "{workspace_id}",
+                "members"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"role\": \"member\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Members",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/members/{workspace_id}/members",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "members",
+                "{workspace_id}",
+                "members"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Member Role",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/members/{workspace_id}/members/{member_id}/role",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "members",
+                "{workspace_id}",
+                "members",
+                "{member_id}",
+                "role"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"admin\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Member",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/members/{workspace_id}/members/{member_id}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "members",
+                "{workspace_id}",
+                "members",
+                "{member_id}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Permissions",
+      "item": [
+        {
+          "name": "Create Permission",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/permissions/{member_id}/permissions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "permissions",
+                "{member_id}",
+                "permissions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"read\",\n  \"resource\": \"timetable\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Permissions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/permissions/{member_id}/permissions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "permissions",
+                "{member_id}",
+                "permissions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Permission",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/permissions/{member_id}/permissions/{permission_id}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "permissions",
+                "{member_id}",
+                "permissions",
+                "{permission_id}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"write\",\n  \"resource\": \"timetable\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Permission",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/permissions/{member_id}/permissions/{permission_id}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "permissions",
+                "{member_id}",
+                "permissions",
+                "{permission_id}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Chat",
+      "item": [
+        {
+          "name": "Create Room",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/chat/rooms",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "chat",
+                "rooms"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"General\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Room",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/chat/rooms/{room_id}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "chat",
+                "rooms",
+                "{room_id}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Add Member to Room",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/chat/rooms/{room_id}/members",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "chat",
+                "rooms",
+                "{room_id}",
+                "members"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"role\": \"member\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Remove Member from Room",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/chat/rooms/{room_id}/members/{user_id}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "chat",
+                "rooms",
+                "{room_id}",
+                "members",
+                "{user_id}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Room Messages",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/chat/rooms/{room_id}/messages?limit=50",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "chat",
+                "rooms",
+                "{room_id}",
+                "messages?limit=50"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Send Workspace Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/chat/workspaces/{workspace_id}/messages",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "chat",
+                "workspaces",
+                "{workspace_id}",
+                "messages"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sender_id\": \"{{user_id}}\",\n  \"content\": \"Hello!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Workspace Messages",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/chat/workspaces/{workspace_id}/messages?limit=50",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "chat",
+                "workspaces",
+                "{workspace_id}",
+                "messages?limit=50"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Message",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/chat/workspaces/messages/{message_id}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "chat",
+                "workspaces",
+                "messages",
+                "{message_id}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Create Notification",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notifications",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notifications"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"session_id\": null,\n  \"channel\": \"alarm\",\n  \"template\": \"study_start\",\n  \"send_at\": \"2025-12-16T12:00:00Z\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Session Alarm",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notifications/session-alarm",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notifications",
+                "session-alarm"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"{{user_id}}\",\n  \"session_id\": \"{{session_id}}\",\n  \"minutes_before\": 10,\n  \"channel\": \"alarm\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List User Notifications",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/notifications/user/{user_id}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notifications",
+                "user",
+                "{user_id}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Notification",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/notifications/{notification_id}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notifications",
+                "{notification_id}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Notification",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/notifications/{notification_id}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notifications",
+                "{notification_id}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Dispatch Due Notifications",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/notifications/dispatch-due",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notifications",
+                "dispatch-due"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000"
+    },
+    {
+      "key": "user_id",
+      "value": ""
+    },
+    {
+      "key": "subject_id",
+      "value": ""
+    },
+    {
+      "key": "meeting_id",
+      "value": ""
+    },
+    {
+      "key": "workspace_id",
+      "value": ""
+    },
+    {
+      "key": "member_id",
+      "value": ""
+    },
+    {
+      "key": "permission_id",
+      "value": ""
+    },
+    {
+      "key": "room_id",
+      "value": ""
+    },
+    {
+      "key": "message_id",
+      "value": ""
+    },
+    {
+      "key": "session_id",
+      "value": ""
+    },
+    {
+      "key": "notification_id",
+      "value": ""
+    },
+    {
+      "key": "day",
+      "value": "1"
+    }
+  ]
+}

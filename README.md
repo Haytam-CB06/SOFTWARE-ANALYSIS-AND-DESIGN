@@ -60,6 +60,14 @@ uvicorn app.main:app --reload
 API Docs:  
 👉 http://localhost:8000/docs
 
+### 🖼️ Timetable Image OCR + MCP
+- Upload a timetable image to extract days/times/courses:
+  - `POST /timetable/extract-image` (multipart/form-data, field: `file`)
+- If `fastapi-mcp` is installed, an MCP endpoint is available at:
+  - `GET /mcp` (and the MCP schema for agents)
+
+> **Note (Windows):** OCR uses `pytesseract` and requires the Tesseract engine installed + on PATH.
+
 ---
 
 # 🧪 4. Test API (Postman)
