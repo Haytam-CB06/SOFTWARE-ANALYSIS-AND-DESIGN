@@ -159,3 +159,13 @@ class SendMessageRequest(BaseModel):
     user_id: UUID
     username: str
     content: str
+
+class InviteRequest(BaseModel):
+    workspace_id: int
+    email: EmailStr
+
+class SignUpIn(BaseModel):
+    email: EmailStr
+    password: str
+    full_name: Optional[str] = None
+    invite_token: Optional[str] = None

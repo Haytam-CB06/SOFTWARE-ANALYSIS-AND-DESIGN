@@ -1,12 +1,17 @@
+import http
 from fastapi import APIRouter,Header, Depends, HTTPException
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from app.models.workspace import Workspace, WorkspaceDeleteLog
-from app.schemas import WorkspaceResponse,WorkspaceCreate,AddMemberRequest
+from app.schemas import WorkspaceResponse,WorkspaceCreate,AddMemberRequest,InviteRequest,SignUpIn
 from app.models.permissions import has_permission
 from app.db import get_db
 from typing import Optional
 from uuid import UUID
 from app.models.user import User
+from app.models.workspace import WorkspaceMember
+
+
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
 
 
@@ -26,7 +31,136 @@ def get_current_user_id(x_user_id: str = Header(...)):
         return UUID(x_user_id)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid user ID")
-    
+
+from itsdangerous import URLSafeTimedSerializer
+import os
+
+SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
+SALT = "workspace-invite"
+
+
+serializer = URLSafeTimedSerializer(SECRET_KEY)
+
+
+def generate_invite_token(workspace_id: int, email: str) -> str:
+    return serializer.dumps(
+        {"workspace_id": workspace_id, "email": email},
+        salt=SALT
+    )
+
+
+def verify_invite_token(token: str, max_age: int = 600) -> dict:
+    return serializer.loads(
+        token,
+        salt=SALT,
+        max_age=max_age
+    )
+SMTP_HOST = "smtp.gmail.com"
+SMTP_PORT = 587
+SMTP_EMAIL = "haytamcharafi@gmail.com"
+SMTP_PASSWORD = "tooa oqau oqvj tegk"
+
+
+from email.mime.text import MIMEText
+import smtplib
+
+
+def send_workspace_invite_email(email: str, workspace_id: int):
+    token = generate_invite_token(workspace_id, email)
+    invite_url = f"http://localhost:8000/workspaces/join?token={token}"
+
+    body = f"""
+    Hello,
+
+    You've been invited to U Plan.
+ Click the link below to join the workspace:
+
+ {invite_url}
+
+    This link will expire in 10 minutes.
+    Thanks,
+    U Plan
+    """
+
+    msg = MIMEText(body)
+    msg["From"] = SMTP_EMAIL
+    msg["To"] = email
+    msg["Subject"] = "Invitation to join a workspace on U Plan"
+
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        server.starttls()
+        server.login(SMTP_EMAIL, SMTP_PASSWORD)
+        server.send_message(msg)
+
+from typing import Optional
+from fastapi import Query
+
+@router.get("/signup")
+def signup_landing(invite_token: Optional[str] = Query(None)):
+    """
+    Temporary signup landing endpoint.
+    Used only until frontend exists.
+    """
+    return {
+        "message": "Signup page placeholder (frontend not implemented yet)",
+        "invite_token": invite_token,
+        "next_step": "POST /auth/signup with email, password, invite_token"
+    }
+
+@router.get("/join")
+def join_workspace(token: str, db: Session = Depends(get_db)):
+    try:
+        payload = verify_invite_token(token)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid or expired invite link")
+
+    workspace_id: int = payload["workspace_id"]
+    email: str = payload["email"]
+
+    user = db.query(User).filter(User.email == email).first()
+
+    # 🔹 USER NOT REGISTERED → redirect to signup page
+    if not user:
+        signup_url = f"http://localhost:8000/auth/signup?invite_token={token}"
+        return RedirectResponse(url=signup_url, status_code=302)
+
+    # Prevent duplicate membership
+    existing = db.query(WorkspaceMember).filter(
+        WorkspaceMember.workspace_id == workspace_id,
+        WorkspaceMember.user_id == user.id
+    ).first()
+
+    if existing:
+        return {"message": "User already a workspace member"}
+
+    member = WorkspaceMember(
+        workspace_id=workspace_id,
+        user_id=user.id,
+        role=existing.role
+    )
+
+    db.add(member)
+    db.commit()
+
+    # 🔹 User registered → redirect to workspace/dashboard
+    return RedirectResponse(
+        url=f"http://localhost:8000/workspaces?invite_token={token}",
+        status_code=302
+    )
+
+
+@router.post("/invite")
+def invite_user_to_workspace(
+    payload: InviteRequest,
+    db: Session = Depends(get_db)
+):
+    send_workspace_invite_email(
+        email=payload.email,
+        workspace_id=payload.workspace_id
+    )
+
+    return {"message": "Invitation email sent"}
+
 @router.post("", response_model=WorkspaceResponse)
 def create_workspace(
     payload: WorkspaceCreate,
@@ -82,8 +216,6 @@ def delete_workspace(
 
     return {"message": "Workspace deleted successfully"}
 
-
-from app.models.workspace import WorkspaceMember
 
 def get_user_workspace_role(
     db: Session,
