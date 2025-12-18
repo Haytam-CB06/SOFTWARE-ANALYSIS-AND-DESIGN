@@ -256,9 +256,62 @@ async def health():
 # =====================================================================
 #                         GOOGLE OAUTH & EVENTS
 # =====================================================================
-
+import os
+from dotenv import load_dotenv
+load_dotenv("C:\\Users\\haytham\\Downloads\\SOFTWARE-ANALYSIS-AND-DESIGN\\SOFTWARE-ANALYSIS-AND-DESIGN\\.env")
 oauth_router = APIRouter(tags=["google"])
+from authlib.integrations.starlette_client import OAuth
+oauth=OAuth()
+oauth.register(
+    name="google",
+    client_id=os.getenv("GOOGLE_CLIENT_ID"),
+    client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
+    server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+    client_kwargs={"scope": "openid email profile"},
+)
+from starlette.middleware.sessions import SessionMiddleware
 
+app.add_middleware(
+    SessionMiddleware,
+    secret_key="super-secret-session-key-change-this"
+)
+@app.get("/debug-env")
+def debug_env():
+    return {
+        "client_id": os.getenv("GOOGLE_CLIENT_ID"),
+        "client_secret": bool(os.getenv("GOOGLE_CLIENT_SECRET"))
+    }
+@oauth_router.get("/login")
+async def google_login(request: Request):
+    redirect_uri = "http://localhost:8000/callback"
+    print(os.getenv("GOOGLE_CLIENT_ID"))
+    print(os.getenv("GOOGLE_CLIENT_SECRET"))
+    return await oauth.google.authorize_redirect(request, redirect_uri)
+@oauth_router.get("/callback", name="google_callback")
+async def google_callback(request: Request):
+    token = await oauth.google.authorize_access_token(request)
+
+    resp = await oauth.google.get("userinfo", token=token)
+    user_info = resp.json()
+
+    if not user_info:
+        raise HTTPException(status_code=400, detail="Google auth failed")
+
+    email = user_info["email"]
+    name = user_info.get("name")
+
+    user = get_or_create_user(email=email, name=name)
+    access_token = create_access_token(user.id)
+
+    return JSONResponse({
+        "message": "Google login successful",
+        "user": {
+            "id": str(user.id),
+            "email": user.email,
+            "name": name
+        },
+        "access_token": access_token
+    })
 
 @oauth_router.get("/auth")
 def oauth_start():
@@ -410,6 +463,7 @@ class SignUpIn(BaseModel):
     timezone: str = "UTC"
     gender: constr(max_length=1)
     date_of_birth: date
+    invite_token: Optional[str] = None
 
 
 class LoginIn(BaseModel):
@@ -427,28 +481,49 @@ class userdata(BaseModel):
     timezone:  str
     gender:  str
     date_of_birth: date
+from itsdangerous import URLSafeTimedSerializer
+import os
 
+SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
+
+serializer = URLSafeTimedSerializer(SECRET_KEY)
+SALT = "workspace-invite"
+def verify_invite_token(token: str, max_age: int = 600) -> dict:
+    return serializer.loads(
+        token,
+        salt=SALT,
+        max_age=max_age
+    )
 
 @auth_router.post("/signup")
 def signup(payload: SignUpIn):
     with engine.begin() as conn:
-        # ensure password_hash column exists (safety if startup hook didn't run)
+        # Ensure schema safety
         _ensure_password_hash_column()
 
-        # check if email exists
+        # 1️⃣ Check if email already exists
         exists = conn.execute(
-            text("SELECT 1 FROM users WHERE email = :e LIMIT 1"),
+            text("SELECT id FROM users WHERE email = :e LIMIT 1"),
             {"e": payload.email},
         ).fetchone()
+
         if exists:
             raise HTTPException(
-                status_code=409, detail="Email already registered")
+                status_code=409,
+                detail="Email already registered"
+            )
 
-        # build insert dynamically based on available columns
+        # 2️⃣ Build insert payload dynamically
         cols = set(_get_user_table_columns(conn))
+
+        user_id = str(uuid4())
+
         data: Dict[str, Any] = {
+            "id": user_id,
             "email": payload.email,
+            "password_hash": hash_password(payload.password),
         }
+
         if "full_name" in cols:
             data["full_name"] = payload.full_name
         if "date_of_birth" in cols:
@@ -457,29 +532,60 @@ def signup(payload: SignUpIn):
             data["gender"] = payload.gender
         if "timezone" in cols:
             data["timezone"] = payload.timezone
-        if "password_hash" in cols:
-            data["password_hash"] = hash_password(payload.password)
-        print(cols)
-        # handle id if necessary
-        if "id" in cols:
-            try:
-                # dry run to detect NOT NULL without default
-                conn.exec_driver_sql("SAVEPOINT sp_ins")
-                columns = ", ".join(data.keys())
-                placeholders = ", ".join([f":{k}" for k in data.keys()])
-                conn.execute(
-                    text(f"INSERT INTO users ({columns}) VALUES ({placeholders})"), data)
-                conn.exec_driver_sql("ROLLBACK TO SAVEPOINT sp_ins")
-            except Exception:
-                conn.exec_driver_sql("ROLLBACK TO SAVEPOINT sp_ins")
-                data["id"] = str(uuid4())
 
+        # 3️⃣ Insert user
         columns = ", ".join(data.keys())
         placeholders = ", ".join([f":{k}" for k in data.keys()])
-        conn.execute(
-            text(f"INSERT INTO users ({columns}) VALUES ({placeholders})"), data)
 
-    return {"message": "signup ok"}
+        conn.execute(
+            text(f"INSERT INTO users ({columns}) VALUES ({placeholders})"),
+            data,
+        )
+
+        # 4️⃣ Handle workspace invite (if present)
+        if payload.invite_token:
+            try:
+                invite = verify_invite_token(payload.invite_token)
+            except Exception:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid or expired invite token"
+                )
+
+            workspace_id = invite["workspace_id"]
+            invited_email = invite["email"]
+
+            # Security check: token email must match signup email
+            if invited_email.lower() != payload.email.lower():
+                raise HTTPException(
+                    status_code=403,
+                    detail="Invite token does not match email"
+                )
+
+            # Prevent duplicate membership
+            exists = conn.execute(
+                text("""
+                SELECT 1 FROM workspace_members
+                WHERE workspace_id = :w AND user_id = :u
+                """),
+                {"w": workspace_id, "u": user_id},
+            ).fetchone()
+
+            if not exists:
+                conn.execute(
+                    text("""
+                    INSERT INTO workspace_members (workspace_id, user_id, role)
+                    VALUES (:w, :u, 'member')
+                    """),
+                    {"w": workspace_id, "u": user_id},
+                )
+
+    # 5️⃣ Return clean response
+    return {
+        "message": "Signup successful",
+        "joined_workspace": bool(payload.invite_token),
+    }
+
 
 
 @auth_router.post("/login")
@@ -538,8 +644,8 @@ def is_code_expired(created_at: datetime, minutes: int = 10):
 
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 587
-SMTP_EMAIL = os.getenv("SMTP_EMAIL")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+SMTP_EMAIL = "haytamcharafi@gmail.com"
+SMTP_PASSWORD = "tooa oqau oqvj tegk"
 # NO SPACES
 
 
@@ -555,12 +661,12 @@ def send_reset_email(email: str, code: str):
 
     
     Thanks,
-    SMART STUDYING TIMETABLE GENERATOR 
+    U Plan 
     """
     msg = MIMEText(f"{body}")
     msg["From"] = SMTP_EMAIL
     msg["To"] = email
-    msg["Subject"] = "Password Reset Code"
+    msg["Subject"] = "Password Reset Code for U Plan"
 
     with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
         server.starttls()

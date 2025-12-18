@@ -5,7 +5,7 @@
 **Team Workflow:** SCRUM  
 
 ---
-
+pip install authlib httpx
 # 🧰 1. Project Setup (Quick Start)
 
 ## 🔧 Clone Project & Create Virtual Environment
