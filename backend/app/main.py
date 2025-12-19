@@ -10,6 +10,7 @@ import smtplib
 from app.routers import workspaces, members, permission,chat
 from app.routers import timetable  # if not already added
 from app.routers import notifications
+from app.routers import sessions
 from app.models.oauth import OAuthAccount
 # backend/app/main.py
 import os
@@ -670,6 +671,7 @@ app.include_router(auth_router)
 # domain routers
 app.include_router(timetable.router)
 app.include_router(notifications.router)
+app.include_router(sessions.router)
 app.include_router(workspaces.router)
 app.include_router(members.router)
 app.include_router(permission.router)
