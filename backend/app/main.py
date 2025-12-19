@@ -10,6 +10,7 @@ import smtplib
 from app.routers import workspaces, members, permission,chat
 from app.routers import timetable  # if not already added
 from app.routers import notifications
+from app.models.oauth import OAuthAccount
 # backend/app/main.py
 import os
 from datetime import datetime, timedelta, timezone, date
@@ -258,60 +259,110 @@ async def health():
 # =====================================================================
 import os
 from dotenv import load_dotenv
-load_dotenv("C:\\Users\\haytham\\Downloads\\SOFTWARE-ANALYSIS-AND-DESIGN\\SOFTWARE-ANALYSIS-AND-DESIGN\\.env")
-oauth_router = APIRouter(tags=["google"])
+from fastapi import FastAPI, APIRouter, Request, HTTPException
+from fastapi.responses import JSONResponse
+from starlette.middleware.sessions import SessionMiddleware
 from authlib.integrations.starlette_client import OAuth
-oauth=OAuth()
+
+# ---------------------------------------------------------------------
+# App
+# ---------------------------------------------------------------------
+app = FastAPI()
+
+# ---------------------------------------------------------------------
+# ENV
+# ---------------------------------------------------------------------
+load_dotenv(
+    r"C:\Users\haytham\Downloads\SOFTWARE-ANALYSIS-AND-DESIGN\SOFTWARE-ANALYSIS-AND-DESIGN\.env"
+)
+
+# ---------------------------------------------------------------------
+# Session Middleware (MUST be before OAuth)
+# ---------------------------------------------------------------------
+app.add_middleware(
+    SessionMiddleware,
+    secret_key="SUPER_SECRET_SESSION_KEY",
+    same_site="lax",
+)
+
+# ---------------------------------------------------------------------
+# OAuth
+# ---------------------------------------------------------------------
+oauth = OAuth()
+
+
+# ---------------------------------------------------------------------
+# Router
+# ---------------------------------------------------------------------
+oauth_router = APIRouter(tags=["google"])
 oauth.register(
     name="google",
     client_id=os.getenv("GOOGLE_CLIENT_ID"),
     client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
     server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+    userinfo_endpoint="https://openidconnect.googleapis.com/v1/userinfo",
     client_kwargs={"scope": "openid email profile"},
 )
-from starlette.middleware.sessions import SessionMiddleware
 
-app.add_middleware(
-    SessionMiddleware,
-    secret_key="super-secret-session-key-change-this"
-)
+def get_or_create_google_user(db: Session, user_info: dict):
+    email = user_info["email"]
+    full_name = user_info.get("name")
+
+    user = db.query(User).filter(User.email == email).first()
+    if user:
+        return user
+
+    user = User(
+        email=email,
+        full_name=full_name,
+        timezone="UTC",
+        date_of_birth=date(2000, 1, 1),  # ✅ REQUIRED FIX
+        password_hash=None,
+        auth_provider="google",
+    )
+
+    db.add(user)
+    db.flush()
+    return user
+
 @app.get("/debug-env")
 def debug_env():
     return {
         "client_id": os.getenv("GOOGLE_CLIENT_ID"),
-        "client_secret": bool(os.getenv("GOOGLE_CLIENT_SECRET"))
+        "client_secret": bool(os.getenv("GOOGLE_CLIENT_SECRET")),
     }
+
 @oauth_router.get("/login")
 async def google_login(request: Request):
     redirect_uri = "http://localhost:8000/callback"
-    print(os.getenv("GOOGLE_CLIENT_ID"))
-    print(os.getenv("GOOGLE_CLIENT_SECRET"))
     return await oauth.google.authorize_redirect(request, redirect_uri)
-@oauth_router.get("/callback", name="google_callback")
-async def google_callback(request: Request):
+
+@oauth_router.get("/callback")
+async def google_callback(
+    request: Request,
+    db: Session = Depends(get_db)
+):
     token = await oauth.google.authorize_access_token(request)
+ 
+    resp = await oauth.google.get(
+        "https://openidconnect.googleapis.com/v1/userinfo",
+        token=token
+    )
 
-    resp = await oauth.google.get("userinfo", token=token)
     user_info = resp.json()
-
-    if not user_info:
-        raise HTTPException(status_code=400, detail="Google auth failed")
 
     email = user_info["email"]
     name = user_info.get("name")
 
-    user = get_or_create_user(email=email, name=name)
-    access_token = create_access_token(user.id)
+    user = get_or_create_google_user(db, user_info)
 
-    return JSONResponse({
-        "message": "Google login successful",
-        "user": {
-            "id": str(user.id),
-            "email": user.email,
-            "name": name
-        },
-        "access_token": access_token
-    })
+    return {"message": "User saved", "email": user.email}
+
+
+# ---------------------------------------------------------------------
+# INCLUDE ROUTER (DO NOT FORGET)
+# ---------------------------------------------------------------------
+app.include_router(oauth_router)
 
 @oauth_router.get("/auth")
 def oauth_start():
@@ -468,7 +519,7 @@ class SignUpIn(BaseModel):
 
 class LoginIn(BaseModel):
     email: EmailStr
-    password: constr(min_length=6)
+    password: str
 
 
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
@@ -592,23 +643,29 @@ def signup(payload: SignUpIn):
 def login(payload: LoginIn):
     with engine.begin() as conn:
         row = conn.execute(
-            text("SELECT password_hash FROM users WHERE email = :e"),
+            text("""
+                SELECT password_hash, auth_provider
+                FROM users
+                WHERE email = :e
+            """),
             {"e": payload.email},
         ).mappings().fetchone()
 
         if row is None:
             raise HTTPException(status_code=401, detail="invalid credentials")
 
-        ph = row.get("password_hash")
-        if not ph:
+        if row["auth_provider"] != "local":
             raise HTTPException(
-                status_code=500, detail="password column missing on users (run migrations)")
+                status_code=400,
+                detail="This account uses Google login. Please sign in with Google."
+            )
 
-        if not verify_password(payload.password, ph):
+        if not verify_password(payload.password, row["password_hash"]):
             raise HTTPException(status_code=401, detail="invalid credentials")
+        
 
-    # If you later need JWTs, generate and return here.
     return {"message": "login ok"}
+
 
 
 app.include_router(auth_router)
