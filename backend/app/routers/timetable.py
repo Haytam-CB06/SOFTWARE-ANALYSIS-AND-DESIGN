@@ -7,22 +7,41 @@ from app.models.subject import Subject
 from app.models.user import User
 from pydantic import BaseModel, field_validator
 from datetime import time
-from typing import List, Optional
+from typing import List, Optional, Tuple
 import uuid
 import base64
 import csv
+import re
+import io
 
 router = APIRouter(prefix="/timetable", tags=["Timetable"])
+
+TIME_HHMM_RE = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
 
 # Pydantic Models
 
 
 class ClassMeetingCreate(BaseModel):
     subject_id: str
-    day_of_week: int  # 0-6
+    day_of_week: int  # 0-6 (0=Sun … 6=Sat)
     start_time: str  # "09:00"
     end_time: str
     rrule: Optional[str] = None
+
+    @field_validator("day_of_week")
+    @classmethod
+    def validate_day_of_week(cls, v: int):
+        if v < 0 or v > 6:
+            raise ValueError("day_of_week must be between 0 and 6 (0=Sun … 6=Sat).")
+        return v
+
+    @field_validator("start_time", "end_time")
+    @classmethod
+    def validate_time_format(cls, v: str):
+        # Enforce strict HH:MM (00:00–23:59). Rejects '1:00' and '24:00'.
+        if not TIME_HHMM_RE.match(v):
+            raise ValueError("Time must be in HH:MM format (00:00 to 23:59). Example: '09:00'.")
+        return v
 
 
 class ClassMeetingUpdate(BaseModel):
@@ -30,14 +49,51 @@ class ClassMeetingUpdate(BaseModel):
     start_time: Optional[str] = None
     end_time: Optional[str] = None
     rrule: Optional[str] = None
-
-
-class SubjectCreate(BaseModel):
-    title: str
-    code: Optional[str] = None
+    subject_name: Optional[str] = None
+    exam_date: Optional[str] = None
+    exam_time: Optional[str] = None
+    location: Optional[str] = None
+    importance: Optional[int] = None
+    notes: Optional[str] = None
+    reminder_minutes: Optional[int] = None
+    color: Optional[str] = None
     difficulty: Optional[int] = None
     target_grade: Optional[str] = None
     credit_weight: Optional[float] = None
+
+    @field_validator("day_of_week")
+    @classmethod
+    def validate_day_of_week_optional(cls, v: Optional[int]):
+        if v is None:
+            return v
+        if v < 0 or v > 6:
+            raise ValueError("day_of_week must be between 0 and 6 (0=Sun … 6=Sat).")
+        return v
+
+    @field_validator("start_time", "end_time")
+    @classmethod
+    def validate_time_format_optional(cls, v: Optional[str]):
+        if v is None:
+            return v
+        if not TIME_HHMM_RE.match(v):
+            raise ValueError("Time must be in HH:MM format (00:00 to 23:59). Example: '09:00'.")
+        return v
+
+
+class SubjectCreate(BaseModel):
+    user_id: str
+    name: str
+    exam_date: Optional[str] = None
+    exam_time: Optional[str] = None
+    location: Optional[str] = None
+    importance: Optional[int] = None
+    notes: Optional[str] = None
+    reminder_minutes: Optional[int] = None
+    color: Optional[str] = None
+    difficulty: Optional[int] = None
+    target_grade: Optional[str] = None
+    credit_weight: Optional[float] = None
+
 
 # READ ENDPOINTS
 
@@ -61,35 +117,34 @@ def get_user_timetable(user_id: str, session: Session = Depends(get_db)):
     )
 
     if not subjects:
-        raise HTTPException(
-            status_code=404, detail="No timetable found for this user")
+        return {"user_id": user_id, "timetable": []}
 
-    # Sonuçları formatla
-    timetable = []
+    timetable = {day: [] for day in range(7)}
+
     for subject in subjects:
         for meeting in subject.class_meetings:
-            timetable.append({
-                "meeting_id": str(meeting.id),
-                "subject_id": str(subject.id),
-                "subject_title": subject.title,
-                "subject_code": subject.code,
-                "day_of_week": meeting.day_of_week,
-                "start_time": meeting.start_time.strftime("%H:%M"),
-                "end_time": meeting.end_time.strftime("%H:%M"),
-                "rrule": meeting.rrule,
-            })
+            timetable[meeting.day_of_week].append(
+                {
+                    "meeting_id": str(meeting.id),
+                    "subject_id": str(subject.id),
+                    "subject_name": subject.name,
+                    "day_of_week": meeting.day_of_week,
+                    "start_time": meeting.start_time.strftime("%H:%M"),
+                    "end_time": meeting.end_time.strftime("%H:%M"),
+                    "rrule": meeting.rrule,
+                }
+            )
 
-    
-    timetable.sort(key=lambda x: (x["day_of_week"], x["start_time"]))
+    # Sort meetings by start_time for each day
+    for day in timetable:
+        timetable[day].sort(key=lambda x: x["start_time"])
 
     return {"user_id": user_id, "timetable": timetable}
 
 
 @router.get("/user/{user_id}/day/{day}")
 def get_user_timetable_by_day(
-    user_id: str,
-    day: int,
-    session: Session = Depends(get_db)
+    user_id: str, day: int, session: Session = Depends(get_db)
 ):
     """
     Belirli bir günün ders programını döner.
@@ -107,7 +162,7 @@ def get_user_timetable_by_day(
         .filter(
             Subject.user_id == user_id,
             Subject.is_active == True,
-            ClassMeeting.day_of_week == day
+            ClassMeeting.day_of_week == day,
         )
         .order_by(ClassMeeting.start_time)
         .all()
@@ -119,22 +174,22 @@ def get_user_timetable_by_day(
     result = [
         {
             "meeting_id": str(m.id),
-            "subject_title": m.subject.title,
-            "subject_code": m.subject.code,
+            "subject_id": str(m.subject_id),
+            "subject_name": m.subject.name if m.subject else None,
+            "day_of_week": m.day_of_week,
             "start_time": m.start_time.strftime("%H:%M"),
             "end_time": m.end_time.strftime("%H:%M"),
-            "rule": m.rule,
+            "rrule": m.rrule,
         }
         for m in meetings
     ]
-
     return {"day": day, "meetings": result}
 
 
 @router.get("/admin/all-users")
 def get_all_users_timetables(session: Session = Depends(get_db)):
     """
-    Admin: Tüm kullanıcıların ders programlarını döner.
+    Admin endpoint: all users and their subjects/meetings
     """
     users = (
         session.query(User)
@@ -142,125 +197,88 @@ def get_all_users_timetables(session: Session = Depends(get_db)):
         .all()
     )
 
-    if not users:
-        return {"users": []}
+    all_data = []
+    for u in users:
+        user_entry = {"user_id": str(u.id), "email": u.email, "subjects": []}
+        for s in u.subjects:
+            subj_entry = {
+                "subject_id": str(s.id),
+                "name": s.name,
+                "is_active": s.is_active,
+                "class_meetings": [],
+            }
+            for m in s.class_meetings:
+                subj_entry["class_meetings"].append(
+                    {
+                        "meeting_id": str(m.id),
+                        "day_of_week": m.day_of_week,
+                        "start_time": m.start_time.strftime("%H:%M"),
+                        "end_time": m.end_time.strftime("%H:%M"),
+                        "rrule": m.rrule,
+                    }
+                )
+            user_entry["subjects"].append(subj_entry)
+        all_data.append(user_entry)
 
-    result = []
-    for user in users:
-        user_data = {
-            "user_id": str(user.id),
-            "username": user.username,
-            "email": user.email,
-            "subjects": []
-        }
-        for subject in user.subjects:
-            if subject.is_active:
-                user_data["subjects"].append({
-                    "subject_id": str(subject.id),
-                    "title": subject.title,
-                    "meetings": [
-                        {
-                            "day": m.day_of_week,
-                            "start": m.start_time.strftime("%H:%M"),
-                            "end": m.end_time.strftime("%H:%M"),
-                        }
-                        for m in subject.class_meetings
-                    ]
-                })
-        result.append(user_data)
-
-    return {"users": result}
+    return {"users": all_data}
 
 
-# WRITE ENDPOINTS
+# CREATE ENDPOINTS
+
 
 @router.post("/subject")
-def create_subject(
-    user_id: str,
-    subject: SubjectCreate,
-    session: Session = Depends(get_db)
-):
+def create_subject(subject: SubjectCreate, session: Session = Depends(get_db)):
     """
-    Yeni ders ekle.
+    Yeni ders oluşturur.
     """
     try:
-        user_uuid = uuid.UUID(user_id)
+        uuid.UUID(subject.user_id)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid user_id format")
 
-    try:
-        # Kullanıcı var mı kontrol et
-        user = session.query(User).filter(User.id == user_uuid).first()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+    # ensure user exists
+    user = session.query(User).filter(User.id == subject.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
 
-        new_subject = Subject(
-            id=uuid.uuid4(),
-            user_id=user_uuid,
-            title=subject.title,
-            code=subject.code,
-            difficulty=subject.difficulty,
-            target_grade=subject.target_grade,
-            credit_weight=subject.credit_weight,
-        )
+    new_subject = Subject(
+        user_id=subject.user_id,
+        name=subject.name,
+        exam_date=subject.exam_date,
+        exam_time=subject.exam_time,
+        location=subject.location,
+        importance=subject.importance,
+        notes=subject.notes,
+        reminder_minutes=subject.reminder_minutes,
+        color=subject.color,
+        difficulty=subject.difficulty,
+        target_grade=subject.target_grade,
+        credit_weight=subject.credit_weight,
+        is_active=True,
+    )
 
-        session.add(new_subject)
-        session.commit()
-        session.refresh(new_subject)
+    session.add(new_subject)
+    session.commit()
+    session.refresh(new_subject)
 
-        return {
-            "subject_id": str(new_subject.id),
-            "title": new_subject.title,
-            "message": "Subject created successfully"
-        }
-    except Exception as e:
-        session.rollback()
-        raise HTTPException(
-            status_code=500, detail=f"Database error: {str(e)}")
-    finally:
-        session.close()
+    return {"subject_id": str(new_subject.id), "message": "Subject created successfully"}
 
 
 @router.post("/meeting")
-def create_class_meeting(
-    user_id: str,
-    meeting: ClassMeetingCreate,
-    session: Session = Depends(get_db)
-):
+def create_class_meeting(meeting: ClassMeetingCreate, session: Session = Depends(get_db)):
     """
-    Ders programına yeni saat ekle.
+    Subject'a bağlı class meeting oluşturur.
     """
-    try:
-        subject_uuid = uuid.UUID(meeting.subject_id)
-        user_uuid = uuid.UUID(user_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid UUID format")
-
-    # Subject'in bu user'a ait olduğunu kontrol et
-    subject = (
-        session.query(Subject)
-        .filter(Subject.id == subject_uuid, Subject.user_id == user_uuid)
-        .first()
-    )
+    # ensure subject exists
+    subject = session.query(Subject).filter(Subject.id == meeting.subject_id).first()
     if not subject:
-        raise HTTPException(
-            status_code=404, detail="Subject not found for this user")
+        raise HTTPException(status_code=404, detail="Subject not found")
 
-    # Saatleri parse et
-    try:
-        start_time = time.fromisoformat(meeting.start_time)
-        end_time = time.fromisoformat(meeting.end_time)
-    except ValueError:
-        raise HTTPException(
-            status_code=400, detail="Invalid time format. Use HH:MM")
-
-    if start_time >= end_time:
-        raise HTTPException(
-            status_code=400, detail="Start time must be before end time")
+    start_time = time.fromisoformat(meeting.start_time)
+    end_time = time.fromisoformat(meeting.end_time)
 
     new_meeting = ClassMeeting(
-        id=uuid.uuid4(),
-        subject_id=subject_uuid,
+        subject_id=meeting.subject_id,
         day_of_week=meeting.day_of_week,
         start_time=start_time,
         end_time=end_time,
@@ -271,41 +289,29 @@ def create_class_meeting(
     session.commit()
     session.refresh(new_meeting)
 
-    return {
-        "meeting_id": str(new_meeting.id),
-        "subject_id": str(new_meeting.subject_id),
-        "day": new_meeting.day_of_week,
-        "start_time": new_meeting.start_time.strftime("%H:%M"),
-        "end_time": new_meeting.end_time.strftime("%H:%M"),
-        "message": "Meeting created successfully"
-    }
+    return {"meeting_id": str(new_meeting.id), "message": "Meeting created successfully"}
+
+
+# UPDATE ENDPOINTS
 
 
 @router.put("/meeting/{meeting_id}")
 def update_class_meeting(
-    meeting_id: str,
-    user_id: str,
-    update_data: ClassMeetingUpdate,
-    session: Session = Depends(get_db)
+    meeting_id: str, update_data: ClassMeetingUpdate, session: Session = Depends(get_db)
 ):
-    
+    """
+    Class meeting update eder.
+    """
     try:
-        meeting_uuid = uuid.UUID(meeting_id)
-        user_uuid = uuid.UUID(user_id)
+        uuid.UUID(meeting_id)
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid UUID format")
+        raise HTTPException(status_code=400, detail="Invalid meeting_id format")
 
-    # Meeting'i bul ve user'a ait olduğunu kontrol et
-    meeting = (
-        session.query(ClassMeeting)
-        .join(Subject, Subject.id == ClassMeeting.subject_id)
-        .filter(ClassMeeting.id == meeting_uuid, Subject.user_id == user_uuid)
-        .first()
-    )
+    meeting = session.query(ClassMeeting).filter(ClassMeeting.id == meeting_id).first()
     if not meeting:
         raise HTTPException(status_code=404, detail="Meeting not found")
 
-    # Güncelle
+    # update meeting fields
     if update_data.day_of_week is not None:
         meeting.day_of_week = update_data.day_of_week
     if update_data.start_time is not None:
@@ -313,76 +319,93 @@ def update_class_meeting(
     if update_data.end_time is not None:
         meeting.end_time = time.fromisoformat(update_data.end_time)
     if update_data.rrule is not None:
-        meeting.rule = update_data.rrule
+        meeting.rrule = update_data.rrule  # type: ignore[attr-defined]
+
+    # update subject fields (optional convenience)
+    if any(
+        getattr(update_data, f) is not None
+        for f in [
+            "subject_name",
+            "exam_date",
+            "exam_time",
+            "location",
+            "importance",
+            "notes",
+            "reminder_minutes",
+            "color",
+            "difficulty",
+            "target_grade",
+            "credit_weight",
+        ]
+    ):
+        subject = session.query(Subject).filter(Subject.id == meeting.subject_id).first()
+        if subject:
+            if update_data.subject_name is not None:
+                subject.name = update_data.subject_name
+            if update_data.exam_date is not None:
+                subject.exam_date = update_data.exam_date
+            if update_data.exam_time is not None:
+                subject.exam_time = update_data.exam_time
+            if update_data.location is not None:
+                subject.location = update_data.location
+            if update_data.importance is not None:
+                subject.importance = update_data.importance
+            if update_data.notes is not None:
+                subject.notes = update_data.notes
+            if update_data.reminder_minutes is not None:
+                subject.reminder_minutes = update_data.reminder_minutes
+            if update_data.color is not None:
+                subject.color = update_data.color
+            if update_data.difficulty is not None:
+                subject.difficulty = update_data.difficulty
+            if update_data.target_grade is not None:
+                subject.target_grade = update_data.target_grade
+            if update_data.credit_weight is not None:
+                subject.credit_weight = update_data.credit_weight
 
     session.commit()
+    return {"message": "Meeting updated successfully"}
 
-    return {
-        "meeting_id": str(meeting.id),
-        "message": "Meeting updated successfully"
-    }
+
+# DELETE ENDPOINTS
 
 
 @router.delete("/meeting/{meeting_id}")
-def delete_class_meeting(
-    meeting_id: str,
-    user_id: str,
-    session: Session = Depends(get_db)
-):
-    
+def delete_class_meeting(meeting_id: str, session: Session = Depends(get_db)):
     try:
-        meeting_uuid = uuid.UUID(meeting_id)
-        user_uuid = uuid.UUID(user_id)
+        uuid.UUID(meeting_id)
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid UUID format")
+        raise HTTPException(status_code=400, detail="Invalid meeting_id format")
 
-    meeting = (
-        session.query(ClassMeeting)
-        .join(Subject, Subject.id == ClassMeeting.subject_id)
-        .filter(ClassMeeting.id == meeting_uuid, Subject.user_id == user_uuid)
-        .first()
-    )
+    meeting = session.query(ClassMeeting).filter(ClassMeeting.id == meeting_id).first()
     if not meeting:
         raise HTTPException(status_code=404, detail="Meeting not found")
 
     session.delete(meeting)
     session.commit()
-
     return {"message": "Meeting deleted successfully"}
 
 
 @router.delete("/subject/{subject_id}")
-def delete_subject(
-    subject_id: str,
-    user_id: str,
-    session: Session = Depends(get_db)
-):
-    
+def delete_subject(subject_id: str, session: Session = Depends(get_db)):
     try:
-        subject_uuid = uuid.UUID(subject_id)
-        user_uuid = uuid.UUID(user_id)
+        uuid.UUID(subject_id)
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid UUID format")
+        raise HTTPException(status_code=400, detail="Invalid subject_id format")
 
-    subject = (
-        session.query(Subject)
-        .filter(Subject.id == subject_uuid, Subject.user_id == user_uuid)
-        .first()
-    )
+    subject = session.query(Subject).filter(Subject.id == subject_id).first()
     if not subject:
         raise HTTPException(status_code=404, detail="Subject not found")
 
     session.delete(subject)
     session.commit()
-
     return {"message": "Subject deleted successfully"}
 
+
 # ===============================
-# Image -> Timetable extraction (OCR)
+# Image -> timetable extraction (OCR)
 # ===============================
 
-import io
-import re
 from PIL import Image
 
 try:
@@ -392,12 +415,11 @@ except Exception:  # pragma: no cover
 
 
 class TimetableExtractItem(BaseModel):
-    """A single extracted row from an uploaded timetable image."""
-
-    day_of_week: Optional[int] = None  # 0-6 (Sun..Sat) if we can infer
+    day_of_week: Optional[int] = None  # 0-6 (Sun..Sat)
     day_label: Optional[str] = None
     start_time: Optional[str] = None  # HH:MM
     end_time: Optional[str] = None
+    rrule: Optional[str] = None
     subject_title: Optional[str] = None
     subject_code: Optional[str] = None
     raw_line: Optional[str] = None
@@ -409,25 +431,14 @@ class TimetableExtractResponse(BaseModel):
 
 
 _DAY_MAP = {
-    "sun": 0,
-    "sunday": 0,
-    "mon": 1,
-    "monday": 1,
-    "tue": 2,
-    "tues": 2,
-    "tuesday": 2,
-    "wed": 3,
-    "wednesday": 3,
-    "thu": 4,
-    "thur": 4,
-    "thurs": 4,
-    "thursday": 4,
-    "fri": 5,
-    "friday": 5,
-    "sat": 6,
-    "saturday": 6,
+    "sun": 0, "sunday": 0,
+    "mon": 1, "monday": 1,
+    "tue": 2, "tues": 2, "tuesday": 2,
+    "wed": 3, "wednesday": 3,
+    "thu": 4, "thur": 4, "thurs": 4, "thursday": 4,
+    "fri": 5, "friday": 5,
+    "sat": 6, "saturday": 6,
 }
-
 
 _TIME_RANGE_RE = re.compile(
     r"(?P<s>\b\d{1,2}[:\.]\d{2}\b)\s*[-–—]\s*(?P<e>\b\d{1,2}[:\.]\d{2}\b)",
@@ -436,13 +447,12 @@ _TIME_RANGE_RE = re.compile(
 
 
 def _norm_time(t: str) -> str:
-    # Accept 9.00, 9:00, 09:00
     t = t.strip().replace(".", ":")
     hh, mm = t.split(":", 1)
     return f"{int(hh):02d}:{int(mm):02d}"
 
 
-def _infer_day(line: str) -> tuple[Optional[int], Optional[str]]:
+def _infer_day(line: str) -> Tuple[Optional[int], Optional[str]]:
     lower = re.sub(r"[^a-z]", " ", line.lower())
     tokens = [t for t in lower.split() if t]
     for tok in tokens:
@@ -451,11 +461,7 @@ def _infer_day(line: str) -> tuple[Optional[int], Optional[str]]:
     return None, None
 
 
-def _infer_subject(line: str, time_span: tuple[str, str] | None) -> tuple[Optional[str], Optional[str]]:
-    # Very lightweight heuristic:
-    # - remove detected time range
-    # - remove common day tokens
-    # - try to split CODE (e.g., CSE101, MATH-201) from title
+def _infer_subject(line: str, time_span: Optional[Tuple[str, str]]) -> Tuple[Optional[str], Optional[str]]:
     cleaned = line
     if time_span:
         s, e = time_span
@@ -465,7 +471,6 @@ def _infer_subject(line: str, time_span: tuple[str, str] | None) -> tuple[Option
 
     cleaned = re.sub(r"\s+", " ", cleaned).strip(" -|\t")
 
-    # Find a code-like token
     m = re.search(r"\b([A-Z]{2,10}\s?[-]?\s?\d{2,4}[A-Z]?)\b", cleaned)
     code = None
     if m:
@@ -480,18 +485,10 @@ def _infer_subject(line: str, time_span: tuple[str, str] | None) -> tuple[Option
 
 @router.post("/extract-image", response_model=TimetableExtractResponse)
 async def extract_timetable_from_image(file: UploadFile = File(...)):
-    """Extract timetable-like text from an uploaded image.
-
-    Notes:
-    - This uses OCR (pytesseract). On Windows you must install the Tesseract engine
-      and ensure it's on PATH (or set pytesseract.pytesseract.tesseract_cmd).
-    - The parsing is heuristic; frontend/user may confirm and edit extracted results.
-    """
-
     if pytesseract is None:
         raise HTTPException(
             status_code=500,
-            detail="pytesseract is not installed on the server. Install dependencies (see backend/requirements.txt).",
+            detail="pytesseract is not installed on the server. Install Tesseract + pytesseract.",
         )
 
     if not file.content_type or not file.content_type.startswith("image/"):
@@ -510,6 +507,7 @@ async def extract_timetable_from_image(file: UploadFile = File(...)):
     for ln in lines:
         day_idx, day_label = _infer_day(ln)
         m = _TIME_RANGE_RE.search(ln)
+
         time_span = None
         start_time = end_time = None
         if m:
@@ -519,7 +517,6 @@ async def extract_timetable_from_image(file: UploadFile = File(...)):
 
         title, code = _infer_subject(ln, time_span)
 
-        # Only keep rows that look somewhat timetable-ish
         if start_time or end_time or day_idx is not None:
             items.append(
                 TimetableExtractItem(
@@ -537,39 +534,24 @@ async def extract_timetable_from_image(file: UploadFile = File(...)):
 
 
 class TimetableExtractBase64In(BaseModel):
-    """MCP/agent-friendly image input.
-
-    Accepts either:
-    - raw base64 (no prefix)
-    - a data URL (e.g. 'data:image/png;base64,...')
-    """
-
     image_base64: str
 
 
 @router.post("/extract-image-base64", response_model=TimetableExtractResponse)
 def extract_timetable_from_image_base64(payload: TimetableExtractBase64In):
-    """Extract timetable-like text from a base64-encoded image.
-
-    Why this exists:
-    - UploadFile/multipart is awkward for MCP tools. JSON input works much better.
-    """
-
     if pytesseract is None:
         raise HTTPException(
             status_code=500,
-            detail="pytesseract is not installed on the server. Install dependencies (see backend/requirements.txt).",
+            detail="pytesseract is not installed on the server. Install Tesseract + pytesseract.",
         )
 
     b64 = payload.image_base64.strip()
-    # Allow data URLs
     if b64.lower().startswith("data:") and "," in b64:
         b64 = b64.split(",", 1)[1]
 
     try:
         raw = base64.b64decode(b64, validate=True)
     except Exception:
-        # Some clients send base64 with newlines/spaces; retry a more tolerant decode.
         try:
             raw = base64.b64decode(re.sub(r"\s+", "", b64))
         except Exception as e:
@@ -587,6 +569,7 @@ def extract_timetable_from_image_base64(payload: TimetableExtractBase64In):
     for ln in lines:
         day_idx, day_label = _infer_day(ln)
         m = _TIME_RANGE_RE.search(ln)
+
         time_span = None
         start_time = end_time = None
         if m:
@@ -617,7 +600,6 @@ def extract_timetable_from_image_base64(payload: TimetableExtractBase64In):
 # ===============================
 
 class TimetableCsvTextRequest(BaseModel):
-    """MCP/agent-friendly CSV input (no multipart)."""
     csv: str
 
 
@@ -633,27 +615,17 @@ def _day_to_int(val: str | int | None) -> Optional[int]:
     key = re.sub(r"[^a-z]", "", s.lower())
     if key in _DAY_MAP:
         return _DAY_MAP[key]
-    # try first 3 letters
     if len(key) >= 3 and key[:3] in _DAY_MAP:
         return _DAY_MAP[key[:3]]
     return None
 
 
 def _read_csv_text(raw: str) -> TimetableExtractResponse:
-    """Parse CSV text into TimetableExtractResponse.
-    Expected columns (case-insensitive):
-      - day / day_of_week
-      - start / start_time
-      - end / end_time
-      - subject / title (optional if code provided)
-      - code / subject_code (optional)
-    """
     f = io.StringIO(raw)
     reader = csv.DictReader(f)
     if not reader.fieldnames:
         raise HTTPException(status_code=400, detail="CSV has no headers/columns")
 
-    # normalize header names
     def norm(h: str) -> str:
         return re.sub(r"[^a-z_]", "", h.strip().lower())
 
@@ -666,19 +638,16 @@ def _read_csv_text(raw: str) -> TimetableExtractResponse:
                 return row.get(headers[k])
         return None
 
-    items: list[TimetableExtractItem] = []
+    items: List[TimetableExtractItem] = []
     for row in reader:
         day = _day_to_int(get(row, "day", "day_of_week"))
         start_raw = get(row, "start", "start_time")
         end_raw = get(row, "end", "end_time")
         if not start_raw or not end_raw:
-            # skip empty lines
             continue
-        try:
-            start = _norm_time(str(start_raw))
-            end = _norm_time(str(end_raw))
-        except Exception:
-            raise HTTPException(status_code=400, detail=f"Invalid time format in row: {row}")
+
+        start = _norm_time(str(start_raw))
+        end = _norm_time(str(end_raw))
 
         code = get(row, "code", "subject_code")
         title = get(row, "subject", "title", "course", "course_title")
@@ -699,9 +668,7 @@ def _read_csv_text(raw: str) -> TimetableExtractResponse:
 
 @router.post("/extract-csv", response_model=TimetableExtractResponse)
 async def extract_timetable_from_csv(file: UploadFile = File(...)):
-    """Upload a CSV and extract timetable rows."""
     if not file.filename.lower().endswith(".csv"):
-        # still allow if content-type is csv
         if file.content_type not in ("text/csv", "application/csv", "application/vnd.ms-excel"):
             raise HTTPException(status_code=400, detail="Please upload a .csv file")
 
@@ -716,26 +683,19 @@ async def extract_timetable_from_csv(file: UploadFile = File(...)):
 
 @router.post("/extract-csv-text", response_model=TimetableExtractResponse)
 async def extract_timetable_from_csv_text(payload: TimetableCsvTextRequest):
-    """JSON CSV input (no multipart) - suitable for MCP clients."""
     return _read_csv_text(payload.csv)
 
 
 # ===============================
-# Course importance (difficulty) update
+# Course importance update
 # ===============================
 
-
 class SubjectImportanceUpdate(BaseModel):
-    """Client-facing importance levels.
-
-    importance: 1 (low) .. 5 (high)
-    """
-
     importance: int
 
     @field_validator("importance")
     @classmethod
-    def _valid_range(cls, v: int):
+    def _valid_range(cls, v: int) -> int:
         if v < 1 or v > 5:
             raise ValueError("importance must be between 1 and 5")
         return v
@@ -748,11 +708,6 @@ def update_subject_importance(
     payload: SubjectImportanceUpdate,
     session: Session = Depends(get_db),
 ):
-    """Update a subject's importance level.
-
-    For now we store it in the existing `difficulty` field (1..5).
-    """
-
     try:
         subject_uuid = uuid.UUID(subject_id)
         user_uuid = uuid.UUID(user_id)

@@ -1,10 +1,12 @@
 # backend/app/routers/notifications.py
+from __future__ import annotations
+
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -14,22 +16,36 @@ from app.models.study_session import StudySession
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
 
-# --------- Pydantic Schemas ---------
-
+# -----------------------------
+# Pydantic Schemas
+# -----------------------------
 class NotificationCreate(BaseModel):
     user_id: UUID
     session_id: Optional[UUID] = None
-    channel: str  # e.g. "alarm", "email"
-    template: str
-    send_at: datetime
+    channel: str = "alarm"  # e.g. "alarm", "email", "push"
+    template: str = "Study session reminder"
+    send_at: Optional[datetime] = None  # if None, computed based on session & minutes_before
 
     @field_validator("channel")
     @classmethod
-    def valid_channel(cls, v: str) -> str:
-        allowed = {"alarm", "email", "sms"}
-        if v not in allowed:
-            raise ValueError(f"channel must be one of {allowed}")
+    def validate_channel(cls, v: str) -> str:
+        v = (v or "").strip().lower()
+        if v not in {"alarm", "email", "push"}:
+            raise ValueError("channel must be one of: alarm, email, push")
         return v
+
+    @field_validator("send_at")
+    @classmethod
+    def validate_send_at(cls, v: Optional[datetime]) -> Optional[datetime]:
+        # Allow None; if provided, require timezone-aware to avoid ambiguity
+        if v is not None and v.tzinfo is None:
+            raise ValueError("send_at must be timezone-aware (include timezone offset)")
+        return v
+
+
+class NotificationUpdate(BaseModel):
+    status: Optional[str] = None  # e.g. "pending", "sent", "failed", "cancelled"
+    error_message: Optional[str] = None
 
 
 class SessionAlarmCreate(BaseModel):
@@ -37,6 +53,21 @@ class SessionAlarmCreate(BaseModel):
     session_id: UUID
     minutes_before: int = 15
     channel: str = "alarm"
+
+    @field_validator("minutes_before")
+    @classmethod
+    def validate_minutes_before(cls, v: int) -> int:
+        if v < 0 or v > 24 * 60:
+            raise ValueError("minutes_before must be between 0 and 1440")
+        return v
+
+    @field_validator("channel")
+    @classmethod
+    def validate_channel(cls, v: str) -> str:
+        v = (v or "").strip().lower()
+        if v not in {"alarm", "email", "push"}:
+            raise ValueError("channel must be one of: alarm, email, push")
+        return v
 
 
 class NotificationOut(BaseModel):
@@ -49,133 +80,154 @@ class NotificationOut(BaseModel):
     status: str
     error_message: Optional[str] = None
 
-    class Config:
-        orm_mode = True
+    # Pydantic v2 replacement for orm_mode=True
+    model_config = ConfigDict(from_attributes=True)
 
 
-# --------- CRUD ENDPOINTS ---------
+# -----------------------------
+# Helpers
+# -----------------------------
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
 
 
+def _ensure_session_exists(db: Session, session_id: UUID) -> StudySession:
+    session = db.query(StudySession).filter(StudySession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Study session not found")
+    return session
+
+
+def _compute_send_at_from_session(session: StudySession, minutes_before: int) -> datetime:
+    """
+    Tries to compute when to notify based on session start.
+    This assumes StudySession has a start_datetime or equivalent.
+
+    If your model uses a different field name, adjust here:
+      - start_time / start_datetime / starts_at, etc.
+    """
+    # Common field names: start_datetime, starts_at, start_time (datetime)
+    start_dt = None
+    for attr in ("start_datetime", "starts_at", "start_time", "start_at"):
+        if hasattr(session, attr):
+            start_dt = getattr(session, attr)
+            break
+
+    if start_dt is None:
+        raise HTTPException(
+            status_code=500,
+            detail="StudySession model missing start datetime field (expected start_datetime/starts_at/start_time/start_at).",
+        )
+
+    # Ensure timezone-aware; assume UTC if naive
+    if start_dt.tzinfo is None:
+        start_dt = start_dt.replace(tzinfo=timezone.utc)
+
+    return start_dt - timedelta(minutes=minutes_before)
+
+
+# -----------------------------
+# Routes
+# -----------------------------
 @router.post("/", response_model=NotificationOut)
-def create_notification(
-    payload: NotificationCreate,
-    db: Session = Depends(get_db),
-):
-    notif = Notification(
+def create_notification(payload: NotificationCreate, db: Session = Depends(get_db)):
+    send_at = payload.send_at
+
+    # If send_at not provided, try to compute it from session (if given)
+    if send_at is None and payload.session_id is not None:
+        session = _ensure_session_exists(db, payload.session_id)
+        # Default 15 min before if caller didn’t specify send_at
+        send_at = _compute_send_at_from_session(session, minutes_before=15)
+
+    if send_at is None:
+        # Fallback: schedule “now” if no session_id and no send_at
+        send_at = _utcnow()
+
+    n = Notification(
         user_id=payload.user_id,
         session_id=payload.session_id,
         channel=payload.channel,
         template=payload.template,
-        send_at=payload.send_at,
-        status="scheduled",
+        send_at=send_at,
+        status="pending",
+        error_message=None,
     )
-    db.add(notif)
-    db.flush()
-    db.refresh(notif)
-    return notif
+    db.add(n)
+    db.commit()
+    db.refresh(n)
+    return n
 
 
 @router.post("/session-alarm", response_model=NotificationOut)
-def create_session_alarm(
-    payload: SessionAlarmCreate,
-    db: Session = Depends(get_db),
-):
-    # Ensure session exists and belongs to the user (basic safety)
-    session_obj = (
-        db.query(StudySession)
-        .filter(
-            StudySession.id == payload.session_id,
-            StudySession.user_id == payload.user_id,
-        )
-        .first()
-    )
-    if not session_obj:
-        raise HTTPException(status_code=404, detail="StudySession not found for this user")
+def create_session_alarm(payload: SessionAlarmCreate, db: Session = Depends(get_db)):
+    session = _ensure_session_exists(db, payload.session_id)
+    send_at = _compute_send_at_from_session(session, minutes_before=payload.minutes_before)
 
-    send_at = session_obj.start_at - timedelta(minutes=payload.minutes_before)
-    if send_at < datetime.now(timezone.utc):
-        # if it's already in the past, just schedule for now
-        send_at = datetime.now(timezone.utc)
-
-    notif = Notification(
+    n = Notification(
         user_id=payload.user_id,
         session_id=payload.session_id,
         channel=payload.channel,
-        template="session_reminder",
+        template="Study session reminder",
         send_at=send_at,
-        status="scheduled",
+        status="pending",
+        error_message=None,
     )
-    db.add(notif)
-    db.flush()
-    db.refresh(notif)
-    return notif
+    db.add(n)
+    db.commit()
+    db.refresh(n)
+    return n
 
 
-@router.get("/user/{user_id}", response_model=List[NotificationOut])
-def list_user_notifications(
-    user_id: UUID,
+@router.get("/", response_model=List[NotificationOut])
+def list_notifications(
+    user_id: Optional[UUID] = Query(default=None),
+    status: Optional[str] = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=200),
     db: Session = Depends(get_db),
 ):
-    items = (
-        db.query(Notification)
-        .filter(Notification.user_id == user_id)
-        .order_by(Notification.send_at.desc())
-        .all()
-    )
-    return items
+    q = db.query(Notification)
+
+    if user_id is not None:
+        q = q.filter(Notification.user_id == user_id)
+    if status is not None:
+        q = q.filter(Notification.status == status)
+
+    # Most recent first
+    q = q.order_by(Notification.send_at.desc())
+
+    return q.limit(limit).all()
 
 
 @router.get("/{notification_id}", response_model=NotificationOut)
-def get_notification(
-    notification_id: UUID,
-    db: Session = Depends(get_db),
-):
-    notif = db.query(Notification).get(notification_id)
-    if not notif:
+def get_notification(notification_id: UUID, db: Session = Depends(get_db)):
+    n = db.query(Notification).filter(Notification.id == notification_id).first()
+    if not n:
         raise HTTPException(status_code=404, detail="Notification not found")
-    return notif
+    return n
+
+
+@router.patch("/{notification_id}", response_model=NotificationOut)
+def update_notification(notification_id: UUID, payload: NotificationUpdate, db: Session = Depends(get_db)):
+    n = db.query(Notification).filter(Notification.id == notification_id).first()
+    if not n:
+        raise HTTPException(status_code=404, detail="Notification not found")
+
+    if payload.status is not None:
+        n.status = payload.status
+    if payload.error_message is not None:
+        n.error_message = payload.error_message
+
+    db.commit()
+    db.refresh(n)
+    return n
 
 
 @router.delete("/{notification_id}")
-def delete_notification(
-    notification_id: UUID,
-    db: Session = Depends(get_db),
-):
-    notif = db.query(Notification).get(notification_id)
-    if not notif:
+def delete_notification(notification_id: UUID, db: Session = Depends(get_db)):
+    n = db.query(Notification).filter(Notification.id == notification_id).first()
+    if not n:
         raise HTTPException(status_code=404, detail="Notification not found")
-    db.delete(notif)
-    return {"ok": True}
 
-
-# --------- Simple "alarm" dispatcher ---------
-
-
-@router.post("/dispatch-due")
-def dispatch_due_notifications(
-    limit: int = Query(50, ge=1, le=500),
-    db: Session = Depends(get_db),
-):
-    """
-    Find all scheduled notifications that are due and mark them as 'sent'.
-
-    In a real system, this is where you'd:
-    - send push notifications
-    - send emails/SMS
-    For now, we just flip the status so the UI can show that they fired.
-    """
-    now = datetime.now(timezone.utc)
-
-    due = (
-        db.query(Notification)
-        .filter(Notification.status == "scheduled", Notification.send_at <= now)
-        .order_by(Notification.send_at)
-        .limit(limit)
-        .all()
-    )
-
-    for notif in due:
-        # TODO: integrate real delivery (email, mobile push, etc.)
-        notif.status = "sent"
-
-    return {"dispatched": len(due)}
+    db.delete(n)
+    db.commit()
+    return {"detail": "Deleted"}

@@ -362,6 +362,8 @@ async def google_callback(
 # ---------------------------------------------------------------------
 # INCLUDE ROUTER (DO NOT FORGET)
 # ---------------------------------------------------------------------
+app.include_router(oauth_router)
+
 @oauth_router.get("/auth")
 def oauth_start():
     flow = get_flow()
