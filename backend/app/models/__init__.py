@@ -14,7 +14,7 @@ from app.models.notification import Notification
 from app.models.session_feedback import SessionFeedback
 from app.models.workspace import Workspace, WorkspaceMember, MemberPermission, WorkspaceDeleteLog, MemberDeleteLog
 from app.models.message import Message
-
+from app.models.oauth import OAuthAccount
 __all__ = [
     "User", "LoginHistory",
     "Subject",

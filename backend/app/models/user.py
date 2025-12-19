@@ -15,12 +15,14 @@ class User(Base):
     username = Column(String(50), unique=True, nullable=True)  # opsiyonel
     email = Column(Text, nullable=False, unique=True)
     full_name = Column(Text, nullable=True)
-    gender = Column(Text, nullable=False)
-    date_of_birth = Column(Text, nullable=False)
+    gender = Column(Text, nullable=True)
+    date_of_birth = Column(Text, nullable=True)
     timezone = Column(Text, nullable=False, default="UTC")
-    password_hash = Column(String(255), nullable=False)
+    password_hash = Column(String(255), nullable=True)
     reset_code = Column(String(6), nullable=True)
     reset_code_created_at = Column(DateTime(timezone=True), nullable=True)
+    auth_provider = Column(String, nullable=False, default="local")
+
     # Tarihler
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True),
@@ -32,6 +34,7 @@ class User(Base):
     login_history = relationship(
         "LoginHistory", back_populates="user", cascade="all, delete"
     )
+    oauth_accounts = relationship("OAuthAccount",back_populates="user",cascade="all, delete")
 
     def __repr__(self):
         return f"<User(username='{self.username}', email='{self.email}')>"
