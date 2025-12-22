@@ -5,6 +5,7 @@
 **Team Workflow:** SCRUM  
 
 ---
+pip install psycopg2
 pip install authlib httpx
 # 🧰 1. Project Setup (Quick Start)
 
@@ -41,7 +42,7 @@ CREATE DATABASE smartstudy OWNER smartstudy;
 
 ## 📄 Add `.env` inside **backend/**:
 ```
-DATABASE_URL=postgresql+psycopg://smartstudy:changeme@localhost:5432/smartstudy
+DATABASE_URL=postgresql+psycopg2://smartstudy:changeme@localhost:5432/smartstudy
 ```
 
 ## ▶ Run migrations

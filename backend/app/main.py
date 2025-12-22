@@ -43,9 +43,9 @@ from . import schemas
 # backend/app/main.py  (add/keep these)
 import os
 from fastapi import FastAPI
-
+from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
-load_dotenv()  # make sure DATABASE_URL is loaded
+load_dotenv()   # make sure DATABASE_URL is loaded
 
 
 app = FastAPI(title="SmartStudy API")
@@ -61,7 +61,6 @@ def _startup():
 
 
 # ---------- Environment ----------
-load_dotenv()
 
 
 app.add_middleware(
@@ -139,7 +138,6 @@ CLIENT_SECRETS_FILE = resolve_existing_path(
 TOKEN_FILE = (project_root_from_this_file(
     3) / os.getenv("GOOGLE_TOKEN_FILE", "token.json")).resolve()
 TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
-
 # ---------- DB engine ----------
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
 CONNECT_ARGS = {"check_same_thread": False} if DATABASE_URL.startswith(
@@ -259,7 +257,6 @@ async def health():
 #                         GOOGLE OAUTH & EVENTS
 # =====================================================================
 import os
-from dotenv import load_dotenv
 from fastapi import FastAPI, APIRouter, Request, HTTPException
 from fastapi.responses import JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
@@ -273,9 +270,6 @@ app = FastAPI()
 # ---------------------------------------------------------------------
 # ENV
 # ---------------------------------------------------------------------
-load_dotenv(
-    r"C:\Users\haytham\Downloads\SOFTWARE-ANALYSIS-AND-DESIGN\SOFTWARE-ANALYSIS-AND-DESIGN\.env"
-)
 
 # ---------------------------------------------------------------------
 # Session Middleware (MUST be before OAuth)
@@ -285,7 +279,14 @@ app.add_middleware(
     secret_key="SUPER_SECRET_SESSION_KEY",
     same_site="lax",
 )
-
+from fastapi.middleware.cors import CORSMiddleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 # ---------------------------------------------------------------------
 # OAuth
 # ---------------------------------------------------------------------
@@ -298,8 +299,8 @@ oauth = OAuth()
 oauth_router = APIRouter(tags=["google"])
 oauth.register(
     name="google",
-    client_id=os.getenv("GOOGLE_CLIENT_ID"),
-    client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
+    client_id=os.getenv("GOOGLE_CLIENT"),
+    client_secret=os.getenv("GOOGLE_SECRET"),
     server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
     userinfo_endpoint="https://openidconnect.googleapis.com/v1/userinfo",
     client_kwargs={"scope": "openid email profile"},
@@ -331,7 +332,11 @@ def debug_env():
     return {
         "client_id": os.getenv("GOOGLE_CLIENT_ID"),
         "client_secret": bool(os.getenv("GOOGLE_CLIENT_SECRET")),
-    }
+        
+    } 
+
+for key in ["DATABASE_URL", "GOOGLE_CLIENT", "GOOGLE_SECRET"]:
+    print(f"{key} = {os.getenv(key)}") 
 
 @oauth_router.get("/login")
 async def google_login(request: Request):
