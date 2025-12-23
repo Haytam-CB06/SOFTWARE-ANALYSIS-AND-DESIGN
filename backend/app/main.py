@@ -7,7 +7,7 @@ from fastapi import Depends, HTTPException
 from random import randint
 from email.mime.text import MIMEText
 import smtplib
-from app.routers import workspaces, members, permission,chat
+from app.routers import workspaces, permission, chat
 from app.routers import timetable  # if not already added
 from app.routers import notifications
 from app.routers import sessions
@@ -66,6 +66,19 @@ def _startup():
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.getenv("SESSION_SECRET", "dev-session-secret"),
+)
+
+# CORS (local dev / frontend)
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        os.getenv("FRONTEND_ORIGIN", "http://localhost:3000"),
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Allow HTTP for local dev (don't use in production)
@@ -265,28 +278,9 @@ from authlib.integrations.starlette_client import OAuth
 # ---------------------------------------------------------------------
 # App
 # ---------------------------------------------------------------------
-app = FastAPI()
-
-# ---------------------------------------------------------------------
-# ENV
-# ---------------------------------------------------------------------
-
-# ---------------------------------------------------------------------
-# Session Middleware (MUST be before OAuth)
-# ---------------------------------------------------------------------
-app.add_middleware(
-    SessionMiddleware,
-    secret_key="SUPER_SECRET_SESSION_KEY",
-    same_site="lax",
-)
-from fastapi.middleware.cors import CORSMiddleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # frontend URL
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# NOTE: Do NOT re-create the FastAPI() instance here.
+# The application instance is defined once at the top of this file.
+# Re-creating it will drop previously-registered routes (e.g. /health).
 # ---------------------------------------------------------------------
 # OAuth
 # ---------------------------------------------------------------------
@@ -588,6 +582,11 @@ def signup(payload: SignUpIn):
         if "timezone" in cols:
             data["timezone"] = payload.timezone
 
+        # If the DB schema requires an auth provider, default to local/password signups.
+        # (OAuth signups should set this to e.g. 'google' in the relevant flow.)
+        if "auth_provider" in cols and not data.get("auth_provider"):
+            data["auth_provider"] = "local"
+
         # 3️⃣ Insert user
         columns = ", ".join(data.keys())
         placeholders = ", ".join([f":{k}" for k in data.keys()])
@@ -678,7 +677,6 @@ app.include_router(timetable.router)
 app.include_router(notifications.router)
 app.include_router(sessions.router)
 app.include_router(workspaces.router)
-app.include_router(members.router)
 app.include_router(permission.router)
 app.include_router(chat.router)
 
