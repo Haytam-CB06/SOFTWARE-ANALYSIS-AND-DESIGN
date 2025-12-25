@@ -1,56 +1,62 @@
-# Virtual environment
-.venv/
-# Python caches
-__pycache__/
-*.pyc
-*.pyo
-# Env & secrets (never commit)
-.env
-.env.*
-!.env.example
-token.json
-client_secret.json
-# IDE/project settings
+# =========================
+# Global / OS / IDE
+# =========================
+.DS_Store
+Thumbs.db
 .vscode/
 .idea/
-# OS / tooling
-.DS_Store
+
+# =========================
+# Secrets / env files
+# =========================
+.env
+.env.*
+*.env
+*.secret
+client_secret.json
+token.json
+
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-EOF
-git add .gitignore
-git rebase --continue
-git push -f   # rebase rewrites history, so force-push
-# DB dumps (keep tracked ones only)
-db/dumps/*.dump
-# secrets
-*.env
-*.secret
-# python
+
+# virtual environments
+.venv/
 venv/
-# alembic cache
-backend/migrations/*/cache/*
-# secrets/artifacts
-smartstudy.db
-*.sqlite
+backend/venv/
+backend/.venv/
 
-# secrets & local
-.env
-*.env
-*.secret
-smartstudy.db
-client_secret.json
-token.json
+# build artifacts
+*.egg-info/
+dist/
+build/
 
-# Local dev only
-.env
-*.env
-*.secret
-backend/app.db
-__pycache__/
-*.pyc
-
-# local db files
+# local databases
 *.db
+*.sqlite
+*.sqlite3
+smartstudy.db
+backend/app.db
+
+# =========================
+# Node / React (Vite)
+# =========================
+frontend/UPLAN/node_modules/
+frontend/UPLAN/dist/
+frontend/UPLAN/.vite/
+frontend/UPLAN/.turbo/
+frontend/UPLAN/.cache/
+frontend/UPLAN/coverage/
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 

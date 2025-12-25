@@ -1,0 +1,1267 @@
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Button } from './ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Badge } from './ui/badge';
+import { Progress } from './ui/progress';
+import { Calendar, CheckCircle2, Circle, Clock, Target, Zap, Coffee, Sparkles, Plus, Trash2, CalendarDays, AlertCircle, Play, Pause, Timer, SkipForward, Settings, TrendingUp, ListTodo, BarChart3, ChevronDown, ChevronRight, Minimize2, Maximize2, Menu, X, Home, BarChart2, Lightbulb } from 'lucide-react';
+import { toast } from 'sonner';
+import { getUserItem, setUserItem, getUserWeekKey } from '../utils/userStorage';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, Legend } from 'recharts';
+
+// Dashboard component with user-specific data isolation
+interface DashboardProps {
+  userName: string;
+  onNavigate: (page: string, settingsTab?: 'profile' | 'webapp') => void;
+  timetables: any[];
+  onShowPomodoroWidget?: () => void;
+}
+
+interface Task {
+  id: string;
+  title: string;
+  type: 'assignment' | 'exam' | 'quiz' | 'project';
+  dueDate: string;
+  priority: 'high' | 'medium' | 'low';
+  completed: boolean;
+  completedAt?: string;
+  subject: string;
+}
+
+export default function Dashboard({ userName, onNavigate, timetables, onShowPomodoroWidget }: DashboardProps) {
+  const [calendarSessions, setCalendarSessions] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [isAddTaskDialogOpen, setIsAddTaskDialogOpen] = useState(false);
+  const [isPomodoroActive, setIsPomodoroActive] = useState(false);
+  const [pomodoroTime, setPomodoroTime] = useState(25 * 60);
+  const [pomodoroMode, setPomodoroMode] = useState<'focus' | 'break'>('focus');
+  
+  // Collapsible sections state
+  const [todayExpanded, setTodayExpanded] = useState(true);
+  const [pomodoroExpanded, setPomodoroExpanded] = useState(true);
+  const [progressExpanded, setProgressExpanded] = useState(true);
+  const [deadlinesExpanded, setDeadlinesExpanded] = useState(true);
+  
+  // UI state
+  const [minimalMode, setMinimalMode] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'today'>('today');
+  const [progressTab, setProgressTab] = useState<'week' | 'month'>('week');
+  const [showPomodoro, setShowPomodoro] = useState(false);
+  const [showInsights, setShowInsights] = useState(false);
+  
+  // Load data from localStorage
+  useEffect(() => {
+    const loadCalendarSessions = () => {
+      const today = new Date();
+      const weekId = getWeekIdentifier(today);
+      const loadedSessions = localStorage.getItem(getUserWeekKey(weekId));
+      if (loadedSessions) {
+        setCalendarSessions(JSON.parse(loadedSessions));
+      } else {
+        setCalendarSessions([]);
+      }
+    };
+
+    const loadTasks = () => {
+      const loadedTasks = getUserItem('tasks');
+      if (loadedTasks) {
+        const parsedTasks = JSON.parse(loadedTasks);
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const filteredTasks = parsedTasks.filter((task: Task) => {
+          if (!task.completed || !task.completedAt) return true;
+          
+          const completedDate = new Date(task.completedAt);
+          completedDate.setHours(0, 0, 0, 0);
+          
+          return completedDate.getTime() === today.getTime();
+        });
+        
+        if (filteredTasks.length !== parsedTasks.length) {
+          setUserItem('tasks', JSON.stringify(filteredTasks));
+        }
+        
+        setTasks(filteredTasks);
+      } else {
+        setTasks([]);
+      }
+    };
+
+    loadCalendarSessions();
+    loadTasks();
+
+    const handleUserChanged = () => {
+      setCalendarSessions([]);
+      setTasks([]);
+      setIsPomodoroActive(false);
+      setPomodoroTime(25 * 60);
+      setPomodoroMode('focus');
+      
+      loadCalendarSessions();
+      loadTasks();
+    };
+
+    window.addEventListener('userChanged', handleUserChanged);
+    
+    const calendarIntervalId = setInterval(loadCalendarSessions, 1000);
+    const tasksIntervalId = setInterval(loadTasks, 1000);
+    
+    return () => {
+      clearInterval(calendarIntervalId);
+      clearInterval(tasksIntervalId);
+      window.removeEventListener('userChanged', handleUserChanged);
+    };
+  }, []);
+
+  // Pomodoro timer effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isPomodoroActive && pomodoroTime > 0) {
+      interval = setInterval(() => {
+        setPomodoroTime((prev) => prev - 1);
+      }, 1000);
+    } else if (pomodoroTime === 0) {
+      setIsPomodoroActive(false);
+      if (pomodoroMode === 'focus') {
+        toast.success('Focus session complete! Time for a break.');
+        setPomodoroMode('break');
+        setPomodoroTime(5 * 60);
+      } else {
+        toast.success('Break over! Ready for another focus session?');
+        setPomodoroMode('focus');
+        setPomodoroTime(25 * 60);
+      }
+    }
+    return () => clearInterval(interval);
+  }, [isPomodoroActive, pomodoroTime, pomodoroMode]);
+
+  const getWeekIdentifier = (date: Date): string => {
+    const year = date.getFullYear();
+    const firstDayOfYear = new Date(year, 0, 1);
+    const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
+    const weekNumber = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+    return `${year}-W${weekNumber}`;
+  };
+
+  // Calculate today's schedule
+  const today = new Date();
+  const todayDayIndex = (today.getDay() + 6) % 7;
+  const currentTime = `${String(today.getHours()).padStart(2, '0')}:${String(today.getMinutes()).padStart(2, '0')}`;
+  
+  // Get active timetable and its availability settings
+  const activeTimetable = timetables.find(t => t.isActive);
+  const availabilitySettings = activeTimetable?.availabilitySettings;
+  
+  const todaySessions = calendarSessions
+    .filter(s => s.day === todayDayIndex)
+    .sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+  const upcomingSessions = todaySessions.filter(s => s.startTime > currentTime);
+  const completedSessions = todaySessions.filter(s => s.endTime <= currentTime);
+  const currentSession = todaySessions.find(s => s.startTime <= currentTime && s.endTime > currentTime);
+
+  // Calculate study hours
+  const calculateSessionDuration = (startTime: string, endTime: string): number => {
+    const [startHour, startMin] = startTime.split(':').map(Number);
+    const [endHour, endMin] = endTime.split(':').map(Number);
+    const durationMinutes = (endHour * 60 + endMin) - (startHour * 60 + startMin);
+    return durationMinutes / 60;
+  };
+
+  const todayStudyHours = todaySessions
+    .filter(s => s.type !== 'break')
+    .reduce((total, session) => total + calculateSessionDuration(session.startTime, session.endTime), 0);
+
+  const todayCompletedHours = completedSessions
+    .filter(s => s.type !== 'break')
+    .reduce((total, session) => total + calculateSessionDuration(session.startTime, session.endTime), 0);
+
+  // Weekly overview
+  const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const weeklyData = daysOfWeek.map((day, index) => {
+    const daySessions = calendarSessions.filter(s => s.day === index && s.type !== 'break');
+    const hours = daySessions.reduce((sum, session) => {
+      return sum + calculateSessionDuration(session.startTime, session.endTime);
+    }, 0);
+    
+    const completedHours = daySessions
+      .filter(session => {
+        if (index < todayDayIndex) return true;
+        if (index === todayDayIndex) return session.endTime <= currentTime;
+        return false;
+      })
+      .reduce((sum, session) => sum + calculateSessionDuration(session.startTime, session.endTime), 0);
+    
+    return { day, hours: Math.round(hours * 10) / 10, completed: Math.round(completedHours * 10) / 10, isToday: index === todayDayIndex };
+  });
+
+  // Tasks
+  const todayTasks = tasks.filter(t => {
+    const dueDate = new Date(t.dueDate);
+    return dueDate.toDateString() === today.toDateString();
+  });
+
+  const sessionsWithDeadlines = calendarSessions
+    .filter(s => s.deadline && (s.type === 'assignment' || s.type === 'test' || s.type === 'exam'))
+    .map(s => ({
+      id: s.id,
+      title: s.subject,
+      type: s.type,
+      dueDate: s.deadline,
+      priority: 'medium' as const,
+      completed: false,
+      subject: s.subject,
+      isFromCalendar: true,
+    }));
+
+  const upcomingDeadlines = [...tasks, ...sessionsWithDeadlines]
+    .filter(t => !t.completed)
+    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+    .slice(0, 5);
+
+  const completedTodayTasks = tasks.filter(t => {
+    const dueDate = new Date(t.dueDate);
+    return dueDate.toDateString() === today.toDateString() && t.completed;
+  }).length;
+
+  const totalTodayTasks = todayTasks.length;
+  const todayProgress = totalTodayTasks > 0 ? (completedTodayTasks / totalTodayTasks) * 100 : 0;
+
+  // Smart suggestions
+  const smartSuggestions = [
+    {
+      icon: Zap,
+      text: upcomingSessions.length > 0 
+        ? `Next session: ${upcomingSessions[0].subject} at ${upcomingSessions[0].startTime}`
+        : 'No more sessions today - great work!',
+      color: 'text-yellow-600',
+      bg: 'bg-yellow-50',
+    },
+    {
+      icon: Coffee,
+      text: completedSessions.length > 2 
+        ? 'You\'ve been studying hard! Consider taking a break.'
+        : 'Morning is a great time for focused studying!',
+      color: 'text-orange-600',
+      bg: 'bg-orange-50',
+    },
+    {
+      icon: Target,
+      text: upcomingDeadlines.length > 0 
+        ? `Focus on ${upcomingDeadlines[0].subject} - deadline approaching`
+        : 'All caught up! Time to get ahead.',
+      color: 'text-purple-600',
+      bg: 'bg-purple-50',
+    },
+  ];
+
+  const handleAddTask = (taskData: Omit<Task, 'id'>) => {
+    const newTask: Task = {
+      ...taskData,
+      id: Date.now().toString(),
+    };
+    const updatedTasks = [...tasks, newTask];
+    setTasks(updatedTasks);
+    setUserItem('tasks', JSON.stringify(updatedTasks));
+    toast.success('Task added successfully!');
+    setIsAddTaskDialogOpen(false);
+  };
+
+  const toggleTaskCompletion = (taskId: string) => {
+    const updatedTasks = tasks.map(t => 
+      t.id === taskId ? { ...t, completed: !t.completed, completedAt: !t.completed ? new Date().toISOString() : undefined } : t
+    );
+    setTasks(updatedTasks);
+    setUserItem('tasks', JSON.stringify(updatedTasks));
+    toast.success('Task updated!');
+  };
+
+  const deleteTask = (taskId: string) => {
+    const taskToDelete = upcomingDeadlines.find(t => t.id === taskId);
+    
+    if (taskToDelete && (taskToDelete as any).isFromCalendar) {
+      const weekId = getWeekIdentifier(today);
+      const updatedSessions = calendarSessions.map(s => {
+        if (s.id === taskId) {
+          const { deadline, ...sessionWithoutDeadline } = s;
+          return sessionWithoutDeadline;
+        }
+        return s;
+      });
+      setCalendarSessions(updatedSessions);
+      localStorage.setItem(getUserWeekKey(weekId), JSON.stringify(updatedSessions));
+      toast.success('Deadline removed from calendar session!');
+    } else {
+      const updatedTasks = tasks.filter(t => t.id !== taskId);
+      setTasks(updatedTasks);
+      setUserItem('tasks', JSON.stringify(updatedTasks));
+      toast.success('Task deleted!');
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'high': return 'bg-red-100 text-red-700 border-red-200';
+      case 'medium': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+      case 'low': return 'bg-green-100 text-green-700 border-green-200';
+      default: return 'bg-gray-100 text-gray-700 border-gray-200';
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
+
+  const formatDueDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffDays = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return { text: 'Today', color: 'text-orange-600' };
+    if (diffDays === 1) return { text: 'Tomorrow', color: 'text-green-600' };
+    if (diffDays < 0) return { text: 'OVERDUE', color: 'text-red-600' };
+    return { text: `${diffDays} days`, color: 'text-green-600' };
+  };
+
+  return (
+    <div className="max-w-[1600px] mx-auto min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30">
+      {/* Header - No longer sticky, scrolls with content */}
+      <div className="bg-white border-b border-gray-200 shadow-sm">
+        <div className="p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-gray-900 mb-1">Welcome back, {userName}!</h1>
+              <p className="text-gray-600 text-sm">
+                {today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+              </p>
+            </div>
+          </div>
+
+          {/* Tab Navigation */}
+          {!minimalMode && (
+            <div className="flex gap-2 overflow-x-auto">
+              <Button
+                onClick={() => setActiveTab('today')}
+                variant={activeTab === 'today' ? 'default' : 'outline'}
+                size="sm"
+                className={activeTab === 'today' ? 'bg-blue-600 text-white hover:bg-blue-800 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-900' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}
+              >
+                <Home className="h-4 w-4 mr-2" />
+                Today
+              </Button>
+              <Button
+                onClick={() => onNavigate('my-timetable')}
+                variant="outline"
+                size="sm"
+                className="hover:bg-gray-100 dark:hover:bg-gray-800 dark:border-gray-600 dark:text-gray-300"
+              >
+                <Calendar className="h-4 w-4 mr-2" />
+                Calendar
+              </Button>
+              <div className="ml-auto flex gap-2">
+                <Button
+                  onClick={() => setShowInsights(!showInsights)}
+                  variant="outline"
+                  size="sm"
+                  className={showInsights ? 'bg-purple-50 border-purple-500 text-purple-700 dark:bg-purple-900/30 dark:border-purple-600 dark:text-purple-400' : 'hover:bg-gray-100 dark:hover:bg-gray-800 dark:border-gray-600 dark:text-gray-300'}
+                >
+                  <Lightbulb className="h-4 w-4 mr-2" />
+                  Insights
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex">
+        {/* Main Area */}
+        <div 
+          className={`flex-1 p-4 sm:p-6 transition-all duration-300 ${showInsights ? 'mr-0 lg:mr-96' : ''}`}
+        >
+          {/* Minimal Mode View */}
+          {minimalMode && (
+            <div className="max-w-2xl mx-auto space-y-4">
+              {/* Current/Next Session */}
+              <Card className="border-0 shadow-lg bg-blue-600 text-white">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Clock className="h-5 w-5" />
+                    {currentSession ? 'Current Session' : 'Next Session'}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {currentSession ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-2xl font-bold">{currentSession.subject}</h3>
+                        <Badge className="bg-green-500 text-white">
+                          <Play className="h-3 w-3 mr-1" />
+                          Live
+                        </Badge>
+                      </div>
+                      <p className="text-white/80">
+                        {currentSession.startTime} - {currentSession.endTime}
+                      </p>
+                    </div>
+                  ) : upcomingSessions.length > 0 ? (
+                    <div>
+                      <h3 className="text-2xl font-bold mb-2">{upcomingSessions[0].subject}</h3>
+                      <p className="text-white/80">
+                        Starts at {upcomingSessions[0].startTime}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-white/80">No more sessions today!</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Today's Progress */}
+              <Card className="border-0 shadow-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-gray-900">
+                    <Target className="h-5 w-5 text-green-600" />
+                    Today's Progress
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-700">Study Hours</span>
+                      <span className="text-2xl font-bold text-blue-600">
+                        {Math.round(todayCompletedHours * 10) / 10}h / {Math.round(todayStudyHours * 10) / 10}h
+                      </span>
+                    </div>
+                    <Progress 
+                      value={todayStudyHours > 0 ? (todayCompletedHours / todayStudyHours) * 100 : 0} 
+                      className="h-3" 
+                    />
+                    
+                    <div className="flex items-center justify-between pt-2">
+                      <span className="text-sm text-gray-700">Tasks</span>
+                      <span className="text-2xl font-bold text-green-600">
+                        {completedTodayTasks} / {totalTodayTasks}
+                      </span>
+                    </div>
+                    <Progress 
+                      value={todayProgress} 
+                      className="h-3"
+                      indicatorColor={totalTodayTasks === 0 ? 'bg-gray-400' : todayProgress === 100 ? 'bg-green-500' : 'bg-blue-500'}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Full View - Tab Content */}
+          {!minimalMode && (
+            <>
+              {/* TODAY TAB */}
+              {activeTab === 'today' && (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Left Column - Today's Schedule & Progress */}
+                  <div className="lg:col-span-2 space-y-6">
+                    {/* Combined Today Panel */}
+                    <Card className="border-0 shadow-lg bg-blue-600 text-white">
+                      <CardHeader className="cursor-pointer" onClick={() => setTodayExpanded(!todayExpanded)}>
+                        <CardTitle className="flex items-center justify-between">
+                          <span className="flex items-center gap-2">
+                            <Clock className="h-5 w-5" />
+                            Today's Schedule & Progress
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <Badge className="bg-white/20 text-white border-white/30">
+                              {todaySessions.length} sessions
+                            </Badge>
+                            {todayExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                          </div>
+                        </CardTitle>
+                      </CardHeader>
+                      {todayExpanded && (
+                        <CardContent>
+                          {/* Progress Summary */}
+                          <div className="grid grid-cols-3 gap-4 mb-6 p-4 bg-white/10 rounded-lg backdrop-blur">
+                            <div>
+                              <p className="text-white/80 text-sm">Total Hours</p>
+                              <p className="text-2xl font-bold">{Math.round(todayStudyHours * 10) / 10}h</p>
+                            </div>
+                            <div>
+                              <p className="text-white/80 text-sm">Completed</p>
+                              <p className="text-2xl font-bold">{Math.round(todayCompletedHours * 10) / 10}h</p>
+                            </div>
+                            <div>
+                              <p className="text-white/80 text-sm">Tasks</p>
+                              <p className="text-2xl font-bold">{completedTodayTasks}/{totalTodayTasks}</p>
+                            </div>
+                          </div>
+
+                          {/* Sessions List */}
+                          <div className="space-y-3 max-h-96 overflow-y-auto">
+                            {todaySessions.length > 0 ? (
+                              todaySessions.map((session, index) => {
+                                const isCompleted = session.endTime <= currentTime;
+                                const isActive = session.startTime <= currentTime && session.endTime > currentTime;
+                                
+                                return (
+                                  <div
+                                    key={index}
+                                    className={`p-4 rounded-lg transition-all bg-white text-gray-900 ${
+                                      isActive ? 'ring-2 ring-green-500 shadow-lg' : 
+                                      isCompleted ? 'opacity-60' : 'shadow-md'
+                                    }`}
+                                  >
+                                    <div className="flex items-start justify-between mb-2">
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <h4 className="font-medium text-gray-900">
+                                            {session.subject}
+                                          </h4>
+                                          {isActive && (
+                                            <Badge className="bg-green-500 text-white text-xs">
+                                              <Play className="h-3 w-3 mr-1" />
+                                              Live
+                                            </Badge>
+                                          )}
+                                          {isCompleted && (
+                                            <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                          )}
+                                        </div>
+                                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                                          <Clock className="h-3 w-3" />
+                                          <span>{session.startTime} - {session.endTime}</span>
+                                          <span className="text-xs">
+                                            ({Math.round(calculateSessionDuration(session.startTime, session.endTime) * 60)} min)
+                                          </span>
+                                        </div>
+                                      </div>
+                                      <Badge className="bg-purple-100 text-purple-700 text-xs">
+                                        {session.type}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            ) : (
+                              <div className="text-center py-12">
+                                <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                                <p className="text-white/80">No sessions scheduled for today</p>
+                                <Button 
+                                  onClick={() => onNavigate('my-timetable')}
+                                  variant="outline"
+                                  className="mt-4 bg-white/20 border-white/30 text-white hover:bg-white/30"
+                                >
+                                  Add Sessions
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      )}
+                    </Card>
+
+                    {/* Pomodoro Timer - Only show when button clicked */}
+                    {showPomodoro && (
+                      <Card className="border-0 shadow-lg">
+                        <CardHeader className="cursor-pointer" onClick={() => setPomodoroExpanded(!pomodoroExpanded)}>
+                          <CardTitle className="flex items-center justify-between text-gray-900">
+                            <span className="flex items-center gap-2">
+                              <Timer className="h-5 w-5 text-orange-600" />
+                              Pomodoro Timer
+                              <Badge className={pomodoroMode === 'focus' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}>
+                                {pomodoroMode === 'focus' ? 'Focus' : 'Break'}
+                              </Badge>
+                            </span>
+                            {pomodoroExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                          </CardTitle>
+                        </CardHeader>
+                        {pomodoroExpanded && (
+                          <CardContent>
+                            <div className="text-center">
+                              <div className="text-6xl font-bold text-gray-900 mb-6">
+                                {formatTime(pomodoroTime)}
+                              </div>
+                              <div className="flex items-center justify-center gap-3">
+                                <Button
+                                  onClick={() => {
+                                    setIsPomodoroActive(true);
+                                    onShowPomodoroWidget?.();
+                                  }}
+                                  className="bg-green-500 hover:bg-green-600 text-white"
+                                >
+                                  <Play className="h-4 w-4 mr-2" />
+                                  Start
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  onClick={() => {
+                                    setIsPomodoroActive(false);
+                                    setPomodoroTime(pomodoroMode === 'focus' ? 25 * 60 : 5 * 60);
+                                  }}
+                                >
+                                  <SkipForward className="h-4 w-4 mr-2" />
+                                  Reset
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        )}
+                      </Card>
+                    )}
+
+                    {/* Study Progress Overview */}
+                    <Card className="border-0 shadow-lg">
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="flex items-center gap-2 text-gray-900">
+                            <BarChart3 className="h-5 w-5 text-blue-600" />
+                            Study Progress Overview
+                          </CardTitle>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant={progressTab === 'week' ? 'default' : 'outline'}
+                              onClick={() => setProgressTab('week')}
+                              className={progressTab === 'week' ? 'bg-blue-600 text-white hover:bg-blue-700' : ''}
+                            >
+                              Week
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant={progressTab === 'month' ? 'default' : 'outline'}
+                              onClick={() => setProgressTab('month')}
+                              className={progressTab === 'month' ? 'bg-blue-600 text-white hover:bg-blue-700' : ''}
+                            >
+                              Month
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        {progressTab === 'week' ? (
+                          <div className="space-y-3">
+                            {weeklyData.map((day, index) => {
+                              const isToday = day.isToday;
+                              const progressPercent = day.hours > 0 ? (day.completed / day.hours) * 100 : 0;
+                              const hasProgress = day.completed > 0;
+                              
+                              return (
+                                <div
+                                  key={index}
+                                  className={`p-4 rounded-lg border-2 ${
+                                    hasProgress 
+                                      ? 'border-blue-500 bg-white dark:bg-gray-800' 
+                                      : 'border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-800'
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                      <span className={`font-medium ${
+                                        hasProgress 
+                                          ? 'text-blue-600 dark:text-blue-400' 
+                                          : 'text-gray-900 dark:text-gray-300'
+                                      }`}>
+                                        {day.day}
+                                      </span>
+                                      {isToday && (
+                                        <Badge className="bg-blue-600 text-white text-xs">Today</Badge>
+                                      )}
+                                    </div>
+                                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                                      {day.completed}h / {day.hours}h
+                                    </span>
+                                  </div>
+                                  <div className={`relative h-2 w-full overflow-hidden rounded-full ${
+                                    hasProgress 
+                                      ? 'bg-gray-200 dark:bg-gray-700' 
+                                      : 'bg-gray-300 dark:bg-gray-700'
+                                  }`}>
+                                    <div
+                                      className="h-full transition-all bg-blue-600 dark:bg-blue-500"
+                                      style={{ width: `${progressPercent}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <MonthlyOverview calendarSessions={calendarSessions} />
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Right Column - Deadlines */}
+                  <div className="space-y-6">
+                    <Card className="border-0 shadow-lg">
+                      <CardHeader className="cursor-pointer" onClick={() => setDeadlinesExpanded(!deadlinesExpanded)}>
+                        <CardTitle className="flex items-center justify-between">
+                          <span className="flex items-center gap-2 text-gray-900">
+                            <Target className="h-5 w-5 text-red-600" />
+                            Deadlines
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <Button 
+                              size="sm" 
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setIsAddTaskDialogOpen(true);
+                              }}
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                            {deadlinesExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                          </div>
+                        </CardTitle>
+                      </CardHeader>
+                      {deadlinesExpanded && (
+                        <CardContent>
+                          <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                            {upcomingDeadlines.length > 0 ? (
+                              upcomingDeadlines.map((task) => {
+                                const dueDateInfo = formatDueDate(task.dueDate);
+                                const isOverdue = dueDateInfo.text === 'OVERDUE';
+                                const isTomorrow = dueDateInfo.text === 'Tomorrow';
+                                const isToday = dueDateInfo.text === 'Today';
+                                
+                                return (
+                                  <div
+                                    key={task.id}
+                                    className={`p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                                      isOverdue 
+                                        ? 'bg-red-50/50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 shadow-md' 
+                                        : isToday
+                                        ? 'bg-orange-50/50 dark:bg-orange-900/20 border-2 border-orange-200 dark:border-orange-800 shadow-md'
+                                        : isTomorrow
+                                        ? 'bg-green-50/50 dark:bg-green-900/20 border-2 border-green-200 dark:border-green-800 shadow-md'
+                                        : 'bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700'
+                                    }`}
+                                  >
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="flex-1">
+                                        <h4 className={`text-sm font-medium text-gray-900 dark:text-gray-100 ${task.completed ? 'line-through opacity-50' : ''}`}>
+                                          {task.title}
+                                        </h4>
+                                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                          <Badge className={`text-xs ${getPriorityColor(task.priority)}`}>
+                                            {task.priority}
+                                          </Badge>
+                                          <Badge variant="outline" className="text-xs">
+                                            {task.type}
+                                          </Badge>
+                                          {(task as any).isFromCalendar && (
+                                            <Badge className="text-xs bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200 border-purple-200 dark:border-purple-700">
+                                              Calendar
+                                            </Badge>
+                                          )}
+                                          {isOverdue && (
+                                            <div className="px-3 py-1 bg-red-700 dark:bg-red-600 text-white rounded-md shadow-sm">
+                                              <span className="text-xs font-bold uppercase tracking-wide">
+                                                {dueDateInfo.text}
+                                              </span>
+                                            </div>
+                                          )}
+                                          {isToday && (
+                                            <div className="px-3 py-1 bg-orange-600 dark:bg-orange-500 text-white rounded-md shadow-sm">
+                                              <span className="text-xs font-bold uppercase tracking-wide">
+                                                {dueDateInfo.text}
+                                              </span>
+                                            </div>
+                                          )}
+                                          {isTomorrow && (
+                                            <div className="px-3 py-1 bg-green-600 dark:bg-green-500 text-white rounded-md shadow-sm">
+                                              <span className="text-xs font-bold uppercase tracking-wide">
+                                                {dueDateInfo.text}
+                                              </span>
+                                            </div>
+                                          )}
+                                          {!isOverdue && !isTomorrow && !isToday && (
+                                            <span className={`text-xs font-bold ${dueDateInfo.color}`}>
+                                              {dueDateInfo.text}
+                                            </span>
+                                          )}
+                                        </div>
+                                        
+                                        {!(task as any).isFromCalendar && !task.completed && (
+                                          <Button
+                                            onClick={() => toggleTaskCompletion(task.id)}
+                                            size="sm"
+                                            className="mt-2 bg-green-500 hover:bg-green-600 text-white h-7 text-xs"
+                                          >
+                                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                                            Mark as Done
+                                          </Button>
+                                        )}
+                                        
+                                        {task.completed && (
+                                          <Badge className="mt-2 bg-green-100 text-green-700 border-green-200 text-xs">
+                                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                                            Completed
+                                          </Badge>
+                                        )}
+                                      </div>
+                                      <button
+                                        onClick={() => deleteTask(task.id)}
+                                        className="text-gray-400 hover:text-red-600 transition-colors"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            ) : (
+                              <div className="text-center py-8">
+                                <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                                <p className="text-gray-400 text-sm">No upcoming deadlines</p>
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      )}
+                    </Card>
+
+                    {/* Insights - Only show when button clicked */}
+                    {showInsights && (
+                      <Card className="border-0 shadow-lg">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2 text-gray-900">
+                            <Lightbulb className="h-5 w-5 text-purple-600" />
+                            Smart Insights
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-3">
+                            {smartSuggestions.map((suggestion, index) => (
+                              <div key={index} className={`p-4 rounded-lg ${suggestion.bg}`}>
+                                <div className="flex items-start gap-3">
+                                  <suggestion.icon className={`h-5 w-5 ${suggestion.color} flex-shrink-0 mt-0.5`} />
+                                  <p className={`text-sm ${suggestion.color}`}>
+                                    {suggestion.text}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Insights Side Panel - Slides from right */}
+        <div
+          className={`fixed top-0 right-0 h-full w-96 bg-white shadow-2xl border-l border-gray-200 z-50 transform transition-transform duration-300 overflow-y-auto ${
+            showInsights ? 'translate-x-0' : 'translate-x-full'
+          }`}
+        >
+          <div className="p-6 space-y-6">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-gray-200">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                  <Lightbulb className="h-5 w-5 text-purple-600" />
+                </div>
+                <div>
+                  <h2 className="font-semibold text-gray-900">Smart Insights</h2>
+                  <p className="text-xs text-gray-500">AI-powered recommendations</p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowInsights(false)}
+                className="hover:bg-gray-100"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+
+            {/* Insights Content */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium text-gray-700">Today's Recommendations</h3>
+              {smartSuggestions.map((suggestion, index) => (
+                <div key={index} className={`p-4 rounded-lg ${suggestion.bg} border-2 border-transparent hover:border-purple-300 transition-all`}>
+                  <div className="flex items-start gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${suggestion.bg}`}>
+                      <suggestion.icon className={`h-4 w-4 ${suggestion.color}`} />
+                    </div>
+                    <div className="flex-1">
+                      <p className={`text-sm ${suggestion.color} font-medium`}>
+                        {suggestion.text}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Quick Stats */}
+            <div className="space-y-4 pt-4 border-t border-gray-200">
+              <h3 className="text-sm font-medium text-gray-700">Quick Stats</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <p className="text-xs text-blue-600 mb-1">Today's Hours</p>
+                  <p className="text-2xl font-bold text-blue-700">
+                    {Math.round(todayCompletedHours * 10) / 10}h
+                  </p>
+                </div>
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <p className="text-xs text-green-600 mb-1">Tasks Done</p>
+                  <p className="text-2xl font-bold text-green-700">
+                    {completedTodayTasks}/{totalTodayTasks}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Study Streak */}
+            <div className="space-y-4 pt-4 border-t border-gray-200">
+              <h3 className="text-sm font-medium text-gray-700">Study Streak</h3>
+              <div className="bg-orange-50 p-4 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-orange-200 rounded-full flex items-center justify-center">
+                    <Sparkles className="h-6 w-6 text-orange-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-orange-700">
+                      {completedSessions.length > 0 ? completedSessions.length : 0} sessions
+                    </p>
+                    <p className="text-xs text-orange-600">completed today</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Upcoming Focus */}
+            <div className="space-y-4 pt-4 border-t border-gray-200">
+              <h3 className="text-sm font-medium text-gray-700">Next Focus Session</h3>
+              {upcomingSessions.length > 0 ? (
+                <div className="bg-purple-50 p-4 rounded-lg border-2 border-purple-200">
+                  <div className="flex items-start gap-3">
+                    <Clock className="h-5 w-5 text-purple-600 mt-1" />
+                    <div>
+                      <p className="font-medium text-purple-900">{upcomingSessions[0].subject}</p>
+                      <p className="text-sm text-purple-600 mt-1">
+                        {upcomingSessions[0].startTime} - {upcomingSessions[0].endTime}
+                      </p>
+                      <Badge className="mt-2 bg-purple-200 text-purple-800 text-xs">
+                        {upcomingSessions[0].type}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-gray-50 p-4 rounded-lg text-center">
+                  <CheckCircle2 className="h-8 w-8 mx-auto text-gray-300 mb-2" />
+                  <p className="text-sm text-gray-500">All done for today!</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Add Task Dialog */}
+      <AddTaskDialog
+        open={isAddTaskDialogOpen}
+        onOpenChange={setIsAddTaskDialogOpen}
+        onAdd={handleAddTask}
+      />
+    </div>
+  );
+}
+
+// Add Task Dialog Component
+interface AddTaskDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onAdd: (task: Omit<Task, 'id'>) => void;
+}
+
+function AddTaskDialog({ open, onOpenChange, onAdd }: AddTaskDialogProps) {
+  const [formData, setFormData] = useState({
+    title: '',
+    type: 'assignment' as Task['type'],
+    dueDate: new Date().toISOString().split('T')[0],
+    priority: 'medium' as Task['priority'],
+    subject: '',
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.title.trim() || !formData.subject.trim()) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+    onAdd({ ...formData, completed: false, dueDate: new Date(formData.dueDate).toISOString() });
+    setFormData({
+      title: '',
+      type: 'assignment',
+      dueDate: new Date().toISOString().split('T')[0],
+      priority: 'medium',
+      subject: '',
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Add New Task</DialogTitle>
+          <DialogDescription>
+            Create a new assignment, exam, quiz, or project deadline
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+          <div className="space-y-2">
+            <Label htmlFor="title">Task Title</Label>
+            <Input
+              id="title"
+              value={formData.title}
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              placeholder="e.g., Math Assignment Chapter 5"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="subject">Subject</Label>
+            <Input
+              id="subject"
+              value={formData.subject}
+              onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+              placeholder="e.g., Mathematics"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="type">Type</Label>
+              <Select value={formData.type} onValueChange={(value: Task['type']) => setFormData({ ...formData, type: value })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="assignment">Assignment</SelectItem>
+                  <SelectItem value="exam">Exam</SelectItem>
+                  <SelectItem value="quiz">Quiz</SelectItem>
+                  <SelectItem value="project">Project</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="priority">Priority</Label>
+              <Select value={formData.priority} onValueChange={(value: Task['priority']) => setFormData({ ...formData, priority: value })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="dueDate">Due Date</Label>
+            <Input
+              id="dueDate"
+              type="date"
+              value={formData.dueDate}
+              onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+              required
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Task
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Monthly Overview Component
+interface MonthlyOverviewProps {
+  calendarSessions: any[];
+}
+
+function MonthlyOverview({ calendarSessions }: MonthlyOverviewProps) {
+  const [chartType, setChartType] = useState<'line' | 'bar'>('line');
+  const today = new Date();
+  const currentMonth = today.getMonth();
+  const currentYear = today.getFullYear();
+  const currentDay = today.getDate();
+  const currentTime = `${String(today.getHours()).padStart(2, '0')}:${String(today.getMinutes()).padStart(2, '0')}`;
+  const todayDayIndex = (today.getDay() + 6) % 7;
+  
+  const calculateSessionDuration = (startTime: string, endTime: string): number => {
+    const [startHour, startMin] = startTime.split(':').map(Number);
+    const [endHour, endMin] = endTime.split(':').map(Number);
+    const durationMinutes = (endHour * 60 + endMin) - (startHour * 60 + startMin);
+    return durationMinutes / 60;
+  };
+  
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  
+  const dailyCompletedHours = Array.from({ length: daysInMonth }, (_, i) => {
+    const day = i + 1;
+    const date = new Date(currentYear, currentMonth, day);
+    const dayOfWeek = date.getDay();
+    const dayIndex = (dayOfWeek + 6) % 7;
+    
+    const isPastDay = day < currentDay;
+    const isToday = day === currentDay;
+    
+    if (!isPastDay && !isToday) {
+      return 0;
+    }
+    
+    const daySessions = calendarSessions.filter(s => s.day === dayIndex && s.type !== 'break');
+    
+    if (isPastDay) {
+      return daySessions.reduce((sum, session) => {
+        return sum + calculateSessionDuration(session.startTime, session.endTime);
+      }, 0);
+    } else {
+      return daySessions
+        .filter(session => session.endTime <= currentTime)
+        .reduce((sum, session) => {
+          return sum + calculateSessionDuration(session.startTime, session.endTime);
+        }, 0);
+    }
+  });
+  
+  const weeksInMonth = Math.ceil(daysInMonth / 7);
+  const weeklyData = Array.from({ length: weeksInMonth }, (_, weekIndex) => {
+    const startDay = weekIndex * 7;
+    const endDay = Math.min(startDay + 7, daysInMonth);
+    
+    const weekCompletedHours = dailyCompletedHours.slice(startDay, endDay).reduce((sum, h) => sum + h, 0);
+    
+    return {
+      week: `Week ${weekIndex + 1}`,
+      weekNum: weekIndex + 1,
+      hours: Math.round(weekCompletedHours * 10) / 10,
+      days: endDay - startDay
+    };
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          {chartType === 'line' ? (
+            <LineChart
+              data={weeklyData}
+              margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200" />
+              <XAxis 
+                dataKey="week" 
+                className="text-gray-600"
+                tick={{ fontSize: 12 }}
+              />
+              <YAxis 
+                className="text-gray-600"
+                tick={{ fontSize: 12 }}
+                label={{ value: 'Hours', angle: -90, position: 'insideLeft', style: { fontSize: 12 } }}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'white',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                }}
+                formatter={(value: number) => [`${value}h`, 'Study Hours']}
+              />
+              <Line 
+                type="monotone" 
+                dataKey="hours" 
+                stroke="#2563eb" 
+                strokeWidth={2}
+                dot={{ fill: '#2563eb', r: 4 }}
+                activeDot={{ r: 7 }}
+              />
+            </LineChart>
+          ) : (
+            <BarChart
+              data={weeklyData}
+              margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200" />
+              <XAxis 
+                dataKey="week" 
+                className="text-gray-600"
+                tick={{ fontSize: 12 }}
+              />
+              <YAxis 
+                className="text-gray-600"
+                tick={{ fontSize: 12 }}
+                label={{ value: 'Hours', angle: -90, position: 'insideLeft', style: { fontSize: 12 } }}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'white',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                }}
+                formatter={(value: number) => [`${value}h`, 'Study Hours']}
+              />
+              <Bar dataKey="hours" fill="#2563eb" radius={[8, 8, 0, 0]} />
+            </BarChart>
+          )}
+        </ResponsiveContainer>
+      </div>
+      
+      <div className="flex justify-center">
+        <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+          <Button
+            size="sm"
+            variant={chartType === 'line' ? 'default' : 'ghost'}
+            onClick={() => setChartType('line')}
+            className={chartType === 'line' ? 'bg-blue-600 text-white hover:bg-blue-700' : 'hover:bg-gray-200 text-gray-600'}
+          >
+            Line
+          </Button>
+          <Button
+            size="sm"
+            variant={chartType === 'bar' ? 'default' : 'ghost'}
+            onClick={() => setChartType('bar')}
+            className={chartType === 'bar' ? 'bg-blue-600 text-white hover:bg-blue-700' : 'hover:bg-gray-200 text-gray-600'}
+          >
+            Bar
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
