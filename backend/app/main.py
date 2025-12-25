@@ -634,9 +634,12 @@ def signup(payload: SignUpIn):
                     {"w": workspace_id, "u": user_id},
                 )
 
-    # 5️⃣ Return clean response
+    # 5️⃣ Return clean response (include user_id so frontend can store it)
     return {
         "message": "Signup successful",
+        "user_id": user_id,
+        "email": payload.email,
+        "full_name": payload.full_name,
         "joined_workspace": bool(payload.invite_token),
     }
 
@@ -647,7 +650,7 @@ def login(payload: LoginIn):
     with engine.begin() as conn:
         row = conn.execute(
             text("""
-                SELECT password_hash, auth_provider
+                SELECT id, email, full_name, password_hash, auth_provider
                 FROM users
                 WHERE email = :e
             """),
@@ -667,7 +670,12 @@ def login(payload: LoginIn):
             raise HTTPException(status_code=401, detail="invalid credentials")
         
 
-    return {"message": "login ok"}
+    return {
+        "message": "login ok",
+        "user_id": str(row["id"]),
+        "email": row["email"],
+        "full_name": row.get("full_name") or payload.email,
+    }
 
 
 

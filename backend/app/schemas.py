@@ -109,8 +109,11 @@ class WorkspaceMemberResponse(BaseModel):
     id: int
     workspace_id: int
     user_id: UUID
-    username: Optional[str]
-    email: Optional[str]
+    # NOTE: the DB model in this project does not consistently store username/email
+    # on workspace membership rows across environments. Keep these OPTIONAL with
+    # defaults so FastAPI can serialize from ORM objects safely.
+    username: Optional[str] = None
+    email: Optional[str] = None
     role: str
     joined_at: datetime
 
