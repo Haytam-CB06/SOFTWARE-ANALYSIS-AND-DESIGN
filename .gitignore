@@ -26,18 +26,18 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 
-# virtual environments
+# Virtual environments
 .venv/
 venv/
 backend/venv/
 backend/.venv/
 
-# build artifacts
+# Python build artifacts
 *.egg-info/
 dist/
 build/
 
-# local databases
+# Local databases
 *.db
 *.sqlite
 *.sqlite3
@@ -47,16 +47,26 @@ backend/app.db
 # =========================
 # Node / React (Vite)
 # =========================
-frontend/UPLAN/node_modules/
-frontend/UPLAN/dist/
-frontend/UPLAN/.vite/
-frontend/UPLAN/.turbo/
-frontend/UPLAN/.cache/
-frontend/UPLAN/coverage/
 
-# logs
+# Dependencies (DO NOT COMMIT)
+node_modules/
+frontend/**/node_modules/
+
+# Build output (DO NOT COMMIT)
+dist/
+frontend/**/dist/
+
+# Vite / tooling caches
+.vite/
+frontend/**/.vite/
+.turbo/
+.cache/
+coverage/
+
+# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
 

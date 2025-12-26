@@ -343,20 +343,20 @@ async def google_callback(
     db: Session = Depends(get_db)
 ):
     token = await oauth.google.authorize_access_token(request)
- 
     resp = await oauth.google.get(
         "https://openidconnect.googleapis.com/v1/userinfo",
         token=token
     )
 
     user_info = resp.json()
-
-    email = user_info["email"]
-    name = user_info.get("name")
-
     user = get_or_create_google_user(db, user_info)
 
-    return {"message": "User saved", "email": user.email}
+    frontend = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
+
+    return RedirectResponse(
+        url=f"{frontend}/   ?email={user.email}&name={user.full_name}",
+        status_code=302
+    )
 
 
 # ---------------------------------------------------------------------
@@ -510,13 +510,14 @@ class SignUpIn(BaseModel):
     full_name: constr(strip_whitespace=True, min_length=1)
     password: constr(min_length=6)
     timezone: str = "UTC"
-    gender: constr(max_length=1)
+    gender: constr(max_length=50)
     date_of_birth: date
     invite_token: Optional[str] = None
 
 
 class LoginIn(BaseModel):
-    email: EmailStr
+    email: Optional[str] = None
+    full_name: Optional[str] = None
     password: str
 
 
@@ -544,7 +545,7 @@ def verify_invite_token(token: str, max_age: int = 600) -> dict:
         max_age=max_age
     )
 
-@auth_router.post("/signup")
+@auth_router.post("/signup")#done 
 def signup(payload: SignUpIn):
     with engine.begin() as conn:
         # Ensure schema safety
@@ -645,20 +646,43 @@ def signup(payload: SignUpIn):
 
 
 
-@auth_router.post("/login")
+@auth_router.post("/login")#done
 def login(payload: LoginIn):
+    # Figma AI puts the same value in email & full_name
+    identifier = payload.full_name.strip()
+
+    if not identifier:
+        raise HTTPException(status_code=400, detail="Missing login identifier")
+
     with engine.begin() as conn:
+
+        # 1. Try email login first (guaranteed valid EmailStr)
         row = conn.execute(
             text("""
-                SELECT id, email, full_name, password_hash, auth_provider
+                SELECT id, email, username, full_name, password_hash, auth_provider
                 FROM users
-                WHERE email = :e
+                WHERE email = :email
             """),
-            {"e": payload.email},
+            {"email": payload.email},
         ).mappings().fetchone()
 
+        # 2. If not found, try username
         if row is None:
-            raise HTTPException(status_code=401, detail="invalid credentials")
+            row = conn.execute(
+                text("""
+                    SELECT id, email, username, full_name, password_hash, auth_provider
+                    FROM users
+                    WHERE username = :u
+                       OR full_name = :u
+                """),
+                {"u": identifier},
+            ).mappings().fetchone()
+
+        if row is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Incorrect email/username "
+            )
 
         if row["auth_provider"] != "local":
             raise HTTPException(
@@ -667,14 +691,16 @@ def login(payload: LoginIn):
             )
 
         if not verify_password(payload.password, row["password_hash"]):
-            raise HTTPException(status_code=401, detail="invalid credentials")
-        
+            raise HTTPException(
+                status_code=401,
+                detail="Incorrect password"
+            )
 
     return {
         "message": "login ok",
         "user_id": str(row["id"]),
         "email": row["email"],
-        "full_name": row.get("full_name") or payload.email,
+        "full_name": row["full_name"],
     }
 
 
@@ -713,7 +739,7 @@ def is_code_expired(created_at: datetime, minutes: int = 10):
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 587
 SMTP_EMAIL = "haytamcharafi@gmail.com"
-SMTP_PASSWORD = "tooa oqau oqvj tegk"
+SMTP_PASSWORD = "qqrd jtxi nhdf axhc"
 # NO SPACES
 
 
