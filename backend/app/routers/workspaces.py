@@ -92,10 +92,10 @@ def verify_invite_token(token: str, max_age: int = 600) -> dict:
     return serializer.loads(token, salt=SALT, max_age=max_age)
 
 def _smtp_config() -> tuple[str, int, str, str]:
-    host = os.getenv("SMTP_HOST", "smtp.gmail.com")
-    port = int(os.getenv("SMTP_PORT", "587"))
-    email = os.getenv("SMTP_EMAIL", "")
-    password = os.getenv("SMTP_PASSWORD", "")
+    host = "smtp.gmail.com"
+    port =  587
+    email = "haytamcharafi@gmail.com"
+    password = "qqrd jtxi nhdf axhc"
     return host, port, email, password
 
 def send_workspace_invite_email(email: str, workspace_id: int):
@@ -179,8 +179,10 @@ def invite_user_to_workspace(payload: InviteRequest, db: Session = Depends(get_d
 # -----------------------------
 # Workspaces CRUD
 # -----------------------------
-
-@router.post("", response_model=WorkspaceResponse)
+# -----------------------------
+# LINKED
+# -----------------------------
+@router.post("", response_model=WorkspaceResponse)          
 def create_workspace(
     payload: WorkspaceCreate,
     current_user_id: UUID = Depends(get_current_user_id),
@@ -197,8 +199,10 @@ def create_workspace(
     db.commit()
 
     return workspace
-
-@router.get("", response_model=List[WorkspaceResponse])
+# -----------------------------
+# LINKED
+# -----------------------------
+@router.get("", response_model=List[WorkspaceResponse])              
 def list_my_workspaces(
     current_user_id: UUID = Depends(get_current_user_id),
     db: Session = Depends(get_db),
@@ -211,15 +215,19 @@ def list_my_workspaces(
         .all()
     )
     return workspaces
-
-@router.get("/{workspace_id}", response_model=WorkspaceResponse)
+# -----------------------------
+# LINKED
+# -----------------------------
+@router.get("/{workspace_id}", response_model=WorkspaceResponse)            #done
 def get_workspace(workspace_id: int, db: Session = Depends(get_db)):
     workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
     if not workspace:
         raise HTTPException(status_code=404, detail="Workspace not found")
     return workspace
-
-@router.delete("/{workspace_id}")
+# -----------------------------
+# LINKED
+# -----------------------------
+@router.delete("/{workspace_id}")                   #done
 def delete_workspace(
     workspace_id: int,
     current_user_id: UUID = Depends(get_current_user_id),
@@ -242,8 +250,10 @@ def delete_workspace(
 # -----------------------------
 # Members API (frontend uses these)
 # -----------------------------
-
-@router.get("/{workspace_id}/members")
+# -----------------------------
+# LINKED
+# -----------------------------
+@router.get("/{workspace_id}/members")                  
 def list_members(
     workspace_id: int,
     current_user_id: UUID = Depends(get_current_user_id),
@@ -260,8 +270,10 @@ def list_members(
         .all()
     )
     return [_member_out(db, m) for m in members]
-
-@router.post("/{workspace_id}/members")
+# -----------------------------
+# LINKED
+# -----------------------------
+@router.post("/{workspace_id}/members")                 
 def add_member(
     workspace_id: int,
     request: AddMemberRequest,
@@ -291,8 +303,11 @@ def add_member(
     db.commit()
     db.refresh(member)
     return {"message": "Member added successfully", "member": _member_out(db, member)}
+# -----------------------------
+# LINKED
+# -----------------------------
 
-@router.delete("/{workspace_id}/members/{member_id}")
+@router.delete("/{workspace_id}/members/{member_id}")           
 def remove_member(
     workspace_id: int,
     member_id: UUID,
@@ -326,8 +341,11 @@ def remove_member(
     db.delete(member)
     db.commit()
     return {"message": "Member removed successfully"}
+# -----------------------------
+# LINKED
+# -----------------------------
 
-@router.patch("/{workspace_id}/members/{member_id}")
+@router.patch("/{workspace_id}/members/{member_id}")                
 def update_member_role(
     workspace_id: int,
     member_id: UUID,
@@ -367,3 +385,90 @@ def update_member_role(
     db.commit()
     db.refresh(member)
     return {"message": "Role updated", "member": _member_out(db, member)}
+
+# -----------------------------
+# LINKED
+# -----------------------------
+@router.post("/{workspace_id}/share-link")              
+def generate_workspace_share_link(
+    workspace_id: int,
+    current_user_id: UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    role = _get_user_workspace_role(db, workspace_id, current_user_id)
+    if not role:
+        raise HTTPException(status_code=403, detail="Not a workspace member")
+    
+
+    workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    # No email → open invite
+    token = generate_invite_token(workspace_id, email="*")
+
+    return {
+        "link_id": token,
+        "access_type": "open",
+    }
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from uuid import UUID
+# -----------------------------
+# LINKED
+# -----------------------------
+@router.patch("/{workspace_id}/members/{member_id}/role")               
+def change_workspace_member_role(workspace_id: int,
+                                 member_id: UUID,
+                                 payload: dict,
+                                 current_user_id: UUID = Depends(get_current_user_id),
+                                  db: Session = Depends(get_db),):
+    new_role = payload.get("role")
+
+    if new_role not in {"admin", "member", "viewer"}:
+        raise HTTPException(status_code=400, detail="Invalid role")
+
+    # Caller must be an admin
+    caller_role = _get_user_workspace_role(db, workspace_id, current_user_id)
+    if not caller_role or not has_permission(caller_role, "edit_member_role"):
+        raise HTTPException(status_code=403, detail="Permission denied")
+
+    member = (
+        db.query(WorkspaceMember)
+        .filter(
+            WorkspaceMember.workspace_id == workspace_id,
+            WorkspaceMember.user_id == member_id,
+        )
+        .first()
+    )
+
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+
+    # Enforce max 2 admins
+    if new_role == "admin" and member.role != "admin":
+        admin_count = (
+            db.query(WorkspaceMember)
+            .filter(
+                WorkspaceMember.workspace_id == workspace_id,
+                WorkspaceMember.role == "admin",
+            )
+            .count()
+        )
+
+        if admin_count >= 2:
+            raise HTTPException(
+                status_code=400,
+                detail="Maximum 2 admins allowed per workspace"
+            )
+
+    member.role = new_role
+    db.commit()
+
+    return {
+        "message": "Member role updated",
+        "member_id": str(member_id),
+        "role": new_role,
+    }
+   
+

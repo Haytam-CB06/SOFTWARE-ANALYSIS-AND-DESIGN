@@ -130,6 +130,7 @@ export default function AuthPage({ onLogin, onNavigate }: AuthPageProps) {
       },
       body: JSON.stringify({
         email: loginEmail,
+        full_name: loginEmail,
         password: loginPassword,
       }),
     });
@@ -160,8 +161,8 @@ export default function AuthPage({ onLogin, onNavigate }: AuthPageProps) {
     // Catch network errors or unexpected issues
     console.error("Login error:", err);
     toast.error(err.message || "Something went wrong during login");
-  }
-};
+    }
+  };
 
   const handleSignup = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -419,44 +420,60 @@ export default function AuthPage({ onLogin, onNavigate }: AuthPageProps) {
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-  // OAuth MUST be a full redirect
+  // OAuth must be a full redirect
   window.location.href = `${API_BASE_URL}/login`;
-};
+  };
 
   const handleSocialLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!socialEmail || !socialName) {
-      toast.error('Please enter all required information.');
+
+    // Google must use OAuth redirect, not manual submit
+    if (socialLoginProvider === "google") {
+      toast.info("Redirecting to Google login...");
+      handleSocialLogin("google");
       return;
     }
-    
-    // Check if user already exists
-    const users = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
-    const existingUser = users.find((u: any) => u.email === socialEmail);
-    
+
+    // ---- fallback (prototype / non-OAuth providers only) ----
+    if (!socialEmail || !socialName) {
+      toast.error("Please enter all required information.");
+      return;
+    }
+
+    const users = JSON.parse(
+      localStorage.getItem("registeredUsers") || "[]"
+    );
+
+    const existingUser = users.find(
+      (u: any) => u.email === socialEmail
+    );
+
     if (existingUser) {
-      // User exists, log them in
-      localStorage.setItem('currentUserEmail', existingUser.email);
+      localStorage.setItem("currentUserEmail", existingUser.email);
       toast.success(`Welcome back, ${existingUser.name}!`);
       onLogin(existingUser.name, existingUser.email);
     } else {
-      // Register new user
       const newUser = {
         name: socialName,
         email: socialEmail,
         provider: socialLoginProvider,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       };
-      
+
       users.push(newUser);
-      localStorage.setItem('registeredUsers', JSON.stringify(users));
-      localStorage.setItem('currentUserEmail', socialEmail);
-      
-      toast.success(`Account created successfully! Welcome, ${socialName}!`);
+      localStorage.setItem(
+        "registeredUsers",
+        JSON.stringify(users)
+      );
+      localStorage.setItem("currentUserEmail", socialEmail);
+
+      toast.success(
+        `Account created successfully! Welcome, ${socialName}!`
+      );
       onLogin(socialName, socialEmail);
     }
   };
+
 
   return (
     <div className="min-h-screen flex">

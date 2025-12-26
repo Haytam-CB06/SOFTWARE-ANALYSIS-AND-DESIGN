@@ -302,45 +302,6 @@ export default function Workspace() {
       return;
     }
 
-    // ============================================================================
-    // 🔌 BACKEND INTEGRATION POINT - CREATE WORKSPACE
-    // ============================================================================
-    // This section creates a new collaborative workspace
-    // 
-    // API Endpoint: POST /api/workspaces
-    // Request Body: {
-    //   name: string,
-    //   description: string,
-    //   createdBy: string,       // user ID
-    //   members: Array<{
-    //     id: string,
-    //     email: string,
-    //     role: 'admin' | 'member' | 'viewer'
-    //   }>
-    // }
-    // Response: {
-    //   success: boolean,
-    //   workspace: {
-    //     id: string,
-    //     name: string,
-    //     description: string,
-    //     createdAt: string,
-    //     members: Array<{...}>,
-    //     sharing: {...}
-    //   },
-    //   message: string
-    // }
-    // 
-    // Backend Features:
-    // - Store workspace data in database
-    // - Set up real-time collaboration channels
-    // - Create chat rooms and notification streams
-    // - Configure access permissions
-    // - Generate sharing links with security tokens
-    // 
-    // TODO: Replace localStorage with actual API call
-    // ============================================================================
-
     try {
       const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
       const res = await fetch(`${API_BASE_URL}/workspaces`, {
@@ -417,47 +378,6 @@ export default function Workspace() {
       }
     }
 
-    // ============================================================================
-    // 🔌 BACKEND INTEGRATION POINT - ADD WORKSPACE MEMBER
-    // ============================================================================
-    // This section adds a new member to a workspace
-    // 
-    // API Endpoint: POST /api/workspaces/:workspaceId/members
-    // Request Body: {
-    //   name: string,
-    //   email: string,
-    //   role: 'admin' | 'member' | 'viewer',
-    //   invitedBy: string        // user ID of inviter
-    // }
-    // Response: {
-    //   success: boolean,
-    //   member: {
-    //     id: string,
-    //     name: string,
-    //     email: string,
-    //     role: string,
-    //     joinedAt: string,
-    //     inviteStatus: 'pending' | 'accepted'
-    //   },
-    //   inviteSent: boolean
-    // }
-    // 
-    // Backend Features:
-    // - Send email invitation to new member
-    // - Check if user exists in the system
-    // - Create notification for existing users
-    // - Track invitation status
-    // - Set up member permissions in database
-    // - Update workspace member count
-    // 
-    // Email Template:
-    // - Include workspace name and description
-    // - Show who invited them
-    // - Provide accept/decline buttons
-    // - Deep link to workspace
-    // 
-    // TODO: Replace localStorage lookup with actual API call
-    // ============================================================================
 
     (async () => {
       try {
@@ -492,60 +412,104 @@ export default function Workspace() {
   };
 
   const handleRemoveMember = (memberId: string) => {
-    if (!workspace) return;
+      if (!workspace) return;
 
-    const member = workspace.members.find(m => m.id === memberId);
-    if (!member) return;
+      const member = workspace.members.find(m => m.id === memberId);
+      if (!member) return;
 
-    if (!confirm(`Are you sure you want to remove ${member.name} from the workspace?`)) return;
+      if (!confirm(`Are you sure you want to remove ${member.name} from the workspace?`)) return;
 
-    (async () => {
-      try {
-        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-        const res = await fetch(`${API_BASE_URL}/workspaces/${workspace.id}/members/${member.id}`, {
-          method: 'DELETE',
-          headers: { 'X-User-Id': currentUser.id },
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.detail || `Failed to remove member (${res.status})`);
+      (async () => {
+        try {
+          const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+          const res = await fetch(`${API_BASE_URL}/workspaces/${workspace.id}/members/${member.id}`, {
+            method: 'DELETE',
+            headers: { 'X-User-Id': currentUser.id },
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || `Failed to remove member (${res.status})`);
+          }
+          toast.success(`${member.name} has been removed from the workspace`);
+          await loadWorkspaces();
+        } catch (e: any) {
+          console.error('[Workspace] remove member failed:', e);
+          toast.error(e.message || 'Failed to remove member');
         }
-        toast.success(`${member.name} has been removed from the workspace`);
-        await loadWorkspaces();
-      } catch (e: any) {
-        console.error('[Workspace] remove member failed:', e);
-        toast.error(e.message || 'Failed to remove member');
-      }
-    })();
+      })();
   };
 
-  const handleChangeRole = (memberId: string, newRole: Member['role']) => {
+    const handleChangeRole = async (
+    memberId: string,
+    newRole: Member["role"]
+   ) => {
     if (!workspace) return;
 
-    const member = workspace.members.find(m => m.id === memberId);
+    const member = workspace.members.find((m) => m.id === memberId);
     if (!member) return;
 
-    // Check if trying to promote to admin
-    if (newRole === 'admin') {
-      const currentAdminCount = workspace.members.filter(m => m.role === 'admin').length;
-      
-      // If already 2 admins and trying to add another
-      if (currentAdminCount >= 2 && member.role !== 'admin') {
-        toast.error('Maximum 2 admins allowed per workspace');
+    // Client-side admin limit check (UX only)
+    if (newRole === "admin") {
+      const currentAdminCount = workspace.members.filter(
+        (m) => m.role === "admin"
+      ).length;
+
+      if (currentAdminCount >= 2 && member.role !== "admin") {
+        toast.error("Maximum 2 admins allowed per workspace");
         return;
       }
     }
 
-    const updatedWorkspace = {
-      ...workspace,
-      members: workspace.members.map(m =>
-        m.id === memberId ? { ...m, role: newRole } : m
-      )
-    };
+    try {
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+      const currentUserId = localStorage.getItem("currentUserId");
 
-    saveWorkspace(updatedWorkspace);
-    toast.success(`${member.name}'s role has been updated to ${getRoleConfig(newRole).label}`);
+      if (!currentUserId) {
+        toast.error("User not authenticated");
+        return;
+      }
+
+      const response = await fetch(
+        `${API_BASE_URL}/workspaces/${workspace.id}/members/${memberId}/role`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "X-User-Id": currentUserId,
+          },
+          body: JSON.stringify({ role: newRole }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.detail || "Failed to update member role");
+        return;
+      }
+
+      // Backend succeeded → update local state
+      const updatedWorkspace = {
+        ...workspace,
+        members: workspace.members.map((m) =>
+          m.id === memberId ? { ...m, role: newRole } : m
+        ),
+      };
+
+      saveWorkspace(updatedWorkspace);
+
+      toast.success(
+        `${member.name}'s role has been updated to ${
+          getRoleConfig(newRole).label
+        }`
+      );
+
+    } catch (err: any) {
+      console.error("Change role error:", err);
+      toast.error("Something went wrong while updating the role");
+    }
   };
+
 
   const handleApproveRequest = (requestId: string) => {
     if (!workspace) return;
@@ -593,34 +557,75 @@ export default function Workspace() {
     toast.success(`Request from ${request.name} has been rejected`);
   };
 
-  const handleDeleteWorkspace = () => {
-    if (!workspace) return;
-    
-    if (workspaces.length === 1) {
-      toast.error('Cannot delete the last workspace');
+  const handleDeleteWorkspace = async () => {
+  if (!workspace) return;
+
+  if (workspaces.length === 1) {
+    toast.error("Cannot delete the last workspace");
+    return;
+  }
+
+  const confirmed = confirm(
+    "⚠️ Are you sure you want to delete this workspace? This action cannot be undone and will remove all members and data."
+  );
+
+  if (!confirmed) return;
+
+  try {
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+    const currentUserId = localStorage.getItem("currentUserId");
+
+    if (!currentUserId) {
+      toast.error("User not authenticated");
       return;
     }
 
-    if (confirm('⚠️ Are you sure you want to delete this workspace? This action cannot be undone and will remove all members and data.')) {
-      const updatedWorkspaces = workspaces.filter(w => w.id !== workspace.id);
-      setWorkspaces(updatedWorkspaces);
-      localStorage.setItem('workspaces', JSON.stringify(updatedWorkspaces));
-      
-      // Switch to first available workspace
-      if (updatedWorkspaces.length > 0) {
-        setCurrentWorkspaceId(updatedWorkspaces[0].id);
-        localStorage.setItem('currentWorkspaceId', updatedWorkspaces[0].id);
+    const response = await fetch(
+      `${API_BASE_URL}/workspaces/${workspace.id}`,
+      {
+        method: "DELETE",
+        headers: {
+          "X-User-Id": currentUserId,
+        },
       }
-      
-      setIsDeleteWorkspaceOpen(false);
-      toast.success('Workspace has been deleted');
-      
-      // Reload to update state
-      setTimeout(() => {
-        loadWorkspaces();
-      }, 500);
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      toast.error(data.detail || "Failed to delete workspace");
+      return;
     }
+
+    // ✅ Backend delete succeeded — now update UI state
+    const updatedWorkspaces = workspaces.filter(
+      (w) => w.id !== workspace.id
+    );
+
+    setWorkspaces(updatedWorkspaces);
+    localStorage.setItem("workspaces", JSON.stringify(updatedWorkspaces));
+
+    if (updatedWorkspaces.length > 0) {
+      setCurrentWorkspaceId(updatedWorkspaces[0].id);
+      localStorage.setItem(
+        "currentWorkspaceId",
+        updatedWorkspaces[0].id
+      );
+    }
+
+    setIsDeleteWorkspaceOpen(false);
+    toast.success("Workspace has been deleted");
+
+    setTimeout(() => {
+      loadWorkspaces();
+    }, 500);
+
+    } catch (err: any) {
+    console.error("Delete workspace error:", err);
+    toast.error("Something went wrong while deleting the workspace");
+    };
   };
+
 
   const handleEditWorkspace = () => {
     if (!workspace) return;
@@ -735,42 +740,51 @@ export default function Workspace() {
   };
 
   // Sharing Link Functions
-  const generateShareLink = () => {
+  const generateShareLink = async () => {
     if (!workspace) return;
-    
-    const linkId = `share-${Math.random().toString(36).substring(2, 15)}`;
+
+    try {
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+      const currentUserId = localStorage.getItem("currentUserId");
+    if (!currentUserId) {
+      toast.error("User not authenticated");
+      return;
+    }
+
+    const response = await fetch(
+      `${API_BASE_URL}/workspaces/${workspace.id}/share-link`,
+      {
+        method: "POST",
+        headers: {
+          "X-User-Id": currentUserId,
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      toast.error(data.detail || "Failed to generate share link");
+      return;
+    }
+
     const updatedWorkspace = {
       ...workspace,
       sharing: {
         enabled: true,
-        linkId,
-        accessType: 'open' as const,
+        linkId: data.link_id, // ✅ backend-issued token
+        accessType: "open" as const,
         createdAt: new Date().toISOString(),
-        createdBy: currentUser.id
-      }
+        createdBy: currentUser.id,
+      },
     };
-    
-    saveWorkspace(updatedWorkspace);
-    toast.success('Sharing link generated successfully!');
-  };
 
-  const regenerateShareLink = () => {
-    if (!workspace) return;
-    
-    if (confirm('Are you sure you want to regenerate the link? The old link will stop working.')) {
-      const linkId = `share-${Math.random().toString(36).substring(2, 15)}`;
-      const updatedWorkspace = {
-        ...workspace,
-        sharing: {
-          ...workspace.sharing!,
-          linkId,
-          createdAt: new Date().toISOString(),
-          createdBy: currentUser.id
-        }
-      };
-      
-      saveWorkspace(updatedWorkspace);
-      toast.success('Sharing link regenerated successfully!');
+    saveWorkspace(updatedWorkspace);
+    toast.success("Sharing link generated successfully!");
+
+    } catch (err: any) {
+    console.error("Generate share link error:", err);
+    toast.error("Something went wrong while generating the link");
     }
   };
 
@@ -1519,7 +1533,7 @@ export default function Workspace() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={regenerateShareLink}
+                      onClick={generateShareLink}
                       className="flex-1 border-blue-300 text-blue-600 hover:bg-blue-50"
                     >
                       <RefreshCw className="h-4 w-4 mr-2" />
@@ -1718,12 +1732,12 @@ export default function Workspace() {
                   </div>
                   <Button
                     size="sm"
-                    onClick={() => setJoinLinkId(workspace.sharing!.linkId)}
+                    onClick={() => setJoinLinkId(workspace.sharing.linkId)}
                     variant="outline"
                     className="border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30 mt-2"
                   >
                     <UserPlus className="h-4 w-4 mr-2" />
-                    Test Join Link
+                    send link via email
                   </Button>
                 </div>
 
