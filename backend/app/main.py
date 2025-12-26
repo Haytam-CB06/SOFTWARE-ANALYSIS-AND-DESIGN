@@ -354,7 +354,7 @@ async def google_callback(
     frontend = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
 
     return RedirectResponse(
-        url=f"{frontend}/oauth-success?email={user.email}&name={user.full_name}",
+        url=f"{frontend}/   ?email={user.email}&name={user.full_name}",
         status_code=302
     )
 
