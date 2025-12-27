@@ -49,14 +49,9 @@ class ClassMeetingUpdate(BaseModel):
     start_time: Optional[str] = None
     end_time: Optional[str] = None
     rrule: Optional[str] = None
-    subject_name: Optional[str] = None
-    exam_date: Optional[str] = None
-    exam_time: Optional[str] = None
-    location: Optional[str] = None
-    importance: Optional[int] = None
-    notes: Optional[str] = None
-    reminder_minutes: Optional[int] = None
-    color: Optional[str] = None
+    # Convenience fields to update the linked subject
+    subject_name: Optional[str] = None  # alias for Subject.title
+    code: Optional[str] = None
     difficulty: Optional[int] = None
     target_grade: Optional[str] = None
     credit_weight: Optional[float] = None
@@ -81,18 +76,52 @@ class ClassMeetingUpdate(BaseModel):
 
 
 class SubjectCreate(BaseModel):
+    """Create a subject for a user.
+
+    NOTE: The original version of this router expected many extra fields
+    (exam_date, location, importance, etc.). The actual SQLAlchemy Subject
+    model only contains: title, code, difficulty, target_grade, credit_weight,
+    and is_active.
+
+    To remain backward compatible with earlier frontend code, we still accept
+    `name` as an alias for `title`.
+    """
+
     user_id: str
-    name: str
-    exam_date: Optional[str] = None
-    exam_time: Optional[str] = None
-    location: Optional[str] = None
-    importance: Optional[int] = None
-    notes: Optional[str] = None
-    reminder_minutes: Optional[int] = None
-    color: Optional[str] = None
+    # New canonical field
+    title: Optional[str] = None
+    # Backward-compatible alias
+    name: Optional[str] = None
+    code: Optional[str] = None
     difficulty: Optional[int] = None
     target_grade: Optional[str] = None
     credit_weight: Optional[float] = None
+
+    @field_validator("title")
+    @classmethod
+    def _title_or_name_required(cls, v: Optional[str], info):
+        # If title missing, try name; ensure at least one is present
+        name = (info.data.get("name") or "").strip() if info.data else ""
+        if (v is None or not str(v).strip()) and not name:
+            raise ValueError("Either 'title' or 'name' is required")
+        return v
+
+    @field_validator("title")
+    @classmethod
+    def _title_non_empty(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        v = v.strip()
+        if not v:
+            raise ValueError("title must not be empty")
+        return v
+
+    def resolved_title(self) -> str:
+        # prefer title; fall back to name
+        t = (self.title or self.name or "").strip()
+        if not t:
+            raise ValueError("Either title or name must be provided")
+        return t
 
 
 # READ ENDPOINTS
@@ -127,7 +156,7 @@ def get_user_timetable(user_id: str, session: Session = Depends(get_db)):
                 {
                     "meeting_id": str(meeting.id),
                     "subject_id": str(subject.id),
-                    "subject_name": subject.name,
+                    "subject_name": getattr(subject, "title", None) or getattr(subject, "name", None),
                     "day_of_week": meeting.day_of_week,
                     "start_time": meeting.start_time.strftime("%H:%M"),
                     "end_time": meeting.end_time.strftime("%H:%M"),
@@ -175,7 +204,7 @@ def get_user_timetable_by_day(
         {
             "meeting_id": str(m.id),
             "subject_id": str(m.subject_id),
-            "subject_name": m.subject.name if m.subject else None,
+            "subject_name": (getattr(m.subject, "title", None) or getattr(m.subject, "name", None)) if m.subject else None,
             "day_of_week": m.day_of_week,
             "start_time": m.start_time.strftime("%H:%M"),
             "end_time": m.end_time.strftime("%H:%M"),
@@ -203,7 +232,7 @@ def get_all_users_timetables(session: Session = Depends(get_db)):
         for s in u.subjects:
             subj_entry = {
                 "subject_id": str(s.id),
-                "name": s.name,
+                "name": getattr(s, "title", None) or getattr(s, "name", None),
                 "is_active": s.is_active,
                 "class_meetings": [],
             }
@@ -221,6 +250,121 @@ def get_all_users_timetables(session: Session = Depends(get_db)):
         all_data.append(user_entry)
 
     return {"users": all_data}
+
+
+# ---------------------------------------------------------------------
+# Frontend convenience: save/load calendar sessions for a user
+# ---------------------------------------------------------------------
+
+
+class CalendarSessionIn(BaseModel):
+    """A lightweight session payload matching the frontend CalendarView."""
+
+    id: Optional[str] = None
+    subject: str
+    startTime: str
+    endTime: str
+    day: int  # 0=Monday .. 6=Sunday (frontend convention)
+
+
+class CalendarSessionOut(BaseModel):
+    id: str
+    subject: str
+    startTime: str
+    endTime: str
+    day: int
+
+
+def _frontend_day_to_backend(day: int) -> int:
+    # frontend: 0=Mon..6=Sun -> backend: 0=Sun..6=Sat
+    return (day + 1) % 7
+
+
+def _backend_day_to_frontend(day: int) -> int:
+    # backend: 0=Sun..6=Sat -> frontend: 0=Mon..6=Sun
+    return (day - 1) % 7
+
+
+@router.get("/user/{user_id}/sessions", response_model=list[CalendarSessionOut])
+def get_user_calendar_sessions(user_id: str, session: Session = Depends(get_db)):
+    """Return the user's saved timetable sessions (for CalendarView)."""
+    try:
+        uuid.UUID(user_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid user_id format")
+
+    meetings = (
+        session.query(ClassMeeting)
+        .join(Subject, Subject.id == ClassMeeting.subject_id)
+        .filter(Subject.user_id == user_id, Subject.is_active == True)
+        .order_by(ClassMeeting.day_of_week, ClassMeeting.start_time)
+        .all()
+    )
+
+    out: list[CalendarSessionOut] = []
+    for m in meetings:
+        subj = m.subject
+        out.append(
+            CalendarSessionOut(
+                id=str(m.id),
+                subject=getattr(subj, "title", None) or getattr(subj, "name", None) or "(Untitled)",
+                startTime=m.start_time.strftime("%H:%M"),
+                endTime=m.end_time.strftime("%H:%M"),
+                day=_backend_day_to_frontend(m.day_of_week),
+            )
+        )
+    return out
+
+
+@router.put("/user/{user_id}/sessions")
+def put_user_calendar_sessions(user_id: str, payload: list[CalendarSessionIn], session: Session = Depends(get_db)):
+    """Replace the user's saved timetable sessions.
+
+    This is used by the frontend to persist drag/drop edits so that the
+    timetable survives logging in from another browser.
+    """
+    try:
+        uuid.UUID(user_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid user_id format")
+
+    user = session.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Clear existing subjects/meetings for this user (timetable only)
+    existing_subjects = session.query(Subject).filter(Subject.user_id == user_id).all()
+    for s in existing_subjects:
+        session.delete(s)
+    session.flush()
+
+    # Re-create from payload
+    subject_map: dict[str, Subject] = {}
+    created_meetings = 0
+    for item in payload:
+        title = (item.subject or "").strip()
+        if not title:
+            continue
+        if title not in subject_map:
+            s = Subject(user_id=user_id, title=title, is_active=True)
+            session.add(s)
+            session.flush()
+            subject_map[title] = s
+
+        start_time = time.fromisoformat(item.startTime)
+        end_time = time.fromisoformat(item.endTime)
+        m = ClassMeeting(
+            subject_id=subject_map[title].id,
+            day_of_week=_frontend_day_to_backend(item.day),
+            start_time=start_time,
+            end_time=end_time,
+            rrule=None,
+        )
+        session.add(m)
+        created_meetings += 1
+
+    session.commit()
+    return {"ok": True, "subjects": len(subject_map), "meetings": created_meetings}
 
 
 # CREATE ENDPOINTS
@@ -243,14 +387,8 @@ def create_subject(subject: SubjectCreate, session: Session = Depends(get_db)):
 
     new_subject = Subject(
         user_id=subject.user_id,
-        name=subject.name,
-        exam_date=subject.exam_date,
-        exam_time=subject.exam_time,
-        location=subject.location,
-        importance=subject.importance,
-        notes=subject.notes,
-        reminder_minutes=subject.reminder_minutes,
-        color=subject.color,
+        title=subject.resolved_title(),
+        code=subject.code,
         difficulty=subject.difficulty,
         target_grade=subject.target_grade,
         credit_weight=subject.credit_weight,
@@ -326,13 +464,7 @@ def update_class_meeting(
         getattr(update_data, f) is not None
         for f in [
             "subject_name",
-            "exam_date",
-            "exam_time",
-            "location",
-            "importance",
-            "notes",
-            "reminder_minutes",
-            "color",
+            "code",
             "difficulty",
             "target_grade",
             "credit_weight",
@@ -341,21 +473,10 @@ def update_class_meeting(
         subject = session.query(Subject).filter(Subject.id == meeting.subject_id).first()
         if subject:
             if update_data.subject_name is not None:
-                subject.name = update_data.subject_name
-            if update_data.exam_date is not None:
-                subject.exam_date = update_data.exam_date
-            if update_data.exam_time is not None:
-                subject.exam_time = update_data.exam_time
-            if update_data.location is not None:
-                subject.location = update_data.location
-            if update_data.importance is not None:
-                subject.importance = update_data.importance
-            if update_data.notes is not None:
-                subject.notes = update_data.notes
-            if update_data.reminder_minutes is not None:
-                subject.reminder_minutes = update_data.reminder_minutes
-            if update_data.color is not None:
-                subject.color = update_data.color
+                # keep backward compatible name but store in Subject.title
+                subject.title = update_data.subject_name
+            if update_data.code is not None:
+                subject.code = update_data.code
             if update_data.difficulty is not None:
                 subject.difficulty = update_data.difficulty
             if update_data.target_grade is not None:
