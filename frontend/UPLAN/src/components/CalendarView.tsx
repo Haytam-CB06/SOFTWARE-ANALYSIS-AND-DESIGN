@@ -62,6 +62,14 @@ export default function CalendarView({ onSaveTimetable, onNavigate }: CalendarVi
   const [hasExportedThisWeek, setHasExportedThisWeek] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const [availabilitySettings, setAvailabilitySettings] = useState<any>(null);
+  const isHydratingRef = useRef(true);
+  const saveDebounceRef = useRef<any>(null);
+  const userEditedRef = useRef(false);
+  // If backend returns empty but localStorage has sessions, sync once.
+  const shouldSyncRef = useRef(false);
+
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  const currentUserId = localStorage.getItem('currentUserId');
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     title: string;
@@ -85,29 +93,77 @@ export default function CalendarView({ onSaveTimetable, onNavigate }: CalendarVi
     return `${year}-W${String(weekNumber).padStart(2, '0')}`;
   };
 
-  // Load sessions from localStorage for current week
+  // Load sessions: prefer backend (persists across browsers), fallback to localStorage
   useEffect(() => {
     const loadSessions = () => {
       const weekId = getWeekIdentifier(currentDate);
       const savedSessions = localStorage.getItem(getUserWeekKey(weekId));
-      if (savedSessions) {
-        try {
-          const parsed = JSON.parse(savedSessions);
-          console.log('[CalendarView] Loaded sessions:', parsed);
-          console.log('[CalendarView] Session details:', parsed.map((s: Session) => ({
-            id: s.id,
-            subject: s.subject,
-            day: days[s.day],
-            time: `${s.startTime}-${s.endTime}`
-          })));
-          setSessions(parsed);
-        } catch (e) {
-          setSessions([]);
+
+      const hydrateFromLocal = () => {
+        if (savedSessions) {
+          try {
+            const parsed = JSON.parse(savedSessions);
+            setSessions(parsed);
+            return;
+          } catch (e) {
+            // fallthrough
+          }
         }
-      } else {
-        console.log('[CalendarView] No saved sessions for week', weekId);
         setSessions([]);
-      }
+      };
+
+      const hydrateFromBackend = async () => {
+        if (!API_BASE_URL || !currentUserId) {
+          hydrateFromLocal();
+          isHydratingRef.current = false;
+          return;
+        }
+        try {
+          const res = await fetch(`${API_BASE_URL}/timetable/user/${currentUserId}/sessions`);
+          if (!res.ok) {
+            hydrateFromLocal();
+            isHydratingRef.current = false;
+            return;
+          }
+          const data = await res.json();
+
+          // If backend has no sessions but we have a locally saved timetable for
+          // this week, prefer local and sync it back once.
+          if ((Array.isArray(data) ? data.length : 0) === 0 && savedSessions) {
+            try {
+              const parsed = JSON.parse(savedSessions);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                shouldSyncRef.current = true;
+                setSessions(parsed);
+                return;
+              }
+            } catch (e) {
+              // ignore and continue with backend data
+            }
+          }
+
+          // Backend returns minimal sessions (no type/color). Fill defaults.
+          const makeId = () => (typeof crypto !== 'undefined' && (crypto as any).randomUUID)
+            ? (crypto as any).randomUUID()
+            : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+          const hydrated: Session[] = (Array.isArray(data) ? data : []).map((s: any) => ({
+            id: String(s.id || makeId()),
+            subject: String(s.subject || ''),
+            startTime: String(s.startTime || '08:00'),
+            endTime: String(s.endTime || '09:00'),
+            day: Number(s.day || 0),
+            type: 'lecture',
+            color: '#6366F1',
+          }));
+          setSessions(hydrated);
+        } catch (e) {
+          hydrateFromLocal();
+        } finally {
+          isHydratingRef.current = false;
+        }
+      };
+
+      hydrateFromBackend();
       
       // Load export status for this week
       const exportKey = `${getUserWeekKey(weekId)}_exported`;
@@ -139,6 +195,8 @@ export default function CalendarView({ onSaveTimetable, onNavigate }: CalendarVi
       }
     };
 
+    // Start hydration
+    isHydratingRef.current = true;
     loadSessions();
 
     // Listen for user changes
@@ -167,13 +225,41 @@ export default function CalendarView({ onSaveTimetable, onNavigate }: CalendarVi
     };
   }, [currentDate]);
 
-  // Save sessions to localStorage whenever they change
+  // Save sessions to localStorage + backend whenever they change
   useEffect(() => {
-    if (sessions.length >= 0) {
-      const weekId = getWeekIdentifier(currentDate);
-      localStorage.setItem(getUserWeekKey(weekId), JSON.stringify(sessions));
-      onSaveTimetable?.(sessions);
-    }
+    const weekId = getWeekIdentifier(currentDate);
+    localStorage.setItem(getUserWeekKey(weekId), JSON.stringify(sessions));
+    onSaveTimetable?.(sessions);
+
+    // Debounced backend persistence so drag/drop doesn't spam requests.
+    // IMPORTANT: only persist when the user has edited sessions OR when we
+    // need to sync a locally-saved timetable into an empty backend.
+    if (isHydratingRef.current) return;
+    if (!API_BASE_URL || !currentUserId) return;
+    if (!userEditedRef.current && !shouldSyncRef.current) return;
+
+    if (saveDebounceRef.current) clearTimeout(saveDebounceRef.current);
+    saveDebounceRef.current = setTimeout(async () => {
+      try {
+        const minimal = sessions.map(s => ({
+          subject: s.subject,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          day: s.day,
+        }));
+        await fetch(`${API_BASE_URL}/timetable/user/${currentUserId}/sessions`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(minimal),
+        });
+        // reset flags after a successful persist
+        userEditedRef.current = false;
+        shouldSyncRef.current = false;
+      } catch (e) {
+        // Keep quiet; local storage remains a fallback
+        console.warn('[CalendarView] Failed to persist sessions to backend', e);
+      }
+    }, 500);
   }, [sessions, currentDate, onSaveTimetable]);
 
   const previousWeek = () => {
@@ -258,6 +344,7 @@ export default function CalendarView({ onSaveTimetable, onNavigate }: CalendarVi
 
     if (editingSession) {
       // Update existing session
+      userEditedRef.current = true;
       setSessions(sessions.map(s => s.id === editingSession.id ? { ...sessionData, id: s.id } : s));
       const hasDeadline = sessionData.deadline && (sessionData.type === 'assignment' || sessionData.type === 'test' || sessionData.type === 'exam');
       toast.success(hasDeadline ? '✅ Session & deadline updated!' : '✅ Session updated successfully');
@@ -267,6 +354,7 @@ export default function CalendarView({ onSaveTimetable, onNavigate }: CalendarVi
         ...sessionData,
         id: Date.now().toString(),
       };
+      userEditedRef.current = true;
       setSessions([...sessions, newSession]);
       const hasDeadline = sessionData.deadline && (sessionData.type === 'assignment' || sessionData.type === 'test' || sessionData.type === 'exam');
       toast.success(hasDeadline ? '✅ Session added with deadline!' : '✅ Session added successfully');
@@ -277,6 +365,7 @@ export default function CalendarView({ onSaveTimetable, onNavigate }: CalendarVi
   };
 
   const handleDeleteSession = (id: string) => {
+    userEditedRef.current = true;
     setSessions(sessions.filter(s => s.id !== id));
     toast.success('Session deleted successfully');
   };
@@ -287,6 +376,7 @@ export default function CalendarView({ onSaveTimetable, onNavigate }: CalendarVi
       title: 'Clear All Sessions',
       message: 'Are you sure you want to clear all sessions for this week?',
       onConfirm: () => {
+        userEditedRef.current = true;
         setSessions([]);
         const weekId = getWeekIdentifier(currentDate);
         localStorage.removeItem(getUserWeekKey(weekId));
@@ -450,43 +540,101 @@ export default function CalendarView({ onSaveTimetable, onNavigate }: CalendarVi
     toast.success('Timetable exported as Excel');
   };
 
-  const exportToGoogleCalendar = () => {
-    // ============================================================================
-    // 🔌 BACKEND INTEGRATION POINT - EXPORT TO GOOGLE CALENDAR
-    // ============================================================================
-    // This section exports timetable sessions to Google Calendar
-    // 
-    // API Endpoint: POST /api/calendar/export
-    // Request Body: {
-    //   sessions: Array<{
-    //     subject: string,
-    //     startTime: string,    // ISO datetime
-    //     endTime: string,      // ISO datetime
-    //     description: string,
-    //     location: string
-    //   }>,
-    //   weekId: string,
-    //   calendarId: string       // Google Calendar ID
-    // }
-    // Response: {
-    //   success: boolean,
-    //   exportedCount: number,
-    //   calendarUrl: string,
-    //   message: string
-    // }
-    // 
-    // Backend Implementation:
-    // - Use Google Calendar API with OAuth 2.0
-    // - Create recurring events for weekly schedules
-    // - Add reminders and notifications
-    // - Handle timezone conversions
-    // - Sync updates and deletions
-    // 
-    // Required: Google Calendar API credentials and user OAuth tokens
-    // TODO: Implement actual Google Calendar API integration
-    // ============================================================================
-    
-    // Empty function - backend will handle export
+  const exportToGoogleCalendar = async () => {
+    try {
+      if (!API_BASE_URL) {
+        toast.error('Backend URL not configured (VITE_API_BASE_URL)');
+        return;
+      }
+      if (!sessions.length) {
+        toast.info('No sessions to export');
+        return;
+      }
+
+      const userId = localStorage.getItem('currentUserId');
+      if (!userId) {
+        toast.error('You are not logged in');
+        return;
+      }
+
+      const weekStart = (() => {
+        const d = new Date(currentDate);
+        // Monday as week start
+        const monday = new Date(d);
+        const day = d.getDay(); // 0=Sun..6=Sat
+        const diff = (day === 0 ? -6 : 1) - day;
+        monday.setDate(d.getDate() + diff);
+        monday.setHours(0, 0, 0, 0);
+        return monday.toISOString().slice(0, 10);
+      })();
+
+      // 1) Check if the user has linked Google Calendar
+      const statusRes = await fetch(`${API_BASE_URL}/calendar/google/status/${userId}`);
+      if (!statusRes.ok) {
+        toast.error('Could not check Google Calendar status');
+        return;
+      }
+      const status = await statusRes.json();
+
+      // 2) If not linked, start OAuth. Google will NOT prompt again if the
+      //    user is already signed in.
+      if (!status.linked) {
+        toast.info('Connect Google Calendar to export...');
+        window.location.href = `${API_BASE_URL}/auth?user_id=${userId}`;
+        return;
+      }
+
+      // 3) Ask whether to overwrite if we already have an export calendar.
+      let overwrite = false;
+      if (status.has_previous_export) {
+        overwrite = window.confirm(
+          'You already exported a timetable to Google Calendar.\n\nOK = Overwrite (replace previous export)\nCancel = Add on top (keep previous export)'
+        );
+      }
+
+      // 4) Export directly to Google Calendar via backend
+      toast.info('Exporting to Google Calendar...');
+      const res = await fetch(`${API_BASE_URL}/calendar/google/export/${userId}?overwrite=${overwrite ? 'true' : 'false'}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          week_start: weekStart,
+          sessions: sessions.map(s => ({
+            subject: s.subject,
+            day: s.day,
+            startTime: s.startTime,
+            endTime: s.endTime,
+            description: `SmartStudy session: ${s.type || 'session'}`,
+          })),
+        }),
+      });
+
+      if (res.status === 401) {
+        // Link likely missing/expired; restart OAuth
+        toast.info('Reconnecting Google Calendar...');
+        window.location.href = `${API_BASE_URL}/auth?user_id=${userId}`;
+        return;
+      }
+      if (!res.ok) {
+        const msg = await res.text();
+        toast.error(`Export failed: ${msg || res.statusText}`);
+        return;
+      }
+
+      const data = await res.json();
+      const weekId = getWeekIdentifier(currentDate);
+      localStorage.setItem(`${getUserWeekKey(weekId)}_exported`, 'true');
+      setHasExportedThisWeek(true);
+      toast.success(`Exported ${data.exported_events} session(s) to Google Calendar`);
+      if (data.calendar_url) {
+        // Open the calendar in a new tab
+        window.open(data.calendar_url, '_blank');
+      }
+      return;
+    } catch (e) {
+      console.error(e);
+      toast.error('Export failed');
+    }
   };
 
   const handleImport = (importedSessions: Session[], importedAvailabilitySettings?: any) => {
@@ -534,6 +682,7 @@ export default function CalendarView({ onSaveTimetable, onNavigate }: CalendarVi
 
     // Add imported sessions to existing sessions
     const newSessions = [...sessions, ...importedSessions];
+    userEditedRef.current = true;
     setSessions(newSessions);
     
     // Save availability settings to active timetable if provided
@@ -697,6 +846,7 @@ export default function CalendarView({ onSaveTimetable, onNavigate }: CalendarVi
     }
 
     // Update session
+    userEditedRef.current = true;
     setSessions(sessions.map(s => 
       s.id === draggingSession 
         ? { ...s, day, startTime: time, endTime: newEndTime }

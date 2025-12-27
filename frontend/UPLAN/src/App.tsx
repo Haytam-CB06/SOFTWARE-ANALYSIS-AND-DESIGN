@@ -23,6 +23,27 @@ export default function App() {
 
   // Custom hooks for state management
   const { isAuthenticated, user, login, logout, updateUserName } = useAuth();
+
+  // Handle Google OAuth redirect back from backend (/callback -> FRONTEND_ORIGIN)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const oauth = params.get('oauth');
+    if (oauth === 'google') {
+      const email = params.get('email') || '';
+      const name = params.get('name') || email;
+      const userId = params.get('user_id') || '';
+      if (email) localStorage.setItem('currentUserEmail', email);
+      if (name) localStorage.setItem('currentUserName', name);
+      if (userId) localStorage.setItem('currentUserId', userId);
+
+      // Log the user into the app state
+      login(name, email);
+
+      // Clean up URL (remove query params)
+      window.history.replaceState({}, document.title, window.location.pathname);
+      toast.success('Signed in with Google');
+    }
+  }, [login]);
   const {
     timetables,
     saveTimetable,

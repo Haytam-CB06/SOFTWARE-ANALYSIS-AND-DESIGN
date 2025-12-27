@@ -242,6 +242,8 @@ export default function AuthPage({ onLogin, onNavigate }: AuthPageProps) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
+        // Store the "name" field also as username on the backend.
+        username: signupName,
         email: signupEmail,
         password: signupPassword,
         full_name: signupName,
