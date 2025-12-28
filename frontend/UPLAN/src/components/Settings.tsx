@@ -44,20 +44,29 @@ export default function Settings({ userName, onUpdateName, darkMode, onToggleDar
     hasSpecialChar: /[!@#$%^&*(),.?":{}|<>]/.test(newPassword),
   };
 
-  // Load user data from localStorage on mount
+  // Load user profile from backend on mount
   useEffect(() => {
-    const users = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
-    const currentUserEmail = localStorage.getItem('currentUserEmail');
-    const user = users.find((u: any) => u.email === currentUserEmail);
-    
-    if (user) {
-      setEmail(user.email || 'student@example.com');
-      setDepartment(user.department || '');
-      setDateOfBirth(user.dateOfBirth || '');
-      setGender(user.gender || '');
-      setProfilePicture(user.profilePicture || '');
-    }
-  }, []);
+    const load = async () => {
+      try {
+        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+        const userId = localStorage.getItem('currentUserId');
+        if (!API_BASE_URL || !userId) return;
+
+        const res = await fetch(`${API_BASE_URL}/user/${userId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        setName(data.full_name || userName);
+        setEmail(data.email || '');
+        setDepartment(data.department || '');
+        setDateOfBirth(data.date_of_birth || '');
+        setGender(data.gender || '');
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    load();
+  }, [userName]);
 
   const handleProfilePictureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -116,44 +125,49 @@ export default function Settings({ userName, onUpdateName, darkMode, onToggleDar
   };
 
   const handleSaveProfile = async () => {
-  onUpdateName(name);
-
-  // Update localStorage
-  const users = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
-  const currentUserEmail = localStorage.getItem('currentUserEmail');
-  const userIndex = users.findIndex((u: any) => u.email === currentUserEmail);
-
-  if (userIndex !== -1) {
-    users[userIndex] = {
-      ...users[userIndex],
-      name,
-      email,
-      department,
-      dateOfBirth,
-      gender,
-      profilePicture,
-    };
-    localStorage.setItem('registeredUsers', JSON.stringify(users));
-  }
-
-  toast.success('Profile updated successfully!');
-
-  // Fetch timetable from backend
   try {
-    const currentUserId = users[userIndex]?.id; // assuming your user object has id
-    const response = await fetch(`http://localhost:8000/user/${currentUserId}`);
-    if (!response.ok) throw new Error("Failed to fetch timetable");
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+    const userId = localStorage.getItem('currentUserId');
+    if (!API_BASE_URL || !userId) {
+      toast.error('You are not logged in');
+      return;
+    }
 
-    const data = await response.json();
-    console.log("User timetable:", data.timetable);
-    
-    // You can store it in state if using React
-    // setTimetable(data.timetable);
+    const res = await fetch(`${API_BASE_URL}/user/${userId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        full_name: name,
+        department,
+        date_of_birth: dateOfBirth,
+        gender,
+      }),
+    });
+
+    if (!res.ok) {
+      const msg = await res.text();
+      toast.error(`Failed to update profile: ${msg}`);
+      return;
+    }
+
+    const data = await res.json();
+    setName(data.full_name || name);
+    setEmail(data.email || email);
+    setDepartment(data.department || department);
+    setDateOfBirth(data.date_of_birth || dateOfBirth);
+    setGender(data.gender || gender);
+
+    // Update app-wide name + localStorage
+    onUpdateName(data.full_name || name);
+    localStorage.setItem('currentUserName', data.full_name || name);
+
+    toast.success('Profile updated successfully!');
   } catch (error) {
     console.error(error);
-    toast.error("Failed to load timetable");
-    }
-  };
+    toast.error('Failed to update profile');
+  }
+};
+
 
   const handleChangePassword = () => {
     // Validation

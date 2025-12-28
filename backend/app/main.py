@@ -9,11 +9,14 @@ from email.mime.text import MIMEText
 import smtplib
 from app.routers import workspaces, permission, chat
 from app.routers import timetable  # if not already added
+from app.routers import calendar_export
 from app.routers import notifications
 from app.routers import sessions
+from app.routers import user_profile
 from app.models.oauth import OAuthAccount
 # backend/app/main.py
 import os
+import urllib.parse
 from datetime import datetime, timedelta, timezone, date
 from typing import Optional, List, Dict, Any
 from pathlib import Path
@@ -312,7 +315,7 @@ def get_or_create_google_user(db: Session, user_info: dict):
         email=email,
         full_name=full_name,
         timezone="UTC",
-        date_of_birth=date(2000, 1, 1),  # ✅ REQUIRED FIX
+        date_of_birth=None,
         password_hash=None,
         auth_provider="google",
     )
@@ -334,7 +337,7 @@ for key in ["DATABASE_URL", "GOOGLE_CLIENT", "GOOGLE_SECRET"]:
 
 @oauth_router.get("/login")
 async def google_login(request: Request):
-    redirect_uri = "http://localhost:8000/callback"
+    redirect_uri = f"{os.getenv('BACKEND_BASE_URL', 'http://localhost:8000')}/callback"
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 @oauth_router.get("/callback")
@@ -343,46 +346,93 @@ async def google_callback(
     db: Session = Depends(get_db)
 ):
     token = await oauth.google.authorize_access_token(request)
+
     resp = await oauth.google.get(
         "https://openidconnect.googleapis.com/v1/userinfo",
         token=token
     )
 
     user_info = resp.json()
+
     user = get_or_create_google_user(db, user_info)
+    db.commit()  # ensure user exists in DB
 
+    # Redirect back to the frontend and pass minimal info via query params.
+    # Frontend will store currentUserId/currentUserEmail/currentUserName in localStorage.
     frontend = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
-
-    return RedirectResponse(
-        url=f"{frontend}/   ?email={user.email}&name={user.full_name}",
-        status_code=302
-    )
+    q_email = urllib.parse.quote(user.email or "")
+    q_name = urllib.parse.quote(user.full_name or "")
+    q_uid = str(user.id)
+    return RedirectResponse(f"{frontend}/?oauth=google&user_id={q_uid}&email={q_email}&name={q_name}")
 
 
 # ---------------------------------------------------------------------
 # INCLUDE ROUTER (DO NOT FORGET)
 # ---------------------------------------------------------------------
 @oauth_router.get("/auth")
-def oauth_start():
+def oauth_start(request: Request, user_id: str):
+    """Start Google OAuth for Calendar access.
+
+    We **must** use the redirect URI already whitelisted in client_secret.json
+    (http://localhost:8000/auth/callback), so this endpoint simply starts the
+    flow and stores the `user_id` in the session.
+    """
     flow = get_flow()
     auth_url, state = flow.authorization_url(
         access_type="offline",
         include_granted_scopes="true",
         prompt="consent",
     )
-    # Store the state in session to validate callback (basic CSRF protection)
-    response = RedirectResponse(auth_url)
-    return response
+    # Store info in session for the callback
+    request.session["google_oauth_state"] = state
+    request.session["google_oauth_user_id"] = user_id
+    return RedirectResponse(auth_url)
 
 
 @oauth_router.get("/auth/callback")
-def oauth_callback(request: Request):
+def oauth_callback(request: Request, db: Session = Depends(get_db)):
+    """OAuth callback.
+
+    Saves credentials **per SmartStudy user** so each student can export to their
+    own Google Calendar.
+    """
     try:
-        flow = get_flow()
+        # Basic CSRF/state check
+        expected_state = request.session.get("google_oauth_state")
+        user_id = request.session.get("google_oauth_user_id")
+        if not expected_state or not user_id:
+            raise HTTPException(status_code=400, detail="OAuth session expired. Please try again.")
+
+        # Validate state query param
+        got_state = request.query_params.get("state")
+        if got_state != expected_state:
+            raise HTTPException(status_code=400, detail="Invalid OAuth state.")
+
+        flow = get_flow(state=expected_state)
         flow.fetch_token(authorization_response=str(request.url))
         creds = flow.credentials
-        save_credentials(creds)
-        return JSONResponse({"message": "Authorized", "scopes": creds.scopes})
+
+        # Persist creds per user
+        from app.models.google_calendar_link import GoogleCalendarLink
+        link = db.query(GoogleCalendarLink).filter(GoogleCalendarLink.user_id == user_id).first()
+        if link is None:
+            link = GoogleCalendarLink(user_id=user_id, credentials_json=creds.to_json())
+            db.add(link)
+        else:
+            link.credentials_json = creds.to_json()
+
+        db.commit()
+
+        # Clean session
+        request.session.pop("google_oauth_state", None)
+        request.session.pop("google_oauth_user_id", None)
+
+        # Send the user back to the frontend (same tab)
+        frontend = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
+        # Return user to the timetable page so they can click Export again.
+        return RedirectResponse(f"{frontend}/?page=my-timetable&google=linked")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"OAuth error: {e}")
 
@@ -507,17 +557,21 @@ app.include_router(db_router)
 
 class SignUpIn(BaseModel):
     email: EmailStr
+    # Frontend uses a "username" style field during signup.
+    # Store it when users.username exists in the DB schema.
+    username: Optional[constr(strip_whitespace=True, min_length=3, max_length=50)] = None
     full_name: constr(strip_whitespace=True, min_length=1)
     password: constr(min_length=6)
     timezone: str = "UTC"
-    gender: constr(max_length=50)
+    gender: constr(max_length=1)
     date_of_birth: date
     invite_token: Optional[str] = None
 
 
 class LoginIn(BaseModel):
-    email: Optional[str] = None
-    full_name: Optional[str] = None
+    # Accept either email OR username. Using EmailStr caused 422 when users
+    # typed a username in the login box.
+    email: str
     password: str
 
 
@@ -545,7 +599,7 @@ def verify_invite_token(token: str, max_age: int = 600) -> dict:
         max_age=max_age
     )
 
-@auth_router.post("/signup")#done 
+@auth_router.post("/signup")
 def signup(payload: SignUpIn):
     with engine.begin() as conn:
         # Ensure schema safety
@@ -576,6 +630,8 @@ def signup(payload: SignUpIn):
 
         if "full_name" in cols:
             data["full_name"] = payload.full_name
+        if "username" in cols and payload.username:
+            data["username"] = payload.username
         if "date_of_birth" in cols:
             data["date_of_birth"] = payload.date_of_birth
         if "gender" in cols:
@@ -646,43 +702,20 @@ def signup(payload: SignUpIn):
 
 
 
-@auth_router.post("/login")#done
+@auth_router.post("/login")
 def login(payload: LoginIn):
-    # Figma AI puts the same value in email & full_name
-    identifier = payload.full_name.strip()
-
-    if not identifier:
-        raise HTTPException(status_code=400, detail="Missing login identifier")
-
     with engine.begin() as conn:
-
-        # 1. Try email login first (guaranteed valid EmailStr)
         row = conn.execute(
             text("""
-                SELECT id, email, username, full_name, password_hash, auth_provider
+                SELECT id, email, full_name, password_hash, auth_provider
                 FROM users
-                WHERE email = :email
+                WHERE email = :e OR username = :e
             """),
-            {"email": payload.email},
+            {"e": payload.email},
         ).mappings().fetchone()
 
-        # 2. If not found, try username
         if row is None:
-            row = conn.execute(
-                text("""
-                    SELECT id, email, username, full_name, password_hash, auth_provider
-                    FROM users
-                    WHERE username = :u
-                       OR full_name = :u
-                """),
-                {"u": identifier},
-            ).mappings().fetchone()
-
-        if row is None:
-            raise HTTPException(
-                status_code=401,
-                detail="Incorrect email/username "
-            )
+            raise HTTPException(status_code=401, detail="invalid credentials")
 
         if row["auth_provider"] != "local":
             raise HTTPException(
@@ -691,16 +724,14 @@ def login(payload: LoginIn):
             )
 
         if not verify_password(payload.password, row["password_hash"]):
-            raise HTTPException(
-                status_code=401,
-                detail="Incorrect password"
-            )
+            raise HTTPException(status_code=401, detail="invalid credentials")
+        
 
     return {
         "message": "login ok",
         "user_id": str(row["id"]),
         "email": row["email"],
-        "full_name": row["full_name"],
+        "full_name": row.get("full_name") or payload.email,
     }
 
 
@@ -708,11 +739,13 @@ def login(payload: LoginIn):
 app.include_router(auth_router)
 # domain routers
 app.include_router(timetable.router)
+app.include_router(calendar_export.router)
 app.include_router(notifications.router)
 app.include_router(sessions.router)
 app.include_router(workspaces.router)
 app.include_router(permission.router)
 app.include_router(chat.router)
+app.include_router(user_profile.router)
 
 # --- MCP (Model Context Protocol) server ---
 # Exposes your FastAPI routes as MCP tools at /mcp so AI agents can call them
@@ -739,7 +772,7 @@ def is_code_expired(created_at: datetime, minutes: int = 10):
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 587
 SMTP_EMAIL = "haytamcharafi@gmail.com"
-SMTP_PASSWORD = "qqrd jtxi nhdf axhc"
+SMTP_PASSWORD = "tooa oqau oqvj tegk"
 # NO SPACES
 
 
