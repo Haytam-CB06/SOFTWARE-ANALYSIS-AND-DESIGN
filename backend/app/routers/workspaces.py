@@ -92,10 +92,10 @@ def verify_invite_token(token: str, max_age: int = 600) -> dict:
     return serializer.loads(token, salt=SALT, max_age=max_age)
 
 def _smtp_config() -> tuple[str, int, str, str]:
-    host = "smtp.gmail.com"
-    port =  587
-    email = "haytamcharafi@gmail.com"
-    password = "qqrd jtxi nhdf axhc"
+    host = os.getenv("SMTP_HOST", "smtp.gmail.com")
+    port = int(os.getenv("SMTP_PORT", "587"))
+    email = os.getenv("SMTP_EMAIL", "")
+    password = os.getenv("SMTP_PASSWORD", "")
     return host, port, email, password
 
 def send_workspace_invite_email(email: str, workspace_id: int):
@@ -182,7 +182,7 @@ def invite_user_to_workspace(payload: InviteRequest, db: Session = Depends(get_d
 # -----------------------------
 # LINKED
 # -----------------------------
-@router.post("", response_model=WorkspaceResponse)          
+@router.post("", response_model=WorkspaceResponse)
 def create_workspace(
     payload: WorkspaceCreate,
     current_user_id: UUID = Depends(get_current_user_id),
@@ -199,10 +199,8 @@ def create_workspace(
     db.commit()
 
     return workspace
-# -----------------------------
-# LINKED
-# -----------------------------
-@router.get("", response_model=List[WorkspaceResponse])              
+
+@router.get("", response_model=List[WorkspaceResponse])
 def list_my_workspaces(
     current_user_id: UUID = Depends(get_current_user_id),
     db: Session = Depends(get_db),
@@ -218,7 +216,7 @@ def list_my_workspaces(
 # -----------------------------
 # LINKED
 # -----------------------------
-@router.get("/{workspace_id}", response_model=WorkspaceResponse)            #done
+@router.get("/{workspace_id}", response_model=WorkspaceResponse)
 def get_workspace(workspace_id: int, db: Session = Depends(get_db)):
     workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
     if not workspace:
@@ -227,7 +225,7 @@ def get_workspace(workspace_id: int, db: Session = Depends(get_db)):
 # -----------------------------
 # LINKED
 # -----------------------------
-@router.delete("/{workspace_id}")                   #done
+@router.delete("/{workspace_id}")
 def delete_workspace(
     workspace_id: int,
     current_user_id: UUID = Depends(get_current_user_id),
@@ -253,7 +251,7 @@ def delete_workspace(
 # -----------------------------
 # LINKED
 # -----------------------------
-@router.get("/{workspace_id}/members")                  
+@router.get("/{workspace_id}/members")
 def list_members(
     workspace_id: int,
     current_user_id: UUID = Depends(get_current_user_id),
@@ -273,7 +271,7 @@ def list_members(
 # -----------------------------
 # LINKED
 # -----------------------------
-@router.post("/{workspace_id}/members")                 
+@router.post("/{workspace_id}/members")
 def add_member(
     workspace_id: int,
     request: AddMemberRequest,
@@ -306,8 +304,7 @@ def add_member(
 # -----------------------------
 # LINKED
 # -----------------------------
-
-@router.delete("/{workspace_id}/members/{member_id}")           
+@router.delete("/{workspace_id}/members/{member_id}")
 def remove_member(
     workspace_id: int,
     member_id: UUID,
@@ -344,8 +341,7 @@ def remove_member(
 # -----------------------------
 # LINKED
 # -----------------------------
-
-@router.patch("/{workspace_id}/members/{member_id}")                
+@router.patch("/{workspace_id}/members/{member_id}")
 def update_member_role(
     workspace_id: int,
     member_id: UUID,
