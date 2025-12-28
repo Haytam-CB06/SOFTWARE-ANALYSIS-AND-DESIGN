@@ -129,7 +129,7 @@ export default function AuthPage({ onLogin, onNavigate }: AuthPageProps) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        email: loginEmail,
+        identifier: loginEmail,   // email OR username
         password: loginPassword,
       }),
     });
