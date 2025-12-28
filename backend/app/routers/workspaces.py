@@ -363,7 +363,7 @@ def update_member_role(
         db.query(WorkspaceMember)
         .filter(WorkspaceMember.workspace_id == workspace_id, WorkspaceMember.user_id == member_id)
         .first()
-    )
+    )  
     if not member:
         raise HTTPException(status_code=404, detail="Member not found")
 
@@ -377,7 +377,7 @@ def update_member_role(
             db.query(WorkspaceMember)
             .filter(WorkspaceMember.workspace_id == workspace_id, WorkspaceMember.role == "admin")
             .count()
-        )
+        )  
         if admin_count <= 1:
             raise HTTPException(status_code=400, detail="Cannot demote the last admin")
 
@@ -389,6 +389,7 @@ def update_member_role(
 # -----------------------------
 # LINKED
 # -----------------------------
+
 @router.post("/{workspace_id}/share-link")              
 def generate_workspace_share_link(
     workspace_id: int,
@@ -414,9 +415,11 @@ def generate_workspace_share_link(
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from uuid import UUID
+
 # -----------------------------
 # LINKED
 # -----------------------------
+
 @router.patch("/{workspace_id}/members/{member_id}/role")               
 def change_workspace_member_role(workspace_id: int,
                                  member_id: UUID,
