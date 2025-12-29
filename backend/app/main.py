@@ -29,7 +29,7 @@ from uuid import uuid4
 from fastapi import FastAPI, Request, HTTPException, APIRouter, Query
 from fastapi.responses import RedirectResponse, JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
-from pydantic import BaseModel, field_validator, EmailStr, constr
+from pydantic import BaseModel, field_validator, model_validator, EmailStr, constr, Field
 from dotenv import load_dotenv
 
 # Google APIs
@@ -335,11 +335,11 @@ def debug_env():
     return {
         "client_id": os.getenv("GOOGLE_CLIENT_ID"),
         "client_secret": bool(os.getenv("GOOGLE_CLIENT_SECRET")),
-        
-    } 
+
+    }
 
 for key in ["DATABASE_URL", "GOOGLE_CLIENT", "GOOGLE_SECRET"]:
-    print(f"{key} = {os.getenv(key)}") 
+    print(f"{key} = {os.getenv(key)}")
 
 @oauth_router.get("/login")
 async def google_login(request: Request):
@@ -563,22 +563,32 @@ app.include_router(db_router)
 
 class SignUpIn(BaseModel):
     email: EmailStr
-    # Frontend uses a "username" style field during signup.
-    # Store it when users.username exists in the DB schema.
+    # Frontend may send a "username" style field during signup.
+    # We only store it if users.username exists in the DB schema.
     username: Optional[constr(strip_whitespace=True, min_length=3, max_length=50)] = None
     full_name: constr(strip_whitespace=True, min_length=1)
     password: constr(min_length=6)
     timezone: str = "UTC"
-    gender: constr(max_length=20)
+    gender: constr(max_length=50)
     date_of_birth: date
     invite_token: Optional[str] = None
 
 
 class LoginIn(BaseModel):
-    # Accept either email OR username. Using EmailStr caused 422 when users
-    # typed a username in the login box.
-    email: str
+    # Backwards compatible:
+    # - older clients: {"email": "...", "password": "..."}
+    # - newer clients: {"identifier": "...", "password": "..."}  (email or username)
+    identifier: Optional[str] = Field(default=None)
+    email: Optional[str] = Field(default=None)
     password: str
+
+    @model_validator(mode="after")
+    def ensure_identifier(self):
+        if not self.identifier and self.email:
+            self.identifier = self.email
+        if not self.identifier:
+            raise ValueError("identifier (or email) is required")
+        return self
 
 
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
@@ -710,20 +720,52 @@ def signup(payload: SignUpIn):
 
 @auth_router.post("/login")
 def login(payload: LoginIn):
+    ident = payload.identifier or payload.email
+
     with engine.begin() as conn:
-        row = conn.execute(
-            text("""
-                SELECT id, email, full_name, password_hash, auth_provider
-                FROM users
-                WHERE email = :e OR username = :e
-            """),
-            {"e": payload.email},
-        ).mappings().fetchone()
+        cols = set(_get_user_table_columns(conn))
+
+        where_parts: List[str] = []
+        if "email" in cols:
+            where_parts.append("email = :e")
+        if "username" in cols:
+            where_parts.append("username = :e")
+        if "full_name" in cols:
+            where_parts.append("full_name = :e")
+
+        if not where_parts:
+            raise HTTPException(status_code=500, detail="users table has no searchable identifier columns")
+
+        # Build SELECT list safely
+        select_cols: List[str] = []
+        if "id" in cols:
+            select_cols.append("id")
+        elif DATABASE_URL.startswith("sqlite"):
+            select_cols.append("rowid AS id")
+        else:
+            select_cols.append("id")  # fallback
+
+        for c in ["email", "username", "full_name", "password_hash", "auth_provider"]:
+            if c in cols:
+                select_cols.append(c)
+
+        if "password_hash" not in cols:
+            raise HTTPException(status_code=500, detail="users.password_hash column missing")
+
+        sql = f"""
+            SELECT {', '.join(select_cols)}
+            FROM users
+            WHERE {' OR '.join(where_parts)}
+            LIMIT 1
+        """
+
+        row = conn.execute(text(sql), {"e": ident}).mappings().fetchone()
 
         if row is None:
             raise HTTPException(status_code=401, detail="invalid credentials")
 
-        if row["auth_provider"] != "local":
+        auth_provider = row.get("auth_provider") or "local"
+        if auth_provider != "local":
             raise HTTPException(
                 status_code=400,
                 detail="This account uses Google login. Please sign in with Google."
@@ -731,13 +773,12 @@ def login(payload: LoginIn):
 
         if not verify_password(payload.password, row["password_hash"]):
             raise HTTPException(status_code=401, detail="invalid credentials")
-        
 
     return {
         "message": "login ok",
         "user_id": str(row["id"]),
-        "email": row["email"],
-        "full_name": row.get("full_name") or payload.email,
+        "email": row.get("email") or (payload.email or payload.identifier),
+        "full_name": row.get("full_name") or row.get("username") or (payload.email or payload.identifier),
     }
 
 
@@ -796,9 +837,9 @@ def send_reset_email(email: str, code: str):
 
     This code will expire in 10 minutes.
 
-    
+
     Thanks,
-    U Plan 
+    U Plan
     """
     msg = MIMEText(f"{body}")
     msg["From"] = SMTP_EMAIL
