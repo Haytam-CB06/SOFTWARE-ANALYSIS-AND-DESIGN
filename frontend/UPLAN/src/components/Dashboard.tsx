@@ -9,7 +9,7 @@ import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { Calendar, CheckCircle2, Circle, Clock, Target, Zap, Coffee, Sparkles, Plus, Trash2, CalendarDays, AlertCircle, Play, Pause, Timer, SkipForward, Settings, TrendingUp, ListTodo, BarChart3, ChevronDown, ChevronRight, Minimize2, Maximize2, Menu, X, Home, BarChart2, Lightbulb } from 'lucide-react';
 import { toast } from 'sonner';
-import { getUserItem, setUserItem, getUserWeekKey } from '../utils/userStorage';
+import { getUserWeekKey } from '../utils/userStorage';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, Legend } from 'recharts';
 
 // Dashboard component with user-specific data isolation
@@ -30,6 +30,17 @@ interface Task {
   completedAt?: string;
   subject: string;
 }
+
+type BackendAssessment = {
+  id: string;
+  title: string;
+  type: Task['type'];
+  dueDate: string;
+  priority: Task['priority'];
+  subject: string;
+  completed: boolean;
+  completedAt?: string | null;
+};
 
 export default function Dashboard({ userName, onNavigate, timetables, onShowPomodoroWidget }: DashboardProps) {
   const [calendarSessions, setCalendarSessions] = useState<any[]>([]);
@@ -53,7 +64,28 @@ export default function Dashboard({ userName, onNavigate, timetables, onShowPomo
   const [showPomodoro, setShowPomodoro] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
   
-  // Load data from localStorage
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+  const getCurrentUserId = (): string | null => {
+    return localStorage.getItem('currentUserId');
+  };
+
+  const fetchAssessments = async (): Promise<BackendAssessment[]> => {
+    const userId = getCurrentUserId();
+    if (!userId) return [];
+
+    const url = `${API_BASE_URL}/assessments?user_id=${encodeURIComponent(userId)}&include_completed=true&include_past=true`;
+    const res = await fetch(url, { headers: { 'X-User-Id': userId } });
+    if (!res.ok) {
+      // Don't spam the UI on transient errors
+      console.error('Failed to load assessments', await res.text());
+      return [];
+    }
+    const data = await res.json();
+    return (data?.assessments || []) as BackendAssessment[];
+  };
+
+  // Load data
   useEffect(() => {
     const loadCalendarSessions = () => {
       const today = new Date();
@@ -66,29 +98,22 @@ export default function Dashboard({ userName, onNavigate, timetables, onShowPomo
       }
     };
 
-    const loadTasks = () => {
-      const loadedTasks = getUserItem('tasks');
-      if (loadedTasks) {
-        const parsedTasks = JSON.parse(loadedTasks);
-        
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        const filteredTasks = parsedTasks.filter((task: Task) => {
-          if (!task.completed || !task.completedAt) return true;
-          
-          const completedDate = new Date(task.completedAt);
-          completedDate.setHours(0, 0, 0, 0);
-          
-          return completedDate.getTime() === today.getTime();
-        });
-        
-        if (filteredTasks.length !== parsedTasks.length) {
-          setUserItem('tasks', JSON.stringify(filteredTasks));
-        }
-        
-        setTasks(filteredTasks);
-      } else {
+    const loadTasks = async () => {
+      try {
+        const items = await fetchAssessments();
+        const mapped: Task[] = items.map((a) => ({
+          id: a.id,
+          title: a.title,
+          type: a.type,
+          dueDate: a.dueDate,
+          priority: a.priority,
+          subject: a.subject,
+          completed: !!a.completed,
+          completedAt: a.completedAt || undefined,
+        }));
+        setTasks(mapped);
+      } catch (e) {
+        console.error(e);
         setTasks([]);
       }
     };
@@ -109,8 +134,10 @@ export default function Dashboard({ userName, onNavigate, timetables, onShowPomo
 
     window.addEventListener('userChanged', handleUserChanged);
     
-    const calendarIntervalId = setInterval(loadCalendarSessions, 1000);
-    const tasksIntervalId = setInterval(loadTasks, 1000);
+    // Keep intervals conservative to avoid spamming the API
+    const calendarIntervalId = setInterval(loadCalendarSessions, 5000);
+    // Backend polling (lightweight)
+    const tasksIntervalId = setInterval(loadTasks, 30000);
     
     return () => {
       clearInterval(calendarIntervalId);
@@ -261,28 +288,97 @@ export default function Dashboard({ userName, onNavigate, timetables, onShowPomo
     },
   ];
 
-  const handleAddTask = (taskData: Omit<Task, 'id'>) => {
-    const newTask: Task = {
-      ...taskData,
-      id: Date.now().toString(),
-    };
-    const updatedTasks = [...tasks, newTask];
-    setTasks(updatedTasks);
-    setUserItem('tasks', JSON.stringify(updatedTasks));
-    toast.success('Task added successfully!');
-    setIsAddTaskDialogOpen(false);
+  const handleAddTask = async (taskData: { subject: string; type: Task['type']; dueDate: string; title?: string }) => {
+    const userId = getCurrentUserId();
+    if (!userId) {
+      toast.error('Please log in to add deadlines');
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/assessments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-User-Id': userId,
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          subject: taskData.subject,
+          type: taskData.type,
+          dueDate: taskData.dueDate,
+          title: (taskData.title || '').trim() || undefined,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data?.detail || 'Failed to add task');
+        return;
+      }
+
+      const a = data?.assessment as BackendAssessment;
+      const newTask: Task = {
+        id: a.id,
+        title: a.title,
+        type: a.type,
+        dueDate: a.dueDate,
+        priority: a.priority,
+        subject: a.subject,
+        completed: !!a.completed,
+        completedAt: a.completedAt || undefined,
+      };
+      setTasks((prev) => [newTask, ...prev]);
+      toast.success('Task added successfully!');
+      setIsAddTaskDialogOpen(false);
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e?.message || 'Failed to add task');
+    }
   };
 
-  const toggleTaskCompletion = (taskId: string) => {
-    const updatedTasks = tasks.map(t => 
-      t.id === taskId ? { ...t, completed: !t.completed, completedAt: !t.completed ? new Date().toISOString() : undefined } : t
-    );
-    setTasks(updatedTasks);
-    setUserItem('tasks', JSON.stringify(updatedTasks));
-    toast.success('Task updated!');
+  const toggleTaskCompletion = async (taskId: string) => {
+    const userId = getCurrentUserId();
+    if (!userId) {
+      toast.error('Please log in');
+      return;
+    }
+
+    const target = tasks.find((t) => t.id === taskId);
+    if (!target) return;
+
+    const nextCompleted = !target.completed;
+    // Optimistic update
+    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, completed: nextCompleted, completedAt: nextCompleted ? new Date().toISOString() : undefined } : t)));
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/assessments/${encodeURIComponent(taskId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
+        body: JSON.stringify({ user_id: userId, completed: nextCompleted }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data?.detail || 'Failed to update task');
+        // Revert
+        setTasks((prev) => prev.map((t) => (t.id === taskId ? target : t)));
+        return;
+      }
+      const a = data?.assessment as BackendAssessment;
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? {
+        ...t,
+        completed: !!a.completed,
+        completedAt: a.completedAt || undefined,
+      } : t)));
+      toast.success('Task updated!');
+    } catch (e: any) {
+      console.error(e);
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? target : t)));
+      toast.error(e?.message || 'Failed to update task');
+    }
   };
 
-  const deleteTask = (taskId: string) => {
+  const deleteTask = async (taskId: string) => {
     const taskToDelete = upcomingDeadlines.find(t => t.id === taskId);
     
     if (taskToDelete && (taskToDelete as any).isFromCalendar) {
@@ -298,10 +394,33 @@ export default function Dashboard({ userName, onNavigate, timetables, onShowPomo
       localStorage.setItem(getUserWeekKey(weekId), JSON.stringify(updatedSessions));
       toast.success('Deadline removed from calendar session!');
     } else {
-      const updatedTasks = tasks.filter(t => t.id !== taskId);
-      setTasks(updatedTasks);
-      setUserItem('tasks', JSON.stringify(updatedTasks));
-      toast.success('Task deleted!');
+      const userId = getCurrentUserId();
+      if (!userId) {
+        toast.error('Please log in');
+        return;
+      }
+
+      // Optimistic
+      const before = tasks;
+      setTasks((prev) => prev.filter((t) => t.id !== taskId));
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/assessments/${encodeURIComponent(taskId)}?user_id=${encodeURIComponent(userId)}`, {
+          method: 'DELETE',
+          headers: { 'X-User-Id': userId },
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          toast.error(data?.detail || 'Failed to delete task');
+          setTasks(before);
+          return;
+        }
+        toast.success('Task deleted!');
+      } catch (e: any) {
+        console.error(e);
+        setTasks(before);
+        toast.error(e?.message || 'Failed to delete task');
+      }
     }
   };
 
@@ -992,30 +1111,70 @@ export default function Dashboard({ userName, onNavigate, timetables, onShowPomo
 interface AddTaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAdd: (task: Omit<Task, 'id'>) => void;
+  onAdd: (task: { subject: string; type: Task['type']; dueDate: string; title?: string }) => void;
 }
 
 function AddTaskDialog({ open, onOpenChange, onAdd }: AddTaskDialogProps) {
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  const getCurrentUserId = (): string | null => localStorage.getItem('currentUserId');
+
+  const [subjectOptions, setSubjectOptions] = useState<Array<{ title: string; priority: Task['priority'] }>>([]);
+  const [priorityBySubject, setPriorityBySubject] = useState<Record<string, Task['priority']>>({});
+
   const [formData, setFormData] = useState({
     title: '',
     type: 'assignment' as Task['type'],
     dueDate: new Date().toISOString().split('T')[0],
-    priority: 'medium' as Task['priority'],
     subject: '',
   });
 
+  const capitalize = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+  const autoTitle = (subject: string, type: string) => (subject ? `${subject} ${capitalize(type)}` : '');
+
+  useEffect(() => {
+    if (!open) return;
+    const userId = getCurrentUserId();
+    if (!userId) return;
+
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/auto-generate/class-schedule?user_id=${encodeURIComponent(userId)}`, {
+          headers: { 'X-User-Id': userId },
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) return;
+        const courses = (data?.courses || []) as Array<{ title: string; priority: Task['priority'] }>;
+        const map: Record<string, Task['priority']> = {};
+        for (const c of courses) {
+          if (c?.title && !map[c.title]) map[c.title] = c.priority;
+        }
+        const opts = Object.keys(map)
+          .sort((a, b) => a.localeCompare(b))
+          .map((title) => ({ title, priority: map[title] }));
+        setPriorityBySubject(map);
+        setSubjectOptions(opts);
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+  }, [open]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.title.trim() || !formData.subject.trim()) {
+    if (!formData.subject.trim()) {
       toast.error('Please fill in all required fields');
       return;
     }
-    onAdd({ ...formData, completed: false, dueDate: new Date(formData.dueDate).toISOString() });
+    onAdd({
+      subject: formData.subject,
+      type: formData.type,
+      dueDate: new Date(formData.dueDate).toISOString(),
+      title: (formData.title || '').trim() || undefined,
+    });
     setFormData({
       title: '',
       type: 'assignment',
       dueDate: new Date().toISOString().split('T')[0],
-      priority: 'medium',
       subject: '',
     });
   };
@@ -1037,25 +1196,57 @@ function AddTaskDialog({ open, onOpenChange, onAdd }: AddTaskDialogProps) {
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               placeholder="e.g., Math Assignment Chapter 5"
-              required
             />
+            <p className="text-xs text-gray-500">Optional — leave blank to auto-name (e.g., "{formData.subject || 'Subject'} {capitalize(formData.type)}").</p>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="subject">Subject</Label>
-            <Input
-              id="subject"
+            <Select
               value={formData.subject}
-              onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-              placeholder="e.g., Mathematics"
-              required
-            />
+              onValueChange={(value: string) => {
+                const prevAuto = autoTitle(formData.subject, formData.type);
+                const nextAuto = autoTitle(value, formData.type);
+                setFormData((prev) => ({
+                  ...prev,
+                  subject: value,
+                  title: !prev.title || prev.title === prevAuto ? nextAuto : prev.title,
+                }));
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={subjectOptions.length ? 'Select a course' : 'Fill your class schedule first'} />
+              </SelectTrigger>
+              <SelectContent>
+                {subjectOptions.map((s) => (
+                  <SelectItem key={s.title} value={s.title}>
+                    {s.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {!!formData.subject && (
+              <p className="text-xs text-gray-500">
+                Priority is locked from your class schedule: <span className="font-medium">{capitalize(priorityBySubject[formData.subject] || 'medium')}</span>
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="type">Type</Label>
-              <Select value={formData.type} onValueChange={(value: Task['type']) => setFormData({ ...formData, type: value })}>
+              <Select
+                value={formData.type}
+                onValueChange={(value: Task['type']) => {
+                  const prevAuto = autoTitle(formData.subject, formData.type);
+                  const nextAuto = autoTitle(formData.subject, value);
+                  setFormData((prev) => ({
+                    ...prev,
+                    type: value,
+                    title: !prev.title || prev.title === prevAuto ? nextAuto : prev.title,
+                  }));
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -1067,31 +1258,16 @@ function AddTaskDialog({ open, onOpenChange, onAdd }: AddTaskDialogProps) {
                 </SelectContent>
               </Select>
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="priority">Priority</Label>
-              <Select value={formData.priority} onValueChange={(value: Task['priority']) => setFormData({ ...formData, priority: value })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="low">Low</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="dueDate">Due Date</Label>
+              <Input
+                id="dueDate"
+                type="date"
+                value={formData.dueDate}
+                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                required
+              />
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="dueDate">Due Date</Label>
-            <Input
-              id="dueDate"
-              type="date"
-              value={formData.dueDate}
-              onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-              required
-            />
           </div>
 
           <div className="flex justify-end gap-2 pt-4">

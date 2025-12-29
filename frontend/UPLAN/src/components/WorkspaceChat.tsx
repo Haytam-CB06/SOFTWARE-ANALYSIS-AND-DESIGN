@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Send, Smile, Paperclip, MoreVertical, Trash2, Edit2, Check, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Avatar, AvatarFallback } from './ui/avatar';
+import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { toast } from 'sonner@2.0.3';
@@ -34,11 +34,14 @@ interface WorkspaceChatProps {
 }
 
 const roleColors = {
+
   owner: 'text-yellow-600',
   admin: 'text-purple-600',
   member: 'text-blue-600',
   viewer: 'text-gray-600'
 };
+
+const uuidLike = (v: string) => /^[0-9a-fA-F-]{8,}$/.test(v);
 
 export default function WorkspaceChat({ workspace, currentUser }: WorkspaceChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -49,6 +52,7 @@ export default function WorkspaceChat({ workspace, currentUser }: WorkspaceChatP
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
   useEffect(() => {
     loadMessages();
@@ -358,6 +362,9 @@ export default function WorkspaceChat({ workspace, currentUser }: WorkspaceChatP
               >
                 {showAvatar ? (
                   <Avatar className="h-10 w-10 flex-shrink-0">
+                    {API_BASE_URL && message.userId !== 'system' && uuidLike(message.userId) ? (
+                      <AvatarImage src={`${API_BASE_URL}/user/${message.userId}/profile-picture`} alt={message.userName} />
+                    ) : null}
                     <AvatarFallback className={`${
                       isOwn 
                         ? 'bg-gradient-to-br from-purple-500 to-blue-500' 

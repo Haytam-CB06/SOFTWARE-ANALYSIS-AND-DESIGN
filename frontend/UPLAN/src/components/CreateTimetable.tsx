@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { toast } from 'sonner';
 import ImportDialog from './ImportDialog';
 import { storageService } from '../src/services/storageService';
+import { createStudyTimetable } from '../src/services/backendApi';
 import { Timetable } from '../src/types';
 
 interface Subject {
@@ -102,7 +103,7 @@ export default function CreateTimetable({ onGenerate }: CreateTimetableProps) {
   const [availabilitySettings, setAvailabilitySettings] = useState<any>(null); // Store availability settings
 
   // Handle import from ImportDialog and save to Saved Timetables
-  const handleImportSessions = (importedSessions: any[], importedAvailabilitySettings?: any) => {
+  const handleImportSessions = async (importedSessions: any[], importedAvailabilitySettings?: any) => {
     // Prevent duplicate imports
     if (isImporting) {
       console.log('⚠️ Import already in progress, ignoring duplicate call');
@@ -238,9 +239,11 @@ export default function CreateTimetable({ onGenerate }: CreateTimetableProps) {
       }
     }
 
-    // Get existing timetables from storage service
-    const existingTimetables = storageService.getTimetables();
-    console.log('📚 Existing timetables:', existingTimetables.length);
+    // Prefer saving Imported Timetables to the backend (so they sync across browsers).
+    // Fall back to localStorage for guest mode or if the backend isn't reachable.
+    const backendUserId = localStorage.getItem('currentUserId') || '';
+    const isUuidLike = (v: string) =>
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 
     // Group sessions by day
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -262,42 +265,60 @@ export default function CreateTimetable({ onGenerate }: CreateTimetableProps) {
       };
     });
 
-    // Create new timetable with proper structure and availability settings
-    const timetableId = `timetable-${Date.now()}`;
-    const newTimetable: Timetable = {
-      id: timetableId,
-      name: `Imported Timetable - ${new Date().toLocaleDateString()}`,
+    const timetableName = `Imported Timetable - ${new Date().toLocaleDateString()}`;
+    const timetableData = {
       weekStartDate: new Date().toISOString(),
-      schedule: schedule,
-      isActive: false,
-      createdAt: new Date().toISOString(),
+      schedule,
       calendarSessions: filteredSessions,
-      availabilitySettings: importedAvailabilitySettings, // Save availability settings
+      availabilitySettings: importedAvailabilitySettings,
+      createdAt: new Date().toISOString(),
     };
 
-    console.log('✨ New timetable created:', newTimetable);
+    if (isUuidLike(backendUserId)) {
+      try {
+        await createStudyTimetable({
+          user_id: backendUserId,
+          name: timetableName,
+          data: timetableData,
+          is_active: false,
+        });
+        console.log('✅ Saved Imported Timetable to backend');
+      } catch (err) {
+        console.warn('⚠️ Failed to save Imported Timetable to backend; falling back to localStorage', err);
 
-    // Check for duplicates by ID before adding
-    const isDuplicate = existingTimetables.some(t => t.id === timetableId);
-    if (isDuplicate) {
-      console.log('⚠️ Duplicate timetable detected, skipping save');
-      setIsImporting(false);
-      return;
+        // Fall back to local storage
+        const existingTimetables = storageService.getTimetables();
+        const timetableId = `timetable-${Date.now()}`;
+        const newTimetable: Timetable = {
+          id: timetableId,
+          name: timetableName,
+          weekStartDate: timetableData.weekStartDate,
+          schedule: schedule,
+          isActive: false,
+          createdAt: timetableData.createdAt,
+          calendarSessions: filteredSessions,
+          availabilitySettings: importedAvailabilitySettings,
+        };
+
+        storageService.saveTimetables([...existingTimetables, newTimetable]);
+      }
+    } else {
+      // Guest mode -> local storage
+      const existingTimetables = storageService.getTimetables();
+      const timetableId = `timetable-${Date.now()}`;
+      const newTimetable: Timetable = {
+        id: timetableId,
+        name: timetableName,
+        weekStartDate: timetableData.weekStartDate,
+        schedule: schedule,
+        isActive: false,
+        createdAt: timetableData.createdAt,
+        calendarSessions: filteredSessions,
+        availabilitySettings: importedAvailabilitySettings,
+      };
+
+      storageService.saveTimetables([...existingTimetables, newTimetable]);
     }
-
-    // Add new timetable to existing ones
-    const updatedTimetables = [...existingTimetables, newTimetable];
-    console.log('📋 Updated timetables array:', updatedTimetables.length);
-    
-    // Save using storage service (handles user-specific storage)
-    storageService.saveTimetables(updatedTimetables);
-    console.log('💾 Saved to localStorage via storageService');
-
-    console.log('✅ Saved timetable via storageService:', {
-      newTimetable,
-      totalTimetables: updatedTimetables.length,
-      availabilitySettings
-    });
 
     // Create success message based on whether availability settings were included
     const settingsMessage = importedAvailabilitySettings 
@@ -536,10 +557,10 @@ export default function CreateTimetable({ onGenerate }: CreateTimetableProps) {
             variant="outline"
             size="default"
             className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:border-white/50"
-            title="Auto Generate from file"
+            title="Import timetable from file"
           >
             <Upload className="h-4 w-4 mr-2" />
-            Auto Generate
+            Import
           </Button>
         </div>
         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">

@@ -52,7 +52,9 @@ export default function Settings({ userName, onUpdateName, darkMode, onToggleDar
         const userId = localStorage.getItem('currentUserId');
         if (!API_BASE_URL || !userId) return;
 
-        const res = await fetch(`${API_BASE_URL}/user/${userId}`);
+        const res = await fetch(`${API_BASE_URL}/user/${userId}`, {
+          headers: { 'X-User-Id': userId },
+        });
         if (!res.ok) return;
         const data = await res.json();
 
@@ -61,6 +63,13 @@ export default function Settings({ userName, onUpdateName, darkMode, onToggleDar
         setDepartment(data.department || '');
         setDateOfBirth(data.date_of_birth || '');
         setGender(data.gender || '');
+
+        // Profile picture is stored on the backend. Cache-bust to avoid stale images.
+        if (data.profile_picture_url) {
+          setProfilePicture(`${API_BASE_URL}${data.profile_picture_url}?t=${Date.now()}`);
+        } else {
+          setProfilePicture('');
+        }
       } catch (e) {
         console.error(e);
       }
@@ -83,45 +92,90 @@ export default function Settings({ userName, onUpdateName, darkMode, onToggleDar
         return;
       }
 
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        setProfilePicture(base64String);
-        
-        // Save to localStorage
-        const users = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
-        const currentUserEmail = localStorage.getItem('currentUserEmail');
-        const userIndex = users.findIndex((u: any) => u.email === currentUserEmail);
-        
-        if (userIndex !== -1) {
-          users[userIndex] = {
-            ...users[userIndex],
-            profilePicture: base64String,
-          };
-          localStorage.setItem('registeredUsers', JSON.stringify(users));
+      // Upload to backend
+      (async () => {
+        try {
+          const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+          const userId = localStorage.getItem('currentUserId');
+          if (!API_BASE_URL || !userId) {
+            toast.error('You are not logged in');
+            return;
+          }
+
+          const fd = new FormData();
+          fd.append('file', file);
+
+          const res = await fetch(`${API_BASE_URL}/user/${userId}/profile-picture`, {
+            method: 'POST',
+            headers: { 'X-User-Id': userId },
+            body: fd,
+          });
+
+          if (!res.ok) {
+            const msg = await res.text();
+            toast.error(`Failed to upload image: ${msg}`);
+            return;
+          }
+
+          const data = await res.json();
+          const url = data.profile_picture_url ? `${API_BASE_URL}${data.profile_picture_url}?t=${Date.now()}` : '';
+          setProfilePicture(url);
+
+          // Keep a lightweight reference locally (URL), but the image itself is stored on the backend.
+          try {
+            const users = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
+            const currentUserEmail = localStorage.getItem('currentUserEmail');
+            const userIndex = users.findIndex((u: any) => u.email === currentUserEmail);
+            if (userIndex !== -1) {
+              users[userIndex] = { ...users[userIndex], profilePicture: url };
+              localStorage.setItem('registeredUsers', JSON.stringify(users));
+            }
+          } catch {}
+
+          window.dispatchEvent(new Event('profilePictureUpdated'));
           toast.success('Profile picture updated successfully!');
+        } catch (err) {
+          console.error(err);
+          toast.error('Failed to upload profile picture');
         }
-      };
-      reader.readAsDataURL(file);
+      })();
     }
   };
 
   const handleRemoveProfilePicture = () => {
-    setProfilePicture('');
-    
-    // Remove from localStorage
-    const users = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
-    const currentUserEmail = localStorage.getItem('currentUserEmail');
-    const userIndex = users.findIndex((u: any) => u.email === currentUserEmail);
-    
-    if (userIndex !== -1) {
-      users[userIndex] = {
-        ...users[userIndex],
-        profilePicture: '',
-      };
-      localStorage.setItem('registeredUsers', JSON.stringify(users));
-      toast.success('Profile picture removed successfully!');
-    }
+    (async () => {
+      try {
+        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+        const userId = localStorage.getItem('currentUserId');
+        if (!API_BASE_URL || !userId) {
+          setProfilePicture('');
+          return;
+        }
+
+        await fetch(`${API_BASE_URL}/user/${userId}/profile-picture`, {
+          method: 'DELETE',
+          headers: { 'X-User-Id': userId },
+        });
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setProfilePicture('');
+
+        // Clear local reference
+        try {
+          const users = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
+          const currentUserEmail = localStorage.getItem('currentUserEmail');
+          const userIndex = users.findIndex((u: any) => u.email === currentUserEmail);
+          if (userIndex !== -1) {
+            users[userIndex] = { ...users[userIndex], profilePicture: '' };
+            localStorage.setItem('registeredUsers', JSON.stringify(users));
+          }
+        } catch {}
+
+        window.dispatchEvent(new Event('profilePictureUpdated'));
+        toast.success('Profile picture removed successfully!');
+      }
+    })();
   };
 
   const handleSaveProfile = async () => {
@@ -135,7 +189,7 @@ export default function Settings({ userName, onUpdateName, darkMode, onToggleDar
 
     const res = await fetch(`${API_BASE_URL}/user/${userId}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
       body: JSON.stringify({
         full_name: name,
         department,

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import HelpSection from './HelpSection';
 import { useNotifications } from '../src/hooks/useNotifications';
-import { Bell, Menu, X, Search, Calendar, ChevronDown, User, Settings2, LogOut, LayoutDashboard, BookMarked, Users, PanelLeft, PanelLeftClose, BookOpen, FileText, Sun, Moon, Timer } from 'lucide-react';
+import { Bell, Menu, X, Search, Calendar, ChevronDown, User, Settings2, LogOut, LayoutDashboard, BookMarked, Users, PanelLeft, PanelLeftClose, BookOpen, FileText, Sun, Moon, Timer, Sparkles } from 'lucide-react';
 import logoImage from 'figma:asset/0550e77f773f70cb0e6201f9400b3cccad8c1d9b.png';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -67,40 +67,71 @@ export default function EnhancedDashboardLayout({
     setDarkMode(!darkMode);
   };
 
-  // Load sidebar state and profile picture from localStorage
+  // Load sidebar state and profile picture
   useEffect(() => {
     const savedState = localStorage.getItem('sidebarCollapsed');
     if (savedState !== null) {
       setSidebarCollapsed(JSON.parse(savedState));
     }
 
-    // Load profile picture
-    const users = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
-    const currentUserEmail = localStorage.getItem('currentUserEmail');
-    const user = users.find((u: any) => u.email === currentUserEmail);
-    if (user && user.profilePicture) {
-      setProfilePicture(user.profilePicture);
-    }
-  }, []);
+    const loadProfile = async () => {
+      try {
+        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+        const userId = localStorage.getItem('currentUserId');
 
-  // Listen for profile picture updates
-  useEffect(() => {
-    const handleStorageChange = () => {
-      const users = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
-      const currentUserEmail = localStorage.getItem('currentUserEmail');
-      const user = users.find((u: any) => u.email === currentUserEmail);
-      if (user) {
-        setProfilePicture(user.profilePicture || '');
+        // Prefer backend-stored profile pictures.
+        if (API_BASE_URL && userId) {
+          const res = await fetch(`${API_BASE_URL}/user/${userId}`, {
+            headers: { 'X-User-Id': userId },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.profile_picture_url) {
+              setProfilePicture(`${API_BASE_URL}${data.profile_picture_url}?t=${Date.now()}`);
+              return;
+            }
+          }
+        }
+
+        // Fallback: local reference (URL) if present
+        const users = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
+        const currentUserEmail = localStorage.getItem('currentUserEmail');
+        const user = users.find((u: any) => u.email === currentUserEmail);
+        setProfilePicture(user?.profilePicture || '');
+      } catch (e) {
+        console.error(e);
       }
     };
 
-    window.addEventListener('storage', handleStorageChange);
-    // Also check periodically for same-window updates
-    const interval = setInterval(handleStorageChange, 1000);
+    loadProfile();
+  }, []);
 
+  // Refresh profile picture when the user changes or the picture is updated
+  useEffect(() => {
+    const refresh = () => {
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+      const userId = localStorage.getItem('currentUserId');
+      if (!API_BASE_URL || !userId) {
+        setProfilePicture('');
+        return;
+      }
+      fetch(`${API_BASE_URL}/user/${userId}`, { headers: { 'X-User-Id': userId } })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.profile_picture_url) {
+            setProfilePicture(`${API_BASE_URL}${data.profile_picture_url}?t=${Date.now()}`);
+          } else {
+            setProfilePicture('');
+          }
+        })
+        .catch(() => setProfilePicture(''));
+    };
+
+    window.addEventListener('userChanged', refresh);
+    window.addEventListener('profilePictureUpdated', refresh as any);
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      clearInterval(interval);
+      window.removeEventListener('userChanged', refresh);
+      window.removeEventListener('profilePictureUpdated', refresh as any);
     };
   }, []);
 
@@ -199,9 +230,12 @@ export default function EnhancedDashboardLayout({
   const menuItems = [
     { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { id: 'my-timetable', icon: Calendar, label: 'My Timetable' },
+    { id: 'auto-generate', icon: Sparkles, label: 'Auto Generate' },
+    { id: 'assessments-deadlines', icon: FileText, label: 'Assessments & Deadlines' },
+    { id: 'workspace', icon: Users, label: 'Workspace' },
+    { id: 'goals-achievements', icon: BookOpen, label: 'Goals & Achievements' },
     { id: 'create-timetable', icon: BookMarked, label: 'Create Timetable' },
     { id: 'view-timetables', icon: Calendar, label: 'Saved Timetables' },
-    { id: 'workspace', icon: Users, label: 'Workspace' },
     { id: 'settings', icon: Settings2, label: 'Settings' },
   ];
 

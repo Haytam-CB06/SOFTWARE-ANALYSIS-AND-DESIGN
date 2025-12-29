@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { ChevronLeft, ChevronRight, Plus, Download, Upload, Trash2, Calendar as CalendarIcon, Clock, GripVertical, AlertTriangle, ChevronDown, ChevronUp, RotateCcw, Copy, FileText, Sun, Moon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Download, Upload, Trash2, Calendar as CalendarIcon, Clock, GripVertical, AlertTriangle, ChevronDown, ChevronUp, RotateCcw, Copy, FileText, Sun, Moon, Sparkles } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -119,7 +119,10 @@ export default function CalendarView({ onSaveTimetable, onNavigate }: CalendarVi
           return;
         }
         try {
-          const res = await fetch(`${API_BASE_URL}/timetable/user/${currentUserId}/sessions`);
+          const res = await fetch(
+            `${API_BASE_URL}/timetable/user/${currentUserId}/sessions?week_id=${encodeURIComponent(weekId)}`,
+            { headers: { 'X-User-Id': currentUserId } }
+          );
           if (!res.ok) {
             hydrateFromLocal();
             isHydratingRef.current = false;
@@ -151,9 +154,10 @@ export default function CalendarView({ onSaveTimetable, onNavigate }: CalendarVi
             subject: String(s.subject || ''),
             startTime: String(s.startTime || '08:00'),
             endTime: String(s.endTime || '09:00'),
-            day: Number(s.day || 0),
-            type: 'lecture',
-            color: '#6366F1',
+            day: Number(s.day ?? 0),
+            type: (s.type as any) || 'lecture',
+            color: String(s.color || '#6366F1'),
+            deadline: s.deadline ? String(s.deadline) : undefined,
           }));
           setSessions(hydrated);
         } catch (e) {
@@ -242,14 +246,18 @@ export default function CalendarView({ onSaveTimetable, onNavigate }: CalendarVi
     saveDebounceRef.current = setTimeout(async () => {
       try {
         const minimal = sessions.map(s => ({
+          id: s.id,
           subject: s.subject,
           startTime: s.startTime,
           endTime: s.endTime,
           day: s.day,
+          type: s.type,
+          color: s.color,
+          deadline: s.deadline,
         }));
-        await fetch(`${API_BASE_URL}/timetable/user/${currentUserId}/sessions`, {
+        await fetch(`${API_BASE_URL}/timetable/user/${currentUserId}/sessions?week_id=${encodeURIComponent(weekId)}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'X-User-Id': currentUserId },
           body: JSON.stringify(minimal),
         });
         // reset flags after a successful persist
@@ -1013,11 +1021,34 @@ export default function CalendarView({ onSaveTimetable, onNavigate }: CalendarVi
                   </TooltipContent>
                 </Tooltip>
 
-                {/* Auto Generate Button */}
+                {/* Auto Generate Button (opens the hidden AI generation section) */}
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button 
                       variant="default" 
+                      size="sm"
+                      onClick={() => {
+                        if (onNavigate) {
+                          onNavigate('auto-generate');
+                        } else {
+                          toast.error('Navigation is not available');
+                        }
+                      }}
+                      className="bg-blue-600 hover:bg-blue-800 dark:hover:bg-blue-800"
+                    >
+                      <Sparkles className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <p>Auto Generate</p>
+                  </TooltipContent>
+                </Tooltip>
+
+                {/* Import Timetable Button (optional) */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="default"
                       size="sm"
                       onClick={() => setIsImportDialogOpen(true)}
                       className="bg-blue-600 hover:bg-blue-800 dark:hover:bg-blue-800"
@@ -1026,7 +1057,7 @@ export default function CalendarView({ onSaveTimetable, onNavigate }: CalendarVi
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">
-                    <p>Auto Generate</p>
+                    <p>Import</p>
                   </TooltipContent>
                 </Tooltip>
 

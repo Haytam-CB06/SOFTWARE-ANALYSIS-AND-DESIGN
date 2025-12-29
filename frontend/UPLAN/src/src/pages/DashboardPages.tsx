@@ -2,6 +2,9 @@ import Dashboard from '../../components/Dashboard';
 import CalendarView from '../../components/CalendarView';
 import CreateTimetable from '../../components/CreateTimetable';
 import ViewTimetables from '../../components/ViewTimetables';
+import AutoGenerateTimetable from '../../components/AutoGenerateTimetable';
+import AssessmentsDeadlines from '../../components/AssessmentsDeadlines';
+import GoalsAchievements from '../../components/GoalsAchievements';
 import Settings from '../../components/Settings';
 import TimetableResults from '../../components/TimetableResults';
 import Workspace from '../../components/Workspace';
@@ -79,6 +82,12 @@ export const DashboardPages = ({
       );
     case 'my-timetable':
       return <CalendarView onSaveTimetable={onSaveCalendarTimetable} onNavigate={onNavigate} />;
+    case 'auto-generate':
+	      return <AutoGenerateTimetable onNavigate={onNavigate} />;
+    case 'assessments-deadlines':
+      return <AssessmentsDeadlines onNavigate={onNavigate} />;
+    case 'goals-achievements':
+      return <GoalsAchievements onNavigate={onNavigate} />;
     case 'create-timetable':
       return <CreateTimetable onGenerate={onGenerateTimetable} />;
     case 'view-timetables':

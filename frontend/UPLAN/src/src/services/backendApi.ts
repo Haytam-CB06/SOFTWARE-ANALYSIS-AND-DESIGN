@@ -116,3 +116,60 @@ export async function deleteBackendNotification(notificationId: string): Promise
   const res = await fetch(`${baseUrl()}/notifications/${notificationId}`, { method: 'DELETE' });
   await jsonOrThrow(res);
 }
+
+// ---------------- Study Timetables (Saved Timetables) ----------------
+
+export type BackendStudyTimetable = {
+  id: string;
+  user_id: string;
+  name: string;
+  is_active: boolean;
+  created_at?: string | null;
+  updated_at?: string | null;
+  data?: Record<string, any>;
+};
+
+export async function listStudyTimetables(userId: string): Promise<BackendStudyTimetable[]> {
+  if (!isUuidLike(userId)) return [];
+  const res = await fetch(`${baseUrl()}/study-timetables/user/${encodeURIComponent(userId)}`, {
+    method: 'GET',
+    headers: { 'X-User-Id': userId },
+  });
+  const data = (await jsonOrThrow(res)) as any;
+  return (data?.timetables || []) as BackendStudyTimetable[];
+}
+
+export async function createStudyTimetable(payload: {
+  user_id: string;
+  name: string;
+  data: Record<string, any>;
+  is_active?: boolean;
+}): Promise<BackendStudyTimetable> {
+  if (!isUuidLike(payload.user_id)) {
+    throw new Error('Invalid user id');
+  }
+  const res = await fetch(`${baseUrl()}/study-timetables`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-User-Id': payload.user_id },
+    body: JSON.stringify(payload),
+  });
+  return (await jsonOrThrow(res)) as BackendStudyTimetable;
+}
+
+export async function activateStudyTimetable(timetableId: string, userId: string): Promise<BackendStudyTimetable | null> {
+  if (!isUuidLike(timetableId) || !isUuidLike(userId)) return null;
+  const res = await fetch(`${baseUrl()}/study-timetables/${encodeURIComponent(timetableId)}/activate`, {
+    method: 'POST',
+    headers: { 'X-User-Id': userId },
+  });
+  return (await jsonOrThrow(res)) as BackendStudyTimetable;
+}
+
+export async function deleteStudyTimetable(timetableId: string, userId: string): Promise<void> {
+  if (!isUuidLike(timetableId) || !isUuidLike(userId)) return;
+  const res = await fetch(`${baseUrl()}/study-timetables/${encodeURIComponent(timetableId)}`, {
+    method: 'DELETE',
+    headers: { 'X-User-Id': userId },
+  });
+  await jsonOrThrow(res);
+}
