@@ -29,6 +29,23 @@ class User(Base):
                         default=func.now(), onupdate=func.now())
     subjects = relationship("Subject", back_populates="user")
 
+    # Study timetable JSON payloads saved from the "Create Timetable" / auto-generate flows
+    # (see app/models/study_timetable.py)
+    study_timetables = relationship(
+        "StudyTimetable",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+    # Per-week study sessions for the CalendarView (manual + auto-generated)
+    week_study_schedules = relationship(
+        "UserWeekStudySchedule",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
 
     # İlişkiler
     login_history = relationship(

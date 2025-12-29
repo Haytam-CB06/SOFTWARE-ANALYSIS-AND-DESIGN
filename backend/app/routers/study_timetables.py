@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -20,6 +20,7 @@ class StudyTimetableCreate(BaseModel):
     user_id: str
     name: str
     data: Dict[str, Any]
+    is_active: Optional[bool] = True
 
 
 class StudyTimetableUpdate(BaseModel):
@@ -47,9 +48,29 @@ def _serialize(t: StudyTimetable) -> Dict[str, Any]:
     }
 
 
+def _require_user(user_id: str, x_user_id: str) -> None:
+    """Basic guard used across the API: header user must match the requested user."""
+    if not x_user_id:
+        raise HTTPException(status_code=401, detail="Missing X-User-Id header")
+    if str(x_user_id) != str(user_id):
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+
+def _require_owner(t: StudyTimetable, x_user_id: str) -> None:
+    if not x_user_id:
+        raise HTTPException(status_code=401, detail="Missing X-User-Id header")
+    if str(t.user_id) != str(x_user_id):
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+
 @router.get("/user/{user_id}")
-def list_user_timetables(user_id: str, session: Session = Depends(get_db)):
+def list_user_timetables(
+    user_id: str,
+    session: Session = Depends(get_db),
+    x_user_id: str = Header(..., alias="X-User-Id"),
+):
     _validate_uuid(user_id, "user_id")
+    _require_user(user_id, x_user_id)
     timetables = (
         session.query(StudyTimetable)
         .filter(StudyTimetable.user_id == user_id)
@@ -60,8 +81,13 @@ def list_user_timetables(user_id: str, session: Session = Depends(get_db)):
 
 
 @router.get("/user/{user_id}/active")
-def get_active_timetable(user_id: str, session: Session = Depends(get_db)):
+def get_active_timetable(
+    user_id: str,
+    session: Session = Depends(get_db),
+    x_user_id: str = Header(..., alias="X-User-Id"),
+):
     _validate_uuid(user_id, "user_id")
+    _require_user(user_id, x_user_id)
     t = (
         session.query(StudyTimetable)
         .filter(StudyTimetable.user_id == user_id, StudyTimetable.is_active == True)  # noqa: E712
@@ -74,23 +100,31 @@ def get_active_timetable(user_id: str, session: Session = Depends(get_db)):
 
 
 @router.post("")
-def create_timetable(payload: StudyTimetableCreate, session: Session = Depends(get_db)):
+def create_timetable(
+    payload: StudyTimetableCreate,
+    session: Session = Depends(get_db),
+    x_user_id: str = Header(..., alias="X-User-Id"),
+):
     _validate_uuid(payload.user_id, "user_id")
+    _require_user(payload.user_id, x_user_id)
 
     user = session.query(User).filter(User.id == payload.user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    desired_active = True if payload.is_active is None else bool(payload.is_active)
+
     # Deactivate any existing active timetable for this user
-    session.query(StudyTimetable).filter(
-        StudyTimetable.user_id == payload.user_id, StudyTimetable.is_active == True  # noqa: E712
-    ).update({StudyTimetable.is_active: False})
+    if desired_active:
+        session.query(StudyTimetable).filter(
+            StudyTimetable.user_id == payload.user_id, StudyTimetable.is_active == True  # noqa: E712
+        ).update({StudyTimetable.is_active: False})
 
     t = StudyTimetable(
         user_id=payload.user_id,
         name=payload.name,
         data=payload.data,
-        is_active=True,
+        is_active=desired_active,
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
     )
@@ -102,12 +136,17 @@ def create_timetable(payload: StudyTimetableCreate, session: Session = Depends(g
 
 @router.put("/{timetable_id}")
 def update_timetable(
-    timetable_id: str, payload: StudyTimetableUpdate, session: Session = Depends(get_db)
+    timetable_id: str,
+    payload: StudyTimetableUpdate,
+    session: Session = Depends(get_db),
+    x_user_id: str = Header(..., alias="X-User-Id"),
 ):
     _validate_uuid(timetable_id, "timetable_id")
     t = session.query(StudyTimetable).filter(StudyTimetable.id == timetable_id).first()
     if not t:
         raise HTTPException(status_code=404, detail="Timetable not found")
+
+    _require_owner(t, x_user_id)
 
     if payload.name is not None:
         t.name = payload.name
@@ -128,11 +167,17 @@ def update_timetable(
 
 
 @router.post("/{timetable_id}/activate")
-def activate_timetable(timetable_id: str, session: Session = Depends(get_db)):
+def activate_timetable(
+    timetable_id: str,
+    session: Session = Depends(get_db),
+    x_user_id: str = Header(..., alias="X-User-Id"),
+):
     _validate_uuid(timetable_id, "timetable_id")
     t = session.query(StudyTimetable).filter(StudyTimetable.id == timetable_id).first()
     if not t:
         raise HTTPException(status_code=404, detail="Timetable not found")
+
+    _require_owner(t, x_user_id)
 
     session.query(StudyTimetable).filter(
         StudyTimetable.user_id == t.user_id, StudyTimetable.id != t.id
@@ -146,11 +191,17 @@ def activate_timetable(timetable_id: str, session: Session = Depends(get_db)):
 
 
 @router.delete("/{timetable_id}")
-def delete_timetable(timetable_id: str, session: Session = Depends(get_db)):
+def delete_timetable(
+    timetable_id: str,
+    session: Session = Depends(get_db),
+    x_user_id: str = Header(..., alias="X-User-Id"),
+):
     _validate_uuid(timetable_id, "timetable_id")
     t = session.query(StudyTimetable).filter(StudyTimetable.id == timetable_id).first()
     if not t:
         raise HTTPException(status_code=404, detail="Timetable not found")
+
+    _require_owner(t, x_user_id)
 
     was_active = bool(t.is_active)
     user_id = str(t.user_id)

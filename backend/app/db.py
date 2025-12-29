@@ -12,7 +12,7 @@ import os
 from contextlib import contextmanager
 from typing import Generator
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from app.models.base import Base
@@ -47,6 +47,35 @@ def init_engine() -> None:
 
     # NOTE: In production, prefer Alembic migrations.
     Base.metadata.create_all(bind=_ENGINE)
+
+    # ------------------------------------------------------------------
+    # Lightweight schema safety for dev environments
+    # ------------------------------------------------------------------
+    # This project runs without a complete Alembic history. When we add new
+    # columns to existing tables, create_all() will NOT backfill them.
+    # The following keeps the app from crashing on existing databases.
+    try:
+        with _ENGINE.begin() as conn:
+            # assessments: add tracking placeholders if missing
+            if db_url.startswith("postgres"):
+                conn.execute(text(
+                    "ALTER TABLE IF EXISTS assessments "
+                    "ADD COLUMN IF NOT EXISTS is_completed BOOLEAN NOT NULL DEFAULT FALSE"
+                ))
+                conn.execute(text(
+                    "ALTER TABLE IF EXISTS assessments "
+                    "ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ NULL"
+                ))
+            elif db_url.startswith("sqlite"):
+                cols = conn.execute(text("PRAGMA table_info(assessments)")).all()
+                names = {c[1] for c in cols}  # (cid, name, type, ...)
+                if cols and "is_completed" not in names:
+                    conn.execute(text("ALTER TABLE assessments ADD COLUMN is_completed BOOLEAN NOT NULL DEFAULT 0"))
+                if cols and "completed_at" not in names:
+                    conn.execute(text("ALTER TABLE assessments ADD COLUMN completed_at DATETIME"))
+    except Exception:
+        # Best-effort only; ignore if database/user lacks permissions.
+        pass
 
 
 def get_session():

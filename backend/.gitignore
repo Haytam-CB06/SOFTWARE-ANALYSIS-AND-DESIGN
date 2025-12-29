@@ -1,6 +1,6 @@
 # Virtual environment
 .venv/
-*.bak
+
 # Python caches
 __pycache__/
 *.pyc

@@ -15,6 +15,12 @@ from app.models.workspace import Workspace, WorkspaceMember, MemberPermission, W
 from app.models.message import Message
 from app.models.oauth import OAuthAccount
 from app.models.google_calendar_link import GoogleCalendarLink
+from app.models.study_timetable import StudyTimetable
+from app.models.user_profile import UserProfile
+from app.models.study_window_setting import StudyWindowSetting
+from app.models.user_busy_block import UserBusyBlock
+from app.models.user_week_study_schedule import UserWeekStudySchedule
+from app.models.chat import ChatRoom, ChatMember, ChatMessage
 __all__ = [
     "User", "LoginHistory",
     "Subject",
@@ -31,4 +37,10 @@ __all__ = [
     "SessionFeedback",
     "Workspace", "WorkspaceMember", "MemberPermission", "Message", "WorkspaceDeleteLog", "MemberDeleteLog",
     "GoogleCalendarLink",
+    "StudyTimetable",
+    "UserProfile",
+    "StudyWindowSetting",
+    "UserBusyBlock",
+    "UserWeekStudySchedule",
+    "ChatRoom", "ChatMember", "ChatMessage",
 ]
