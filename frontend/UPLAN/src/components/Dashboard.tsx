@@ -457,7 +457,7 @@ export default function Dashboard({ userName, onNavigate, timetables, onShowPomo
         <div className="p-4 sm:p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-gray-900 mb-1">Welcome back, {userName}!</h1>
+              <h1 className="text-gray-900 mb-1"><b>Welcome back, {userName} .</b></h1>
               <p className="text-gray-600 text-sm">
                 {today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
               </p>

@@ -231,7 +231,7 @@ export default function EnhancedDashboardLayout({
     { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { id: 'my-timetable', icon: Calendar, label: 'My Timetable' },
     { id: 'auto-generate', icon: Sparkles, label: 'Auto Generate' },
-    { id: 'assessments-deadlines', icon: FileText, label: 'Assessments & Deadlines' },
+    { id: 'assessments-deadlines', icon: FileText, label: 'Assessments' },
     { id: 'workspace', icon: Users, label: 'Workspace' },
     { id: 'goals-achievements', icon: BookOpen, label: 'Goals & Achievements' },
     { id: 'create-timetable', icon: BookMarked, label: 'Create Timetable' },

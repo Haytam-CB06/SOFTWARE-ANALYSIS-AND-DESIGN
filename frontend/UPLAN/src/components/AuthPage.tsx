@@ -440,7 +440,7 @@ export default function AuthPage({ onLogin, onNavigate }: AuthPageProps) {
     if (existingUser) {
       // User exists, log them in
       localStorage.setItem('currentUserEmail', existingUser.email);
-      toast.success(`Welcome back, ${existingUser.name}!`);
+      toast.success(`Welcome back, ${existingUser.name}.`);
       onLogin(existingUser.name, existingUser.email);
     } else {
       // Register new user

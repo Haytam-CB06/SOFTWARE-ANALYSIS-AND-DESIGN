@@ -92,12 +92,12 @@ def verify_invite_token(token: str, max_age: int = 600) -> dict:
     return serializer.loads(token, salt=SALT, max_age=max_age)
 
 def _smtp_config() -> tuple[str, int, str, str]:
-    host = os.getenv("SMTP_HOST", "smtp.gmail.com")
+    host = os.getenv("SMTP_HOST")
     port = int(os.getenv("SMTP_PORT", "587"))
-    email = os.getenv("SMTP_EMAIL", "")
-    password = os.getenv("SMTP_PASSWORD", "")
+    email = os.getenv("SMTP_EMAIL")
+    password = os.getenv("SMTP_PASSWORD")
     return host, port, email, password
-
+ 
 def send_workspace_invite_email(email: str, workspace_id: int):
     host, port, sender, password = _smtp_config()
     if not sender or not password:
