@@ -820,10 +820,11 @@ def is_code_expired(created_at: datetime, minutes: int = 10):
     return datetime.now(timezone.utc) > created_at + timedelta(minutes=minutes)
 
 
-SMTP_HOST = os.getenv("SMTP_HOST")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_HOST = "smtp.gmail.com"
+SMTP_PORT = 587
 SMTP_EMAIL = os.getenv("SMTP_EMAIL")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+
 # NO SPACES
 
 

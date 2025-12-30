@@ -36,13 +36,14 @@ backend/.venv/
 *.egg-info/
 dist/
 build/
-
+*.bak
 # local databases
 *.db
 *.sqlite
 *.sqlite3
 smartstudy.db
 backend/app.db
+backend/uploads/
 
 # =========================
 # Node / React (Vite)
