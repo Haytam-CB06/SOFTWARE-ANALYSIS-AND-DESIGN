@@ -623,14 +623,14 @@ def signup(payload: SignUpIn):
 
         # 1️⃣ Check if email already exists
         exists = conn.execute(
-            text("SELECT id FROM users WHERE email = :e LIMIT 1"),
-            {"e": payload.email},
+            text("SELECT id FROM users WHERE email = :e OR full_name = :u LIMIT 1"),
+            {"e": payload.email, "u": payload.full_name},
         ).fetchone()
 
         if exists:
             raise HTTPException(
                 status_code=409,
-                detail="Email already registered"
+                detail="Email/username already registered"
             )
 
         # 2️⃣ Build insert payload dynamically
