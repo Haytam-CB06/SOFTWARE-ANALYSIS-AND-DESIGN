@@ -7,7 +7,6 @@ from fastapi import Depends, HTTPException
 from random import randint
 from email.mime.text import MIMEText
 import smtplib
-from app.main import app
 from app.routers import workspaces, permission, chat
 from app.routers import assessments
 from app.routers import timetable  # if not already added
