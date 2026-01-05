@@ -591,17 +591,6 @@ export default function ViewTimetables({ timetables, onDelete, onView, onSetActi
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
                           onClick={() => {
-                            if (!onRename) return;
-                            const proposed = prompt('Rename timetable', timetable.name || '');
-                            if (proposed !== null) {
-                              onRename(timetable.id, proposed);
-                            }
-                          }}
-                        >
-                          Rename
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => {
                             if (!onDuplicate) return;
                             onDuplicate(timetable.id);
                           }}

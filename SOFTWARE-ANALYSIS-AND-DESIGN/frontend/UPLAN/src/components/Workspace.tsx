@@ -395,16 +395,16 @@ export default function Workspace({ onNavigate }: WorkspaceProps) {
             role: newMember.role,
           }),
         });
-
+        const err = await res.json().catch(() => ({}));
         if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
+          
           throw new Error(err.detail || `Failed to add member (${res.status})`);
         }
 
         setIsAddMemberOpen(false);
         setNewMember({ name: '', email: '', role: 'member' });
         setEmailValidationError('');
-        toast.success('Member added');
+        toast.success(err.message || 'Member added successfully');
         await loadWorkspaces();
       } catch (e: any) {
         console.error('[Workspace] add member failed:', e);
@@ -940,10 +940,7 @@ export default function Workspace({ onNavigate }: WorkspaceProps) {
               </DropdownMenuContent>
             </DropdownMenu>
             
-            {/* Workspace member count badge */}
-            <Badge variant="secondary" className="bg-white/20 text-white border-white/30 hover:bg-white/30">
-              {workspace.members.length} {workspace.members.length === 1 ? 'Member' : 'Members'}
-            </Badge>
+            
           </div>
           
           <Button
@@ -1052,20 +1049,19 @@ export default function Workspace({ onNavigate }: WorkspaceProps) {
           {!shouldHideChrome && (
           <div className="bg-white border-b border-gray-200" data-tour="workspace-header-tabs">
             <div className="max-w-6xl mx-auto px-6">
-              <TabsList className="bg-transparent p-0 h-auto gap-4">
+              <TabsList className="bg-transparent p- h-auto gap-3">
               <TabsTrigger 
                 value="members" 
                 className="gap-2 bg-transparent border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 data-[state=active]:bg-blue-50 dark:data-[state=active]:bg-blue-950/30 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:border-blue-300 dark:data-[state=active]:border-blue-700 transition-colors px-4 py-2 rounded-lg"
               >
-                <Users className="h-4 w-4" />
-                Members
                 
+                Members
               </TabsTrigger>
               <TabsTrigger 
                 value="timetable" 
                 className="gap-2 bg-transparent border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 data-[state=active]:bg-blue-50 dark:data-[state=active]:bg-blue-950/30 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:border-blue-300 dark:data-[state=active]:border-blue-700 transition-colors px-4 py-2 rounded-lg"
               >
-                <Calendar className="h-4 w-4" />
+                
                 Timetable
               </TabsTrigger>
               {isAdmin && (
@@ -1073,15 +1069,15 @@ export default function Workspace({ onNavigate }: WorkspaceProps) {
                   value="auto-generate"
                   className="gap-2 bg-transparent border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 data-[state=active]:bg-blue-50 dark:data-[state=active]:bg-blue-950/30 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:border-blue-300 dark:data-[state=active]:border-blue-700 transition-colors px-4 py-2 rounded-lg"
                 >
-                  <Sparkles className="h-4 w-4" />
-                  Auto Generate
+                  
+                  Generate
                 </TabsTrigger>
               )}
               <TabsTrigger 
                 value="progress" 
                 className="gap-2 bg-transparent border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 data-[state=active]:bg-blue-50 dark:data-[state=active]:bg-blue-950/30 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:border-blue-300 dark:data-[state=active]:border-blue-700 transition-colors px-4 py-2 rounded-lg"
               >
-                <CheckCircle2 className="h-4 w-4" />
+                
                 Progress
               </TabsTrigger>
               <TabsTrigger 
@@ -1208,7 +1204,7 @@ export default function Workspace({ onNavigate }: WorkspaceProps) {
                                   </div>
                                 </div>
 
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-1">
                                   {/* Role Badge/Selector */}
                                   <Select
                                     value={member.role}
@@ -1216,7 +1212,7 @@ export default function Workspace({ onNavigate }: WorkspaceProps) {
                                     disabled={isCurrentUser}
                                   >
                                     <SelectTrigger className={`w-32 border ${roleConf.color}`}>
-                                      <div className="flex items-center gap-2">
+                                      <div className="flex items-center gap-3">
                                         <RoleIcon className="h-4 w-4" />
                                         <span>{roleConf.label}</span>
                                       </div>
@@ -1616,7 +1612,7 @@ export default function Workspace({ onNavigate }: WorkspaceProps) {
                         <Copy className="h-4 w-4" />
                       </Button>
                     </div>
-                    <p className="text-xs text-blue-600 mt-2">Anyone with this link can  join</p>
+                    <p className="text-xs text-blue-600 mt-2">Anyone with this link can request to join</p>
                   </div>
 
                   {/* Link Actions */}

@@ -786,9 +786,9 @@ export default function EnhancedDashboardLayout({
 
           {/* Sidebar Footer */}
           {!sidebarCollapsed && (
-            <div className="absolute bottom-0 left-0 right-2 p-6 border-t border-border bg-blue-50 dark:bg-blue-950/30">
+            <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border bg-blue-50 dark:bg-blue-950/30">
               <div className="text-xs text-muted-foreground text-center">
-                <p>UPLAN v1.0</p>
+                <p>U PLAN v1.0</p>
                 <p className="text-muted-foreground/70 mt-1">Organize your learning</p>
               </div>
             </div>

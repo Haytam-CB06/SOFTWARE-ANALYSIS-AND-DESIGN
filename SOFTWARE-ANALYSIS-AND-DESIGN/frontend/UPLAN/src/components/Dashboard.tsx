@@ -1200,7 +1200,7 @@ useEffect(() => {
 
                             {!weekSummary && !weekProgressLoading ? (
                               <div className="text-sm text-muted-foreground">
-                                Couldn’t load backend progress right now.
+                                No study data for this week. Start scheduling sessions to track your progress!
                               </div>
                             ) : null}
 
