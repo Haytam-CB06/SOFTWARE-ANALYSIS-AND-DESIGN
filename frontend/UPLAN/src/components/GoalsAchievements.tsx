@@ -609,6 +609,53 @@ useEffect(() => {
         target_hours: th,
         weight: 3,
       };
+
+      const weeklyAvailabilityHours = totalWeekHours;
+      if (weeklyAvailabilityHours > 0 && th > weeklyAvailabilityHours + 1e-9) {
+        toast.error('Goal exceeds weekly availability', {
+          description: `You only have about ${weeklyAvailabilityHours}h available this week based on your timetable.`,
+        });
+        return;
+      }
+
+      // Enforce that subject-specific goals are "within" the overall weekly goal (exclusive, not additive).
+      // i.e., subject goals must fit inside the overall goal, not on top of it.
+      const currentGoals = summary?.goals || [];
+      const overall = currentGoals.find((g) => !g.subject_id) || null;
+      const subjectGoals = currentGoals.filter((g) => !!g.subject_id);
+
+      if (subjectId) {
+        // If there is an overall goal, subject goals must not exceed it.
+        if (overall && Number(overall.target_hours) > 0) {
+          const overallHours = Number(overall.target_hours);
+          const otherSubjectsTotal = subjectGoals
+          .filter((g) => String(g.subject_id) !== String(subjectId))
+          .reduce((acc, g) => acc + Number(g.target_hours || 0), 0);
+
+          if (th > overallHours + 1e-9) {
+            toast.error('Subject goal exceeds weekly goal', {
+              description: `Your overall weekly goal is ${overallHours}h. Subject goals must fit within it.`,
+            });
+            return;
+          }
+
+          if (otherSubjectsTotal + th > overallHours + 1e-9) {
+            toast.error('Subject goals exceed weekly goal', {
+              description: `Your other subject goals total ${otherSubjectsTotal.toFixed(1)}h. With this, you'd exceed your weekly goal of ${overallHours}h.`,
+            });
+            return;
+          }
+        }
+      } else {
+        // Saving an overall goal. If subject goals already exist, ensure they still fit.
+        const subjectsTotal = subjectGoals.reduce((acc, g) => acc + Number(g.target_hours || 0), 0);
+        if (subjectsTotal > 0 && subjectsTotal > th + 1e-9) {
+          toast.error('Weekly goal is too low', {
+            description: `Your subject goals already total ${subjectsTotal.toFixed(1)}h. Increase your weekly goal or reduce subject goals.`,
+          });
+          return;
+        }
+      }
       const res = await fetch(`${API_BASE_URL}/goals`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-User-Id': userId },
@@ -822,7 +869,7 @@ useEffect(() => {
                   <DialogHeader>
                     <DialogTitle>Set goals for this week</DialogTitle>
                     <DialogDescription>
-                      Weekly goals are stored in the backend and used for achievements and summaries.
+                      Weekly goals.
                     </DialogDescription>
                   </DialogHeader>
 

@@ -129,6 +129,11 @@ export default function App() {
   // safety-net if backend onboarding flags aren't available yet.
   const [clientWelcomeOpen, setClientWelcomeOpen] = useState<boolean>(() => {
     try {
+      // Don’t show onboarding for true guest visits.
+      // Only show once a user has actually logged in/registered.
+      const hasUserId = Boolean(localStorage.getItem('currentUserId'));
+      if (!hasUserId) return false;
+
       return localStorage.getItem('uplan_welcome_seen') !== 'true';
     } catch {
       return true;
