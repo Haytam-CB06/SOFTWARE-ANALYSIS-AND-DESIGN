@@ -10,6 +10,7 @@ import TimetableResults from '../../components/TimetableResults';
 import Workspace from '../../components/Workspace';
 import WelcomeWalkthrough from '../../components/WelcomeWalkthrough';
 import GlobalAdminDashboard from '../../components/GlobalAdminDashboard';
+import Notebook from "../../components/Notebook";
 import { PageType, Timetable, TimetableData, Session, SettingsSection } from '../types';
 
 interface DashboardPagesProps {
@@ -163,6 +164,8 @@ export const DashboardPages = ({
       );
     case 'workspace':
       return <Workspace onNavigate={onNavigate} />;
+    case 'notebook':
+    return <Notebook onNavigate={onNavigate} />;
     default:
       return (
         <Dashboard

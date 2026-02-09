@@ -197,11 +197,14 @@ export default function EnhancedDashboardLayout({
       { label: 'My Timetable', page: 'my-timetable' },
       { label: 'Auto Generate', page: 'auto-generate' },
       { label: 'Assessments', page: 'assessments-deadlines' },
+      { label: 'Notebook', page: 'notebook' },
       { label: 'Workspace', page: 'workspace' },
       { label: 'Goals & Achievements', page: 'goals-achievements' },
       { label: 'Create Timetable', page: 'create-timetable' },
       { label: 'Saved Timetables', page: 'view-timetables' },
       { label: 'Settings', page: 'settings' },
+      
+      
     ];
 
     if (isGlobalAdmin) {
@@ -346,6 +349,7 @@ export default function EnhancedDashboardLayout({
       { id: 'my-timetable', icon: Calendar, label: 'My Timetable' },
       { id: 'auto-generate', icon: Sparkles, label: 'Auto Generate' },
       { id: 'assessments-deadlines', icon: FileText, label: 'Assessments' },
+      { id: 'notebook', icon: BookOpen, label: 'Notebook' },
       { id: 'workspace', icon: Users, label: 'Workspace' },
       { id: 'goals-achievements', icon: BookOpen, label: 'Goals & Achievements' },
       { id: 'create-timetable', icon: BookMarked, label: 'Create Timetable' },
@@ -394,7 +398,7 @@ export default function EnhancedDashboardLayout({
                     PLAN
                   </span>
                   <span className="text-muted-foreground text-xs tracking-wide uppercase transition-all duration-300 group-hover:text-foreground">
-                    Corporate Academic Service
+                    Smart Studying Timetable Generator
                   </span>
                 </div>
               </div>
@@ -694,6 +698,7 @@ export default function EnhancedDashboardLayout({
             fixed lg:sticky top-16 left-0 h-[calc(100vh-4rem)] 
             bg-card border-r border-border 
             transform transition-all duration-300 ease-in-out z-40
+            flex flex-col 
             ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
             ${sidebarOpen ? 'w-64' : 'w-64'}
             ${sidebarCollapsed ? 'lg:w-16' : 'lg:w-64'}
@@ -716,7 +721,7 @@ export default function EnhancedDashboardLayout({
             </Button>
           </div>
 
-          <nav className="p-4 space-y-1 h-full overflow-y-auto pb-24">
+          <nav className="p-4 space-y-1 flex-1 overflow-y-auto">
             {menuItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentPage === item.id;
@@ -786,12 +791,12 @@ export default function EnhancedDashboardLayout({
 
           {/* Sidebar Footer */}
           {!sidebarCollapsed && (
-            <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border bg-blue-50 dark:bg-blue-950/30">
-              <div className="text-xs text-muted-foreground text-center">
-                <p>U PLAN v1.0</p>
-                <p className="text-muted-foreground/70 mt-1">Organize your learning</p>
-              </div>
+          <div className="p-4 border-t border-border bg-blue-50 dark:bg-blue-900/30">
+          <div className="text-xs text-muted-foreground text-center">
+            <p>U PLAN v1.0</p>
+            <p className="text-muted-foreground/70 mt-1">Organize your learning</p>
             </div>
+          </div>
           )}
         </aside>
 

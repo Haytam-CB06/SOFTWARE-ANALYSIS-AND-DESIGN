@@ -18,9 +18,16 @@ class Workspace(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False)
     description = Column(Text)
-    owner_id = Column(UUID(as_uuid=True), nullable=False)
+    owner_id = Column(UUID(as_uuid=True), nullable=True)
+
+    # ✅ NEW: parent workspace (null means "top-level workspace")
+    parent_id = Column(Integer, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=True, index=True)
+
     created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow,onupdate=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # ✅ relationships (optional but very useful)
+    parent = relationship("Workspace", remote_side=[id], backref="subworkspaces")
 
 
 

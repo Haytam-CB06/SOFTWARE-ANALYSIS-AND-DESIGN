@@ -11,7 +11,7 @@ from app.routers import workspaces, permission, chat
 from app.routers import workspace_session_status
 from app.routers import workspace_auto_generate_config
 from app.routers import admin
-from app.routers import assessments
+from app.routers import assessments,Notebook
 from app.routers import timetable  # if not already added
 from app.routers import calendar_export
 from app.routers import notifications
@@ -20,7 +20,7 @@ from app.routers import user_profile
 from app.routers import study_timetables
 from app.routers import auto_generate
 from app.routers import achievements
-from app.routers import goals
+from app.routers import goals,admin,boards,subworkspaces
 from app.models.oauth import OAuthAccount
 # backend/app/main.py
 import os
@@ -877,7 +877,9 @@ app.include_router(assessments.router)
 app.include_router(goals.router)
 app.include_router(achievements.router)
 app.include_router(admin.router)
-
+app.include_router(boards.router)
+app.include_router(subworkspaces.router)
+app.include_router(Notebook.router)
 # --- MCP (Model Context Protocol) server ---
 # Exposes your FastAPI routes as MCP tools at /mcp so AI agents can call them
 # (e.g., for timetable image extraction).

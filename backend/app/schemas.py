@@ -1,6 +1,6 @@
 # backend/app/schemas.py
 from datetime import datetime
-from typing import Optional, Literal
+from typing import List, Optional, Literal
 from pydantic import BaseModel, Field,ConfigDict, EmailStr, constr, field_validator, ValidationInfo
 from uuid import UUID
 # ---------- AUTH ----------
@@ -149,12 +149,17 @@ class AddMemberRequest(BaseModel):
     role: str
 
 
+class SubWorkspaceCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
 
 class WorkspaceResponse(BaseModel):
     id: int
     name: str
     description: Optional[str]
+    parent_id: Optional[int] = None
     created_at: Optional[datetime]
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -172,3 +177,97 @@ class SignUpIn(BaseModel):
     password: str
     full_name: Optional[str] = None
     invite_token: Optional[str] = None
+
+# Define TaskStatus & TaskPriority first
+TaskStatus = Literal["todo", "in-progress", "review", "done"]
+TaskPriority = Literal["low", "medium", "high", "urgent"]
+
+# Now define schemas
+class TaskCreate(BaseModel):
+    title: str
+    description: str = ""
+    status: TaskStatus = "todo"
+    priority: TaskPriority = "medium"
+    assigneeId: Optional[UUID] = None
+    labels: Optional[List[str]] = []
+
+class TaskUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    priority: Optional[TaskPriority] = None
+    assigneeId: Optional[UUID] = None
+
+class TaskMove(BaseModel):
+    status: TaskStatus
+
+class CommentCreate(BaseModel):
+    text: str = Field(min_length=1, max_length=2000)
+
+class CommentOut(BaseModel):
+    id: UUID
+    userId: Optional[UUID]
+    userName: str
+    text: str
+    createdAt: datetime
+
+class TaskOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+    id: UUID
+    title: str
+    description: str
+    status: TaskStatus
+    priority: TaskPriority
+    assignee: Optional[dict] = None
+    createdBy: Optional[UUID] = None
+    createdAt: datetime
+    updatedAt: datetime
+    comments: List[CommentOut] = Field(default_factory=list)
+    attachments: int = 0
+
+from pydantic import BaseModel, Field
+from typing import Optional, List
+from datetime import datetime
+
+
+class NoteCreate(BaseModel):
+    title: str = Field(default="", max_length=200)
+    content: str = Field(default="")
+
+    entity_type: Optional[str] = None
+    entity_id: Optional[str] = None
+
+    tags: List[str] = Field(default_factory=list)
+    pinned: bool = False
+
+
+class NoteUpdate(BaseModel):
+    title: Optional[str] = Field(default=None, max_length=200)
+    content: Optional[str] = None
+
+    entity_type: Optional[str] = None
+    entity_id: Optional[str] = None
+
+    tags: Optional[List[str]] = None
+    pinned: Optional[bool] = None
+    archived: Optional[bool] = None
+
+
+class NoteOut(BaseModel):
+    id: str
+    user_id: str
+    title: str
+    content: str
+
+    entity_type: Optional[str]
+    entity_id: Optional[str]
+
+    tags: List[str]
+    pinned: bool
+    archived: bool
+
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
