@@ -85,11 +85,81 @@ def _member_out(db: Session, m: WorkspaceMember) -> dict:
         "joined_at": m.joined_at.isoformat() if getattr(m, "joined_at", None) else None,
     }
 
+# -----------------------------
+# Subworkspace helpers (NEW)
+# -----------------------------
+
+def _list_descendant_workspace_ids(db: Session, workspace_id: int) -> List[int]:
+    """
+    Returns ALL descendant workspace ids (children, grandchildren, etc.)
+    Requires Workspace.parent_id column to exist.
+    """
+    out: List[int] = []
+    queue: List[int] = [workspace_id]
+
+    while queue:
+        pid = queue.pop(0)
+        children = db.query(Workspace).filter(Workspace.parent_id == pid).all()
+        for c in children:
+            if c.id not in out:
+                out.append(c.id)
+                queue.append(c.id)
+
+    return out
+
+def _ensure_admin_in_descendants(db: Session, workspace_id: int, user_id: UUID):
+    """
+    Ensures user is admin in every descendant workspace.
+    """
+    for wid in _list_descendant_workspace_ids(db, workspace_id):
+        m = (
+            db.query(WorkspaceMember)
+            .filter(WorkspaceMember.workspace_id == wid, WorkspaceMember.user_id == user_id)
+            .first()
+        )
+        if m:
+            m.role = "admin"
+        else:
+            db.add(WorkspaceMember(workspace_id=wid, user_id=user_id, role="admin"))
+
+def _demote_admin_in_descendants(db: Session, workspace_id: int, user_id: UUID):
+    """
+    If user is admin in descendants because of parent, demote them to member.
+    (Your rule says: parent admins must be admins in children;
+     so if parent admin removed, they shouldn't stay admin in children.)
+    """
+    for wid in _list_descendant_workspace_ids(db, workspace_id):
+        m = (
+            db.query(WorkspaceMember)
+            .filter(WorkspaceMember.workspace_id == wid, WorkspaceMember.user_id == user_id)
+            .first()
+        )
+        if m and (m.role or "") == "admin":
+            m.role = "member"
+
+def _copy_parent_admins_to_child(db: Session, parent_id: int, child_id: int):
+    """
+    When creating a subworkspace, copy all parent admins as admins in the child.
+    """
+    parent_admins = (
+        db.query(WorkspaceMember)
+        .filter(WorkspaceMember.workspace_id == parent_id, WorkspaceMember.role == "admin")
+        .all()
+    )
+    for a in parent_admins:
+        existing = (
+            db.query(WorkspaceMember)
+            .filter(WorkspaceMember.workspace_id == child_id, WorkspaceMember.user_id == a.user_id)
+            .first()
+        )
+        if existing:
+            existing.role = "admin"
+        else:
+            db.add(WorkspaceMember(workspace_id=child_id, user_id=a.user_id, role="admin"))
 
 # -----------------------------
 # Workspace shared timetable (CalendarView)
 # -----------------------------
-
 
 class CalendarSessionIn(BaseModel):
     id: Optional[str] = None
@@ -100,7 +170,6 @@ class CalendarSessionIn(BaseModel):
     type: Optional[str] = None
     color: Optional[str] = None
     deadline: Optional[str] = None
-
 
 class CalendarSessionOut(BaseModel):
     id: str
@@ -114,13 +183,11 @@ class CalendarSessionOut(BaseModel):
 
     model_config = {"extra": "allow"}
 
-
 def _guard_workspace_member(db: Session, workspace_id: int, user_id: UUID) -> str:
     role = _get_user_workspace_role(db, workspace_id, user_id)
     if not role:
         raise HTTPException(status_code=403, detail="Not a workspace member")
     return role or "member"
-
 
 @router.get("/{workspace_id}/sessions", response_model=List[CalendarSessionOut])
 def get_workspace_calendar_sessions(
@@ -164,7 +231,6 @@ def get_workspace_calendar_sessions(
         except Exception:
             continue
     return out
-
 
 @router.put("/{workspace_id}/sessions")
 def put_workspace_calendar_sessions(
@@ -305,7 +371,6 @@ def send_workspace_invite_email(email: str, workspace_id: int):
 
 frontend = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
 
-
 @router.get("/join")
 def join_workspace(
     token: str,
@@ -339,6 +404,7 @@ def join_workspace(
         url=f"{frontend}/?page=workspace",
         status_code=302,
     )
+
 @router.post("/accept-invite")
 def accept_invite_after_auth(
     token: str,
@@ -357,15 +423,10 @@ def accept_invite_after_auth(
 
     return {"workspace_id": workspace_id}
 
-
-
-
 # -----------------------------
 # Workspaces CRUD
 # -----------------------------
-# -----------------------------
-# LINKED
-# -----------------------------
+
 @router.post("", response_model=WorkspaceResponse)
 def create_workspace(
     payload: WorkspaceCreate,
@@ -397,18 +458,68 @@ def list_my_workspaces(
         .all()
     )
     return workspaces
-# -----------------------------
-# LINKED
-# -----------------------------
+
 @router.get("/{workspace_id}", response_model=WorkspaceResponse)
 def get_workspace(workspace_id: int, db: Session = Depends(get_db)):
     workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
     if not workspace:
         raise HTTPException(status_code=404, detail="Workspace not found")
     return workspace
+
 # -----------------------------
-# LINKED
+# Subworkspaces API (NEW)
 # -----------------------------
+
+class SubWorkspaceCreateIn(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+@router.get("/{workspace_id}/subworkspaces", response_model=List[WorkspaceResponse])
+def list_subworkspaces(
+    workspace_id: int,
+    current_user_id: UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    # Must be a member of the parent to view children
+    if not _is_workspace_member(db, workspace_id, current_user_id):
+        raise HTTPException(status_code=403, detail="Not a workspace member")
+
+    children = db.query(Workspace).filter(Workspace.parent_id == workspace_id).order_by(Workspace.created_at.desc()).all()
+    return children
+
+@router.post("/{workspace_id}/subworkspaces", response_model=WorkspaceResponse)
+def create_subworkspace(
+    workspace_id: int,
+    payload: SubWorkspaceCreateIn,
+    current_user_id: UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    parent = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+    if not parent:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    role = _get_user_workspace_role(db, workspace_id, current_user_id)
+    if not role:
+        raise HTTPException(status_code=403, detail="Not a workspace member")
+    if role != "admin":
+        raise HTTPException(status_code=403, detail="Admin role required")
+
+    child = Workspace(
+        name=payload.name,
+        description=payload.description,
+        owner_id=parent.owner_id,
+        parent_id=parent.id,  # ✅ requires Workspace.parent_id column
+    )
+    db.add(child)
+    db.flush()  # get child.id without committing
+
+    # Copy parent admins into the new child as admins
+    _copy_parent_admins_to_child(db, parent_id=parent.id, child_id=child.id)
+
+    db.commit()
+    db.refresh(child)
+    return child
+
 @router.delete("/{workspace_id}")
 def delete_workspace(
     workspace_id: int,
@@ -432,9 +543,7 @@ def delete_workspace(
 # -----------------------------
 # Members API (frontend uses these)
 # -----------------------------
-# -----------------------------
-# LINKED
-# -----------------------------
+
 @router.get("/{workspace_id}/members")
 def list_members(
     workspace_id: int,
@@ -452,9 +561,7 @@ def list_members(
         .all()
     )
     return [_member_out(db, m) for m in members]
-# -----------------------------
-# LINKED
-# -----------------------------
+
 @router.post("/{workspace_id}/members")
 def add_member(
     workspace_id: int,
@@ -483,12 +590,15 @@ def add_member(
 
     member = WorkspaceMember(workspace_id=workspace_id, user_id=user.id, role=request.role)
     db.add(member)
+
+    # ✅ if you add as admin, enforce admin in ALL descendants
+    if (request.role or "") == "admin":
+        _ensure_admin_in_descendants(db, workspace_id, user.id)
+
     db.commit()
     db.refresh(member)
     return {"message": "Member added successfully", "member": _member_out(db, member)}
-# -----------------------------
-# LINKED
-# -----------------------------
+
 @router.delete("/{workspace_id}/members/{member_id}")
 def remove_member(
     workspace_id: int,
@@ -520,12 +630,13 @@ def remove_member(
         if admin_count <= 1:
             raise HTTPException(status_code=400, detail="Cannot remove the last admin")
 
+        # ✅ if removing an admin from parent, remove admin role from descendants too
+        _demote_admin_in_descendants(db, workspace_id, member.user_id)
+
     db.delete(member)
     db.commit()
     return {"message": "Member removed successfully"}
-# -----------------------------
-# LINKED
-# -----------------------------
+
 @router.patch("/{workspace_id}/members/{member_id}")
 def update_member_role(
     workspace_id: int,
@@ -544,7 +655,7 @@ def update_member_role(
         db.query(WorkspaceMember)
         .filter(WorkspaceMember.workspace_id == workspace_id, WorkspaceMember.user_id == member_id)
         .first()
-    )  
+    )
     if not member:
         raise HTTPException(status_code=404, detail="Member not found")
 
@@ -552,26 +663,31 @@ def update_member_role(
     if new_role not in {"admin", "member"}:
         raise HTTPException(status_code=400, detail="Invalid role")
 
+    old_role = member.role or "member"
+
     # Safety: keep at least 1 admin
-    if member.role == "admin" and new_role != "admin":
+    if old_role == "admin" and new_role != "admin":
         admin_count = (
             db.query(WorkspaceMember)
             .filter(WorkspaceMember.workspace_id == workspace_id, WorkspaceMember.role == "admin")
             .count()
-        )  
+        )
         if admin_count <= 1:
             raise HTTPException(status_code=400, detail="Cannot demote the last admin")
 
     member.role = new_role
+
+    # ✅ enforce propagation rule
+    if new_role == "admin":
+        _ensure_admin_in_descendants(db, workspace_id, member.user_id)
+    elif old_role == "admin" and new_role != "admin":
+        _demote_admin_in_descendants(db, workspace_id, member.user_id)
+
     db.commit()
     db.refresh(member)
     return {"message": "Role updated", "member": _member_out(db, member)}
 
-# -----------------------------
-# LINKED
-# -----------------------------
-
-@router.post("/{workspace_id}/share-link")              
+@router.post("/{workspace_id}/share-link")
 def generate_workspace_share_link(
     workspace_id: int,
     current_user_id: UUID = Depends(get_current_user_id),
@@ -580,7 +696,6 @@ def generate_workspace_share_link(
     role = _get_user_workspace_role(db, workspace_id, current_user_id)
     if not role:
         raise HTTPException(status_code=403, detail="Not a workspace member")
-    
 
     workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
     if not workspace:
@@ -593,20 +708,19 @@ def generate_workspace_share_link(
         "link_id": token,
         "access_type": "open",
     }
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from uuid import UUID
 
-# -----------------------------
-# LINKED
-# -----------------------------
-
-@router.patch("/{workspace_id}/members/{member_id}/role")               
-def change_workspace_member_role(workspace_id: int,
-                                 member_id: UUID,
-                                 payload: dict,
-                                 current_user_id: UUID = Depends(get_current_user_id),
-                                  db: Session = Depends(get_db),):
+@router.patch("/{workspace_id}/members/{member_id}/role")
+def change_workspace_member_role(
+    workspace_id: int,
+    member_id: UUID,
+    payload: dict,
+    current_user_id: UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
     new_role = payload.get("role")
 
     if new_role not in {"admin", "member", "viewer"}:
@@ -629,6 +743,8 @@ def change_workspace_member_role(workspace_id: int,
     if not member:
         raise HTTPException(status_code=404, detail="Member not found")
 
+    old_role = member.role or "member"
+
     # Enforce max 2 admins
     if new_role == "admin" and member.role != "admin":
         admin_count = (
@@ -647,6 +763,13 @@ def change_workspace_member_role(workspace_id: int,
             )
 
     member.role = new_role
+
+    # ✅ enforce propagation rule here too
+    if new_role == "admin":
+        _ensure_admin_in_descendants(db, workspace_id, member.user_id)
+    elif old_role == "admin" and new_role != "admin":
+        _demote_admin_in_descendants(db, workspace_id, member.user_id)
+
     db.commit()
 
     return {
@@ -654,7 +777,6 @@ def change_workspace_member_role(workspace_id: int,
         "member_id": str(member_id),
         "role": new_role,
     }
-   
 
 # -----------------------------
 # Workspace progress (team dashboard)
@@ -665,6 +787,7 @@ def workspace_progress(
     workspace_id: int,
     period_start: Optional[str] = Query(default=None),
     period_end: Optional[str] = Query(default=None),
+    tz_offset_minutes: Optional[int] = Query(default=None),  
     db: Session = Depends(get_db),
     x_user_id: str = Header(..., alias="X-User-Id"),
 ):
@@ -715,7 +838,6 @@ def workspace_progress(
     for m in members:
         uid = m.user_id
 
-        # total sessions within week (planned/completed/skipped/missed)
         sess = (
             db.query(StudySession)
             .filter(
@@ -742,7 +864,6 @@ def workspace_progress(
                 continue
             completed_hours += seconds / 3600.0
 
-        # Streak: consecutive days ending today (UTC) with >= 0.25h completed
         streak_days = 0
         try:
             today = (datetime.now(timezone.utc) - off).date()
@@ -780,7 +901,6 @@ def workspace_progress(
         except Exception:
             streak_days = 0
 
-        # Goal completion for the same period (ps..pe)
         goal_target_hours = 0.0
         try:
             goal_rows = (
@@ -799,7 +919,6 @@ def workspace_progress(
             goal_percent = 0
         if goal_percent > 100:
             goal_percent = 100
-
 
         completion_rate = int(round((completed_sessions / total_sessions) * 100)) if total_sessions > 0 else 0
 
@@ -826,7 +945,6 @@ def workspace_progress(
             "period_end": pe.isoformat(),
         })
 
-    # Sort by completed hours desc, then name
     out.sort(key=lambda r: (-float(r.get("completedHours", 0) or 0), str(r.get("memberName") or "")))
 
     return {

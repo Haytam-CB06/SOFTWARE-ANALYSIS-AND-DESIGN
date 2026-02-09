@@ -36,6 +36,7 @@ import { Textarea } from './ui/textarea';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from './ui/dropdown-menu';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 import { toast } from 'sonner';
+import { API_BASE_URL } from '../lib/api';
 
 interface Member {
   id: string;
@@ -301,25 +302,101 @@ export default function CollaborationBoard({ workspace, currentUser }: Collabora
     newLabel: ''
   });
 
-  useEffect(() => {
-    loadTasks();
-  }, [workspace.id]);
+  // --- Backend helpers (ONLY linking logic) ---
+  const apiFetch = async (path: string, init: RequestInit = {}) => {
+    const token = localStorage.getItem('access_token');
 
-  useEffect(() => {
-    localStorage.setItem(`board-show-details-${workspace.id}`, JSON.stringify(showDetails));
-  }, [showDetails, workspace.id]);
+    const res = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        // ✅ your backend expects this header
+        'X-User-Id': String(currentUser?.id ?? ''),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(init.headers || {}),
+      },
+    });
 
-  const loadTasks = () => {
-    const savedTasks = localStorage.getItem(`board-tasks-${workspace.id}`);
-    if (savedTasks) {
-      setTasks(JSON.parse(savedTasks));
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(text || `Request failed: ${res.status}`);
     }
+
+    // 204 no content
+    if (res.status === 204) return null;
+    return res.json();
   };
 
-  const saveTasks = (updatedTasks: Task[]) => {
-    setTasks(updatedTasks);
-    localStorage.setItem(`board-tasks-${workspace.id}`, JSON.stringify(updatedTasks));
+  const normalizeTask = (t: any): Task => {
+    return {
+      id: String(t.id),
+      title: t.title ?? '',
+      description: t.description ?? '',
+      status: (t.status ?? 'todo') as Task['status'],
+      priority: (t.priority ?? 'medium') as Task['priority'],
+      assignee: t.assignee
+        ? {
+            id: String(t.assignee.id),
+            name: t.assignee.name,
+            email: t.assignee.email,
+            avatar: t.assignee.avatar,
+          }
+        : undefined,
+      // ✅ backend doesn't send due date in your current models; keep if you add later
+      dueDate: t.due_date ?? t.dueDate ?? undefined,
+      labels: t.labels ?? [],
+      createdAt: t.created_at ?? t.createdAt ?? new Date().toISOString(),
+      updatedAt: t.updated_at ?? t.updatedAt ?? new Date().toISOString(),
+      createdBy: String(t.created_by ?? t.createdBy ?? ''),
+      comments: (t.comments ?? []).map((c: any) => ({
+        id: String(c.id),
+        userId: String(c.user_id ?? c.userId ?? ''),
+        userName: c.user_name ?? c.userName ?? '',
+        text: c.text ?? '',
+        createdAt: c.created_at ?? c.createdAt ?? new Date().toISOString(),
+      })),
+      attachments: t.attachments_count ?? t.attachments ?? 0,
+    };
   };
+
+  const toTaskCreatePayload = () => {
+    // ✅ matches your backend TaskCreate schema
+    return {
+      title: newTask.title,
+      description: newTask.description,
+      status: newTask.status,
+      priority: newTask.priority,
+      assignee_id: newTask.assignee?.id ?? null,
+      labels: newTask.labels ?? [],
+    };
+  };
+
+  const toTaskUpdatePayload = () => {
+    // ✅ your backend TaskUpdate does NOT support status (it has a separate /move route)
+    return {
+      title: newTask.title,
+      description: newTask.description,
+      priority: newTask.priority,
+      assigneeId: newTask.assignee?.id ?? null,
+    };
+  };
+  // --- End helpers ---
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await apiFetch(`/workspaces/${workspace.id}/board/tasks`);
+        const normalized = Array.isArray(data) ? data.map(normalizeTask) : [];
+        setTasks(normalized);
+      } catch (e: any) {
+        console.error(e);
+        toast.error('Failed to load tasks from server');
+      }
+    };
+
+    if (workspace?.id) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspace.id]);
 
   const handleAddTask = (status?: Task['status']) => {
     setEditingTask(null);
@@ -351,71 +428,128 @@ export default function CollaborationBoard({ workspace, currentUser }: Collabora
     setIsTaskDialogOpen(true);
   };
 
-  const handleSaveTask = () => {
+  const handleSaveTask = async () => {
     if (!newTask.title.trim()) {
       toast.error('Please enter a task title');
       return;
     }
 
-    if (editingTask) {
-      // Update existing task
-      const updatedTasks = tasks.map(t =>
-        t.id === editingTask.id
-          ? {
-              ...t,
-              title: newTask.title,
-              description: newTask.description,
-              status: newTask.status,
-              priority: newTask.priority,
-              assignee: newTask.assignee,
-              dueDate: newTask.dueDate || undefined,
-              labels: newTask.labels,
-              updatedAt: new Date().toISOString()
+    try {
+      if (editingTask) {
+        // ✅ Update fields (title/description/priority/assignee)
+        const updated = await apiFetch(
+          `/workspaces/${workspace.id}/board/tasks/${editingTask.id}`,
+          {
+            method: 'PATCH',
+            body: JSON.stringify(toTaskUpdatePayload()),
+          }
+        );
+
+        let normalized = normalizeTask(updated);
+
+        // ✅ If status changed, use the move endpoint
+        if (newTask.status !== editingTask.status) {
+          const moved = await apiFetch(
+            `/workspaces/${workspace.id}/board/tasks/${editingTask.id}/move`,
+            {
+              method: 'PATCH',
+              body: JSON.stringify({ status: newTask.status }),
             }
-          : t
-      );
-      saveTasks(updatedTasks);
-      toast.success('Task updated successfully');
-    } else {
-      // Create new task
-      const task: Task = {
-        id: `task-${Date.now()}`,
-        title: newTask.title,
-        description: newTask.description,
-        status: newTask.status,
-        priority: newTask.priority,
-        assignee: newTask.assignee,
-        dueDate: newTask.dueDate || undefined,
-        labels: newTask.labels,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        createdBy: currentUser.id,
-        comments: [],
-        attachments: 0
-      };
-      saveTasks([...tasks, task]);
-      toast.success('Task created successfully');
-    }
+          );
+          normalized = normalizeTask(moved);
+        }
 
-    setIsTaskDialogOpen(false);
+        setTasks((prev) => prev.map((t) => (t.id === normalized.id ? normalized : t)));
+        toast.success('Task updated successfully');
+      } else {
+        // ✅ Create new task
+        const created = await apiFetch(
+          `/workspaces/${workspace.id}/board/tasks`,
+          {
+            method: 'POST',
+            body: JSON.stringify(toTaskCreatePayload()),
+          }
+        );
+
+        const normalized = normalizeTask(created);
+        setTasks((prev) => [normalized, ...prev]);
+        toast.success('Task created successfully');
+      }
+
+      setIsTaskDialogOpen(false);
+    } catch (e: any) {
+      console.error(e);
+      toast.error(editingTask ? 'Failed to update task' : 'Failed to create task');
+    }
   };
 
-  const handleDeleteTask = (taskId: string) => {
-    if (confirm('Are you sure you want to delete this task?')) {
-      const updatedTasks = tasks.filter(t => t.id !== taskId);
-      saveTasks(updatedTasks);
+  const handleDeleteTask = async (taskId: string) => {
+    if (!confirm('Are you sure you want to delete this task?')) return;
+
+    try {
+      await apiFetch(`/workspaces/${workspace.id}/board/tasks/${taskId}`, {
+        method: 'DELETE',
+      });
+
+      setTasks((prev) => prev.filter((t) => t.id !== taskId));
       toast.success('Task deleted successfully');
+    } catch (e: any) {
+      console.error(e);
+      toast.error('only admins or creators can delete tasks');
     }
   };
 
-  const moveTask = (taskId: string, newStatus: Task['status']) => {
-    const updatedTasks = tasks.map(t =>
-      t.id === taskId
-        ? { ...t, status: newStatus, updatedAt: new Date().toISOString() }
-        : t
+  const moveTask = async (taskId: string, newStatus: Task['status']) => {
+    // optimistic UI
+    const prev = tasks;
+    setTasks((cur) =>
+      cur.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
     );
-    saveTasks(updatedTasks);
-    toast.success('Task moved successfully');
+
+    try {
+      // ✅ correct backend route
+      const updated = await apiFetch(
+        `/workspaces/${workspace.id}/board/tasks/${taskId}/move`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ status: newStatus }),
+        }
+      );
+      const normalized = normalizeTask(updated);
+      setTasks((cur) => cur.map((t) => (t.id === normalized.id ? normalized : t)));
+      toast.success('Task moved successfully');
+    } catch (e: any) {
+      console.error(e);
+      setTasks(prev); // rollback
+      toast.error('Failed to move task');
+    }
+  };
+
+  // (Optional) comment API helper – not used by UI right now, but ready.
+  const addCommentToTask = async (taskId: string, text: string) => {
+    const created = await apiFetch(
+      `/workspaces/${workspace.id}/board/tasks/${taskId}/comments`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ text }),
+      }
+    );
+
+    const newComment: Comment = {
+      id: String(created.id),
+      userId: String(created.userId ?? created.user_id ?? ''),
+      userName: created.userName ?? created.user_name ?? 'User',
+      text: created.text ?? '',
+      createdAt: created.createdAt ?? created.created_at ?? new Date().toISOString(),
+    };
+
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === taskId
+          ? { ...t, comments: [...(t.comments ?? []), newComment] }
+          : t
+      )
+    );
   };
 
   const addLabel = () => {
@@ -519,9 +653,9 @@ export default function CollaborationBoard({ workspace, currentUser }: Collabora
                   <BarChart3 className="h-4 w-4 mr-2" />
                   {showDetails ? 'Compact' : 'Detailed'}
                   {showDetails ? (
-                    <ChevronUp className="h-4 w-4 ml-2" />
+                    <ChevronUp className="h-4 w-4 ml-4" />
                   ) : (
-                    <ChevronDown className="h-4 w-4 ml-2" />
+                    <ChevronDown className="h-4 w-4 ml-4" />
                   )}
                 </Button>
                 <Button onClick={() => handleAddTask()} className="bg-blue-600 hover:bg-blue-800 dark:hover:bg-blue-900 shadow-sm h-8">

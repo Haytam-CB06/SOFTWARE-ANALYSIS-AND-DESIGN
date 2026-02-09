@@ -827,7 +827,7 @@ useEffect(() => {
                 </div>
               </div>
 
-              <Progress value={progressPct} className="bg-blue-100" indicatorColor="bg-blue-600" />
+              <Progress value={progressPct} className="bg-purple-100" indicatorColor="bg-purple-600" />
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1 text-sm text-purple-700">

@@ -739,7 +739,7 @@ export default function AutoGenerateTimetable({ onNavigate, scope, workspaceId: 
 
       if (!res.ok) {
         const msg = await res.text();
-        toast.error(`Auto generation failed: ${msg}`);
+        toast.error(`Auto generation failed`);
         return;
       }
 

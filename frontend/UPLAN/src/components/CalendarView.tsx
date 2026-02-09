@@ -1833,83 +1833,7 @@ export default function CalendarView({
         </div>
       )}
 
-      {/* Availability & Breaks Settings Display */}
-      {availabilitySettings && (
-        <div className="px-4 sm:px-6 py-3 bg-blue-50 dark:bg-gray-800 border-b border-blue-200 dark:border-gray-700">
-          <div className="max-w-7xl mx-auto">
-            <div className="bg-white dark:bg-gray-900 rounded-lg p-4 border border-blue-200 dark:border-gray-700 shadow-sm">
-              <div className="flex items-center gap-2 mb-3">
-                <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Availability & Breaks Settings</h3>
-              </div>
-              
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                {/* Weekday Hours */}
-                {availabilitySettings.weekdayAvailability && (
-                  <div className="bg-blue-50 dark:bg-blue-950/50 rounded-md p-2 border border-blue-200 dark:border-blue-800">
-                    <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Weekday Hours:</p>
-                    <p className="text-sm text-gray-900 dark:text-gray-100 font-medium">
-                      {availabilitySettings.weekdayAvailability.start} - {availabilitySettings.weekdayAvailability.end}
-                    </p>
-                  </div>
-                )}
-                
-                {/* Weekend Hours */}
-                {availabilitySettings.weekendAvailability && !availabilitySettings.weekendSameAsWeekday && (
-                  <div className="bg-blue-50 dark:bg-blue-950/50 rounded-md p-2 border border-blue-200 dark:border-blue-800">
-                    <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Weekend Hours:</p>
-                    <p className="text-sm text-gray-900 dark:text-gray-100 font-medium">
-                      {availabilitySettings.weekendAvailability.start} - {availabilitySettings.weekendAvailability.end}
-                    </p>
-                  </div>
-                )}
-                
-                {/* Sleep Hours */}
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-2 border border-gray-200 dark:border-gray-700">
-                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Sleep Hours:</p>
-                  <p className="text-sm text-gray-900 dark:text-gray-100 font-medium">
-                    {(() => {
-                      const sleepFrom = availabilitySettings.sleepHours?.from || availabilitySettings.sleepHours?.start;
-                      const sleepTo = availabilitySettings.sleepHours?.to || availabilitySettings.sleepHours?.end;
-                      return sleepFrom && sleepTo ? `${sleepFrom} - ${sleepTo}` : '-';
-                    })()}
-                  </p>
-                </div>
-                
-                {/* Lunch Break */}
-                {availabilitySettings.lunchBreak?.enabled && (
-                  <div className="bg-yellow-50 dark:bg-yellow-950/50 rounded-md p-2 border border-yellow-200 dark:border-yellow-800">
-                    <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Lunch Break:</p>
-                    <p className="text-sm text-gray-900 dark:text-gray-100 font-medium">
-                      {availabilitySettings.lunchBreak.start} - {availabilitySettings.lunchBreak.end}
-                    </p>
-                  </div>
-                )}
-                
-                {/* Dinner Break */}
-                {availabilitySettings.dinnerBreak?.enabled && (
-                  <div className="bg-orange-50 dark:bg-orange-950/50 rounded-md p-2 border border-orange-200 dark:border-orange-800">
-                    <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Dinner Break:</p>
-                    <p className="text-sm text-gray-900 dark:text-gray-100 font-medium">
-                      {availabilitySettings.dinnerBreak.start} - {availabilitySettings.dinnerBreak.end}
-                    </p>
-                  </div>
-                )}
-                
-                {/* Commute Buffer */}
-                {availabilitySettings.commuteMinutes > 0 && (
-                  <div className="bg-purple-50 dark:bg-purple-950/50 rounded-md p-2 border border-purple-200 dark:border-purple-800">
-                    <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Commute Buffer:</p>
-                    <p className="text-sm text-gray-900 dark:text-gray-100 font-medium">
-                      {availabilitySettings.commuteMinutes} minutes
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      
 
       {/* Calendar Grid - Simple Table Structure */}
       <div className="flex-1 overflow-auto">
@@ -2048,25 +1972,7 @@ export default function CalendarView({
                           const visibleDuration = visibleEnd - visibleStart;
                           const height = (visibleDuration / 60) * 80;
                           
-                          return (
-                            <div
-                              key={`${block.type}-${index}`}
-                              className={`absolute left-0 right-0 px-2 py-1 border-l-4 pointer-events-none ${
-                                block.type === 'sleep' 
-                                  ? 'bg-gray-300/70 dark:bg-gray-600/70 border-gray-500 dark:border-gray-400' 
-                                  : block.type === 'lunch' 
-                                    ? 'bg-yellow-200/70 dark:bg-yellow-700/70 border-yellow-500 dark:border-yellow-400' 
-                                    : 'bg-orange-200/70 dark:bg-orange-700/70 border-orange-500 dark:border-orange-400'
-                              }`}
-                              style={{
-                                height: `${height}px`,
-                                top: `${offsetPixels}px`,
-                                zIndex: 5,
-                              }}
-                            >
-                              <span className="text-xs text-gray-700 dark:text-gray-200 font-medium">{block.label}</span>
-                            </div>
-                          );
+                          
                         })
                         }                        
                         

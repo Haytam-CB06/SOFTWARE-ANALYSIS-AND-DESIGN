@@ -65,6 +65,7 @@ export type PageType =
   | 'create-timetable' 
   | 'view-timetables' 
   | 'workspace'
-  | 'settings';
+  | 'settings'
+  | 'notes';
 
 export type SettingsSection = 'profile' | 'webapp';

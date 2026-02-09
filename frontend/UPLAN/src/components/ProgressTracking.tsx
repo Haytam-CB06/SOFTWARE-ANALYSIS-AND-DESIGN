@@ -149,7 +149,7 @@ export default function ProgressTracking() {
     <span className="text-purple-700 font-semibold">{summary?.total_completed_hours ?? 0}h done</span>
     <span className="text-purple-700 font-semibold">{summary?.total_target_hours ?? 0}h target</span>
     </div>
-    <Progress value={pct} className="bg-blue-100" indicatorColor="bg-blue-600" />
+    <Progress value={pct} className="bg-pink-100" indicatorColor="bg-purple-600" />
     <div className="text-xs font-semibold text-purple-700">{pct}%</div>
     </CardContent>
     </Card>

@@ -36,7 +36,7 @@ interface WorkspaceChatProps {
 const roleColors = {
 
   owner: 'text-yellow-600',
-  admin: 'text-purple-600',
+  admin: 'text-blue-600',
   member: 'text-blue-600',
   viewer: 'text-gray-600'
 };
@@ -155,47 +155,6 @@ export default function WorkspaceChat({ workspace, currentUser }: WorkspaceChatP
     e.preventDefault();
     
     if (!newMessage.trim()) return;
-
-    // ============================================================================
-    // 🔌 BACKEND INTEGRATION POINT - SEND CHAT MESSAGE
-    // ============================================================================
-    // This section sends a chat message to the workspace
-    // 
-    // API Endpoint: POST /api/workspaces/:workspaceId/messages
-    // Request Body: {
-    //   content: string,
-    //   userId: string,
-    //   userName: string,
-    //   timestamp: string        // ISO format
-    // }
-    // Response: {
-    //   success: boolean,
-    //   message: {
-    //     id: string,
-    //     userId: string,
-    //     userName: string,
-    //     content: string,
-    //     timestamp: string,
-    //     edited: boolean
-    //   }
-    // }
-    // 
-    // Real-time Features (WebSocket/Socket.io):
-    // - Broadcast new messages to all workspace members
-    // - Show typing indicators
-    // - Display online/offline status
-    // - Deliver read receipts
-    // - Send push notifications for mentions
-    // 
-    // Backend Implementation:
-    // - Use WebSocket for real-time messaging
-    // - Store messages in database with indexing
-    // - Implement message pagination/infinite scroll
-    // - Add file upload support
-    // - Support reactions and threads
-    // 
-    // TODO: Replace localStorage with WebSocket + API call
-    // ============================================================================
 
     (async () => {
       try {
@@ -336,22 +295,10 @@ export default function WorkspaceChat({ workspace, currentUser }: WorkspaceChatP
 
   return (
     <div className="h-full flex flex-col bg-white">
-      {/* Chat Header */}
-      <div className="border-b border-gray-200 px-6 py-4 bg-gray-50">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-gray-900">Team Chat</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              {workspace.members.length} member{workspace.members.length !== 1 ? 's' : ''} • Be respectful and collaborative
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* Messages Container */}
       <div 
         ref={chatContainerRef}
-        className="flex-1 overflow-y-auto px-6 py-4 space-y-4"
+        className="flex-1 overflow-y-auto px-4 py-4 space-y-4"
       >
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full text-gray-500">
@@ -390,8 +337,8 @@ export default function WorkspaceChat({ workspace, currentUser }: WorkspaceChatP
                     ) : null}
                     <AvatarFallback className={`${
                       isOwn 
-                        ? 'bg-gradient-to-br from-purple-500 to-blue-500' 
-                        : 'bg-gradient-to-br from-gray-400 to-gray-600'
+                        ? 'bg-blue-400 to-blue-600' 
+                        : 'bg-gray-400 to-gray-600'
                     } text-white`}>
                       {getInitials(message.userName)}
                     </AvatarFallback>
@@ -446,7 +393,7 @@ export default function WorkspaceChat({ workspace, currentUser }: WorkspaceChatP
                       <div
                         className={`rounded-lg px-4 py-2 ${
                           isOwn
-                            ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white'
+                            ? 'bg-blue-600 text-white'
                             : 'bg-gray-100 text-gray-900'
                         }`}
                       >
@@ -532,7 +479,7 @@ export default function WorkspaceChat({ workspace, currentUser }: WorkspaceChatP
         )}
 
         <form onSubmit={handleSendMessage} className="flex items-end gap-3">
-          <div className="flex-1 bg-white border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-purple-500 focus-within:border-transparent">
+          <div className="flex-1 bg-white border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent">
             <Input
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
@@ -584,7 +531,7 @@ export default function WorkspaceChat({ workspace, currentUser }: WorkspaceChatP
             <Button
               type="submit"
               disabled={!newMessage.trim()}
-              className="h-10 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+              
             >
               <Send className="h-4 w-4 mr-2" />
               Send

@@ -1,4 +1,14 @@
 import { useState, useEffect } from 'react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+} from './ui/dropdown-menu';
 import { 
   Plus, 
   Settings, 
@@ -25,7 +35,8 @@ import {
   UserPlus,
   X,
   Check,
-  Sparkles
+  Sparkles,
+  LayoutDashboard
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -35,7 +46,6 @@ import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Alert, AlertDescription } from './ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { toast } from 'sonner';
@@ -47,6 +57,7 @@ import CalendarView from './CalendarView';
 import AutoGenerateTimetable from './AutoGenerateTimetable';
 import JoinWorkspaceDialog from './JoinWorkspaceDialog';
 import { apiJsonAuthed, ApiError } from '../lib/api';
+import CollaborationBoard from './CollaborationBoard';
 
 interface Member {
   id: string;
@@ -93,6 +104,7 @@ interface Workspace {
   description: string;
   createdAt: string;
   members: Member[];
+  parentId?: string | null;
   avatar?: string;
   sharedSchedules?: SharedSchedule[];
   teamProgress?: TeamProgress[];
@@ -150,12 +162,19 @@ export default function Workspace({ onNavigate }: WorkspaceProps) {
     email: '',
     role: 'member' as Member['role']
   });
+  const [createSubworkspaceParentId, setCreateSubworkspaceParentId] = useState<string | null>(null);
+  const [subworkspacesByParent, setSubworkspacesByParent] = useState<Record<string, Workspace[]>>({});
+  const [loadingSubsFor, setLoadingSubsFor] = useState<Record<string, boolean>>({});
   const [workspaceName, setWorkspaceName] = useState('');
   const [workspaceDescription, setWorkspaceDescription] = useState('');
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [newWorkspaceDescription, setNewWorkspaceDescription] = useState('');
   const [emailValidationError, setEmailValidationError] = useState<string>('');
-
+  const [subworkspaces, setSubworkspaces] = useState<Workspace[]>([]);
+  const [isCreateSubworkspaceOpen, setIsCreateSubworkspaceOpen] = useState(false);
+  const [newSubworkspaceName, setNewSubworkspaceName] = useState('');
+  const [newSubworkspaceDescription, setNewSubworkspaceDescription] = useState('');
+  const [isLoadingSubworkspaces, setIsLoadingSubworkspaces] = useState(false);
   // Allow other pages (eg, My Timetable import) to deep-link to a specific workspace tab.
   useEffect(() => {
     try {
@@ -223,6 +242,76 @@ export default function Workspace({ onNavigate }: WorkspaceProps) {
     const migratedRole = migrateRole(role);
     return roleConfig[migratedRole] || roleConfig.member;
   };
+  const isSubworkspace = !!workspace?.parentId;
+
+  const getParentWorkspace = (): Workspace | null => {
+    if (!workspace) return null;
+
+    const parentId = workspace.parentId ? String(workspace.parentId) : null;
+    if (!parentId) return null;
+
+    return workspaces.find((w) => String(w.id) === parentId) || null;
+  };
+
+  const isEmailInParentWorkspace = (email: string): boolean => {
+    const parent = getParentWorkspace();
+    if (!parent) return true; // if no parent, allow (normal workspace)
+    return parent.members.some((m) => (m.email || '').toLowerCase() === email.toLowerCase());
+  };
+
+  const ensureSubworkspacesLoaded = async (parentId: string) => {
+    // already loaded (cached)
+    if (subworkspacesByParent[parentId]) return;
+
+    try {
+      setLoadingSubsFor(prev => ({ ...prev, [parentId]: true }));
+
+      const children = await apiJsonAuthed<any[]>(
+        `/workspaces/${encodeURIComponent(parentId)}/subworkspaces`,
+        'GET'
+      );
+
+      const mapped: Workspace[] = await Promise.all(
+        (children || []).map(async (w: any) => {
+          const wid = String(w.id);
+
+          let members: Member[] = [];
+          try {
+            const mJson = await apiJsonAuthed<any[]>(`/workspaces/${wid}/members`, 'GET');
+            if (Array.isArray(mJson)) {
+              members = mJson.map((m: any) => ({
+                id: String(m.user_id || m.id),
+                name: m.name || m.username || m.email || 'Member',
+                email: m.email || '',
+                role: migrateRole(m.role || 'member'),
+                joinedAt: m.joined_at || new Date().toISOString(),
+                inviteStatus: 'accepted',
+              }));
+            }
+          } catch {}
+
+          if (!members.some(m => m.id === currentUser.id)) {
+            members = [...members, currentUser];
+          }
+
+          return {
+            id: wid,
+            name: w.name,
+            description: w.description || '',
+            createdAt: w.created_at || new Date().toISOString(),
+            members,
+            pendingRequests: [],
+          } as Workspace;
+        })
+      );
+
+      setSubworkspacesByParent(prev => ({ ...prev, [parentId]: mapped }));
+    } catch (e) {
+      setSubworkspacesByParent(prev => ({ ...prev, [parentId]: [] }));
+    } finally {
+      setLoadingSubsFor(prev => ({ ...prev, [parentId]: false }));
+    }
+  };
 
   const loadWorkspaces = async () => {
     const userId = currentUser.id;
@@ -279,6 +368,7 @@ export default function Workspace({ onNavigate }: WorkspaceProps) {
             description: w.description || '',
             createdAt: (w.created_at || new Date().toISOString()),
             members,
+            parentId: w.parent_id ?? w.parent_workspace_id ?? null,
             pendingRequests: [],
           } as Workspace;
         })
@@ -307,6 +397,111 @@ export default function Workspace({ onNavigate }: WorkspaceProps) {
     );
     setWorkspaces(updatedWorkspaces);
     setWorkspace(updatedWorkspace);
+  };
+useEffect(() => {
+  if (!workspace?.id) return;
+
+  const parentId = workspace.parentId ? String(workspace.parentId) : String(workspace.id);
+  loadSubworkspaces(parentId);
+}, [workspace?.id, workspace?.parentId]);
+
+const handleCreateSubworkspace = async () => {
+  const parentId = createSubworkspaceParentId || workspace?.id;
+  if (!parentId) return;
+
+  if (!newSubworkspaceName.trim()) {
+    toast.error('Please enter a subworkspace name');
+    return;
+  }
+
+  try {
+    const created = await apiJsonAuthed<any>(
+      `/workspaces/${encodeURIComponent(String(parentId))}/subworkspaces`,
+      'POST',
+      {
+        name: newSubworkspaceName.trim(),
+        description: newSubworkspaceDescription.trim(),
+      }
+    );
+
+    toast.success('Subworkspace created');
+    setIsCreateSubworkspaceOpen(false);
+    setNewSubworkspaceName('');
+    setNewSubworkspaceDescription('');
+    setCreateSubworkspaceParentId(null);
+
+    // ✅ refresh that parent’s cache so it appears immediately in the submenu
+    setSubworkspacesByParent((prev) => {
+      const copy = { ...prev };
+      delete copy[String(parentId)];
+      return copy;
+    });
+    await ensureSubworkspacesLoaded(String(parentId));
+
+    // optional: update workspaces list + auto switch
+    await loadWorkspaces();
+    const newId = String(created?.id);
+    if (newId) handleSwitchWorkspace(newId);
+  } catch (e: any) {
+    console.error('Create subworkspace failed:', e);
+    toast.error(e?.message || 'Failed to create subworkspace');
+  }
+};
+
+
+  const loadSubworkspaces = async (parentWorkspaceId: string) => {
+  try {
+    setIsLoadingSubworkspaces(true);
+
+    const children = await apiJsonAuthed<any[]>(
+      `/workspaces/${encodeURIComponent(parentWorkspaceId)}/subworkspaces`,
+      'GET'
+    );
+
+    const mapped: Workspace[] = await Promise.all(
+      (children || []).map(async (w: any) => {
+        const wid = String(w.id);
+
+        // fetch members for subworkspace too (so it behaves same)
+        let members: Member[] = [];
+        try {
+          const mJson = await apiJsonAuthed<any[]>(`/workspaces/${wid}/members`, 'GET');
+          if (Array.isArray(mJson)) {
+            members = mJson.map((m: any) => ({
+              id: String(m.user_id || m.id),
+              name: m.name || m.username || m.email || 'Member',
+              email: m.email || '',
+              role: migrateRole(m.role || 'member'),
+              joinedAt: m.joined_at || new Date().toISOString(),
+              inviteStatus: 'accepted',
+            }));
+          }
+        } catch {}
+
+        // ensure current user exists (UI safety)
+        if (!members.some(m => m.id === currentUser.id)) {
+          members = [...members, currentUser];
+        }
+
+        return {
+          id: wid,
+          name: w.name,
+          description: w.description || '',
+          createdAt: (w.created_at || new Date().toISOString()),
+          members,
+          pendingRequests: [],
+        } as Workspace;
+      })
+    );
+
+    setSubworkspaces(mapped);
+  } catch (e: any) {
+    // Don’t toast error aggressively (UX). Only log.
+    console.warn('[Workspace] loadSubworkspaces failed:', e?.message || e);
+    setSubworkspaces([]);
+  } finally {
+    setIsLoadingSubworkspaces(false);
+  }
   };
 
   const handleCreateWorkspace = async () => {
@@ -337,11 +532,11 @@ export default function Workspace({ onNavigate }: WorkspaceProps) {
   const handleSwitchWorkspace = (workspaceId: string) => {
     setCurrentWorkspaceId(workspaceId);
     localStorage.setItem('currentWorkspaceId', workspaceId);
-    const switchedWorkspace = workspaces.find(w => w.id === workspaceId);
-    if (switchedWorkspace) {
-      toast.success(`Switched to "${switchedWorkspace.name}"`);
-    }
+
+    const switched = workspaces.find(w => w.id === workspaceId);
+    if (switched) toast.success(`Switched to "${switched.name}"`);
   };
+
 
   const handleAddMember = () => {
     if (!workspace) return;
@@ -378,9 +573,23 @@ export default function Workspace({ onNavigate }: WorkspaceProps) {
         toast.error('Maximum 2 admins allowed per workspace');
         return;
       }
+        }
+    // ✅ Subworkspace rule: must already be in parent workspace
+    if (workspace.parentId) {
+      const parent = getParentWorkspace();
+      if (!parent) {
+        toast.error('Parent workspace not found. Please refresh and try again.');
+        return;
+      }
+
+      const inParent = isEmailInParentWorkspace(newMember.email.trim());
+      if (!inParent) {
+        toast.error(
+          `This user must be added to the parent workspace (“${parent.name}”) before they can be added to this subworkspace.`
+        );
+        return;
+      }
     }
-
-
     (async () => {
       try {
         const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -875,6 +1084,7 @@ export default function Workspace({ onNavigate }: WorkspaceProps) {
   };
 
   const shouldHideChrome = selectedTab === 'timetable' && workspaceChromeCollapsed;
+  const parentWorkspaces = workspaces.filter((w) => !w.parentId);
 
   return (
     <div className="h-full flex flex-col bg-gray-50">
@@ -905,31 +1115,101 @@ export default function Workspace({ onNavigate }: WorkspaceProps) {
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Switch Workspace</p>
                   <p className="text-xs text-gray-400 mt-0.5">Select or create a workspace</p>
                 </div>
-                {workspaces.map((ws) => (
-                  <DropdownMenuItem
-                    key={ws.id}
-                    onClick={() => handleSwitchWorkspace(ws.id)}
-                    className={`m-1 rounded-md ${currentWorkspaceId === ws.id ? 'bg-blue-50 border border-blue-200' : 'border border-transparent'}`}
-                  >
-                    <div className="flex items-center gap-3 flex-1 py-1">
-                      <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
-                        {ws.avatar ? (
-                          <img src={ws.avatar} alt={ws.name} className="w-full h-full object-cover rounded-lg" />
+                {parentWorkspaces.map((ws) => {
+                  const isCurrent = currentWorkspaceId === ws.id;
+                  const kids = subworkspacesByParent[ws.id] || [];
+                  const isLoadingKids = !!loadingSubsFor[ws.id];
+
+                  return (
+                    <DropdownMenuSub key={ws.id}>
+                      {/* Parent row */}
+                      <DropdownMenuSubTrigger
+                        onPointerEnter={() => ensureSubworkspacesLoaded(ws.id)} // hover loads kids
+                        className={`m-1 rounded-md ${
+                          isCurrent ? 'bg-blue-50 border border-blue-200' : 'border border-transparent'
+                        }`}
+                        onClick={() => handleSwitchWorkspace(ws.id)}
+                      >
+                        <div className="flex items-center gap-3 flex-1 py-1">
+                          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
+                            {ws.avatar ? (
+                              <img src={ws.avatar} alt={ws.name} className="w-full h-full object-cover rounded-lg" />
+                            ) : (
+                              <Users className="h-5 w-5 text-white" />
+                            )}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate text-gray-900">{ws.name}</p>
+                            <p className="text-xs text-gray-500 truncate">
+                              {ws.members.length} {ws.members.length === 1 ? 'member' : 'members'}
+                            </p>
+                          </div>
+
+                          {isCurrent && <CheckCircle2 className="h-5 w-5 text-blue-600 flex-shrink-0" />}
+                        </div>
+                      </DropdownMenuSubTrigger>
+
+                      {/* Submenu (children drop from THIS parent) */}
+                      <DropdownMenuSubContent className="w-72">
+                        <DropdownMenuItem onClick={() => handleSwitchWorkspace(ws.id)}>
+                          Open {ws.name}
+                        </DropdownMenuItem>
+
+                        <DropdownMenuSeparator />
+                          <div className="px-3 py-2 border-b">
+                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Subworkspaces</p>
+                            <p className="text-xs text-gray-400 mt-0.5">Under “{ws.name}”</p>
+                          </div>
+                        {isLoadingKids ? (
+                          <div className="px-3 py-2 text-sm text-gray-500">Loading subworkspaces…</div>
+                        ) : kids.length === 0 ? (
+                          <div className="px-3 py-2 text-sm text-gray-500">No subworkspaces</div>
                         ) : (
-                          <Users className="h-5 w-5 text-white" />
+                          kids.map((sw) => (
+                            <DropdownMenuItem key={sw.id} onClick={() => handleSwitchWorkspace(sw.id)}>
+                              <div className="flex items-center gap-3 flex-1 py-1">
+                                <div className="w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
+                                  <Building2 className="h-5 w-5 text-white" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate text-gray-900">{sw.name}</p>
+                                  <p className="text-xs text-gray-500 truncate">
+                                    {sw.members.length} {sw.members.length === 1 ? 'member' : 'members'}
+                                  </p>
+                                </div>
+                                {currentWorkspaceId === sw.id && (
+                                  <CheckCircle2 className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                                )}
+                              </div>
+                            </DropdownMenuItem>
+                          ))
                         )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate text-gray-900">{ws.name}</p>
-                        <p className="text-xs text-gray-500 truncate">{ws.members.length} {ws.members.length === 1 ? 'member' : 'members'}</p>
-                      </div>
-                      {currentWorkspaceId === ws.id && (
-                        <CheckCircle2 className="h-5 w-5 text-blue-600 flex-shrink-0" />
-                      )}
-                    </div>
-                  </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
+
+                        {isAdmin && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => {
+                                // make sure "create subworkspace" is tied to THIS parent
+                                    setCreateSubworkspaceParentId(ws.id);  // ✅ choose parent
+                                    setNewSubworkspaceName('');           // ✅ reset form
+                                    setNewSubworkspaceDescription('');
+                                    setIsCreateSubworkspaceOpen(true);
+                              }}
+                              className="bg-gray-50 hover:bg-gray-100"
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Create Subworkspace
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                  );
+                })}
+
+
                 <DropdownMenuItem 
                   onClick={() => setIsCreateWorkspaceOpen(true)}
                   className="m-1 rounded-md bg-blue-50 hover:bg-blue-100 border border-blue-200"
@@ -1079,6 +1359,13 @@ export default function Workspace({ onNavigate }: WorkspaceProps) {
               >
                 
                 Progress
+              </TabsTrigger>
+              <TabsTrigger
+              value="board" 
+              className="gap-2 bg-transparent border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 data-[state=active]:bg-blue-50 dark:data-[state=active]:bg-blue-950/30 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:border-blue-300 dark:data-[state=active]:border-blue-700 transition-colors px-4 py-2 rounded-lg"
+              >
+              <LayoutDashboard className="h-4 w-4" />
+              Board
               </TabsTrigger>
               <TabsTrigger 
                 value="chat" 
@@ -1351,13 +1638,74 @@ export default function Workspace({ onNavigate }: WorkspaceProps) {
               </div>
             </TabsContent>
 
+            <TabsContent value="board" className="h-full mt-0">
+              <CollaborationBoard workspace={workspace} currentUser={currentUser}/>
+            </TabsContent>
+
             <TabsContent value="chat" className="h-full mt-0">
               <WorkspaceChat workspace={workspace} currentUser={currentUser} />
             </TabsContent>
           </div>
         </Tabs>
       </div>
+        {/* Create Subworkspace Dialog */}
+          <Dialog
+            open={isCreateSubworkspaceOpen}
+            onOpenChange={(open) => {
+              setIsCreateSubworkspaceOpen(open);
+              if (!open) {
+                setCreateSubworkspaceParentId(null);
+                setNewSubworkspaceName('');
+                setNewSubworkspaceDescription('');
+              }
+            }}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create Subworkspace</DialogTitle>
+                <DialogDescription>
+                  This will be created under{" "}
+                  <strong>
+                    {workspaces.find(w => w.id === createSubworkspaceParentId)?.name || 'selected workspace'}
+                  </strong>
+                </DialogDescription>
+              </DialogHeader>
 
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>Subworkspace Name *</Label>
+                  <Input
+                    value={newSubworkspaceName}
+                    onChange={(e) => setNewSubworkspaceName(e.target.value)}
+                    placeholder="e.g. Algebra Group"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Description</Label>
+                  <Input
+                    value={newSubworkspaceDescription}
+                    onChange={(e) => setNewSubworkspaceDescription(e.target.value)}
+                    placeholder="Optional"
+                  />
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsCreateSubworkspaceOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleCreateSubworkspace}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+                
       {/* Add Member Dialog */}
       <Dialog open={isAddMemberOpen} onOpenChange={(open) => {
         setIsAddMemberOpen(open);

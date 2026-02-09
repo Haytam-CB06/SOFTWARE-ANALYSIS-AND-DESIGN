@@ -1007,15 +1007,15 @@ useEffect(() => {
                     <Card data-tour="dashboard-today-panel" className="border-0 shadow-lg bg-blue-600 text-white">
                       <CardHeader className="cursor-pointer" onClick={() => setTodayExpanded(!todayExpanded)}>
                         <CardTitle className="flex items-center justify-between">
-                          <span className="flex items-center gap-2">
+                          <span className="flex items-center gap-3">
                             <Clock className="h-5 w-5" />
                             Today's Schedule & Progress
                           </span>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-3">
                             <Badge className="bg-white/20 text-white border-white/30">
                               {todaySessions.length} sessions
                             </Badge>
-                            {todayExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                            {todayExpanded ? <ChevronDown className="h-7 w-7" /> : <ChevronRight className="h-9 w-9" />}
                           </div>
                         </CardTitle>
                       </CardHeader>
@@ -1184,7 +1184,7 @@ useEffect(() => {
                               </div>
                               <div className="mt-3">
                                 <Progress value={weeklyGoalProgressPct} />
-                                <div className="mt-2 flex items-center justify-between text-xs text-gray-600">
+                                <div className="mt-2 flex items-center justify-between text-xs text-blue-600">
                                   <span>{weeklyTargetHours > 0 ? `${weeklyGoalProgressPct}%` : 'Set a weekly goal in Goals & Achievements'}</span>
                                   <Button
                                     size="sm"
@@ -1261,7 +1261,7 @@ useEffect(() => {
                     <Card className="border-0 shadow-lg">
                       <CardHeader className="cursor-pointer" onClick={() => setDeadlinesExpanded(!deadlinesExpanded)}>
                         <CardTitle className="flex items-center justify-between">
-                          <span className="flex items-center gap-2 text-gray-900">
+                          <span className="flex items-center gap-1 text-gray-900">
                             <AlertCircle className="h-5 w-5 text-red-600" />
                             Deadlines
                           </span>
