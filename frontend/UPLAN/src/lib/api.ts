@@ -1,7 +1,7 @@
 // src/lib/api.ts
 export const API_BASE_URL: string =
   (import.meta as any).env?.VITE_API_BASE_URL ||
-  'http://localhost:8000';
+  'https://uplan-backend-40b5.onrender.com/';
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 

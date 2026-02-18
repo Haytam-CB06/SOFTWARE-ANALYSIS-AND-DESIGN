@@ -24,7 +24,7 @@ const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL as string | und
 function baseUrl(): string {
   if (!API_BASE_URL) {
     throw new Error(
-      'VITE_API_BASE_URL is not set. Add it to your .env (e.g., VITE_API_BASE_URL=http://localhost:8000).'
+      'VITE_API_BASE_URL is not set. Add it to your .env (e.g., VITE_API_BASE_URL=https://uplan-backend-40b5.onrender.com/).'
     );
   }
   return API_BASE_URL.replace(/\/$/, '');
