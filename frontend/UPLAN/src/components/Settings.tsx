@@ -314,7 +314,7 @@ export default function Settings({ userName, onUpdateName, darkMode, onToggleDar
     }
 
     try {
-      const res = await fetch('http://localhost:8000/change-password', {
+      const res = await fetch('https://uplan-backend-40b5.onrender.com/change-password', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

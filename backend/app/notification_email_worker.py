@@ -56,7 +56,7 @@ def _frontend_base_url() -> str:
     return (
         os.getenv("FRONTEND_BASE_URL")
         or os.getenv("FRONTEND_ORIGIN")
-        or "http://localhost:5173"
+        or "https://uplan-frontend-bccb.onrender.com/?page=auth"
     ).rstrip("/")
 
 

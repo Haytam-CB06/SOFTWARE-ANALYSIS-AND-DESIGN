@@ -1,3 +1,21 @@
+fastapi>=0.110
+uvicorn[standard]>=0.27
+sqlalchemy>=2.0
+pydantic>=2.0
+python-dotenv>=1.0
+passlib[bcrypt]>=1.7
+email-validator>=2.0
+python-multipart>=0.0.9
+pillow>=10.0
+pytesseract>=0.3.10
+fastapi-mcp>=0.1.0
+
+# Google OAuth / Calendar (used in app/main.py)
+google-auth-oauthlib>=1.2.0
+google-api-python-client>=2.120.0
+# Background jobs (CP-15)
+celery>=5.3
+redis>=5.0
 alembic==1.17.1
 annotated-types==0.7.0
 anyio==4.11.0
@@ -53,20 +71,3 @@ urllib3==2.5.0
 uvicorn==0.37.0
 watchfiles==1.1.1
 websockets==15.0.1
-fastapi>=0.110
-uvicorn[standard]>=0.27
-sqlalchemy>=2.0
-pydantic>=2.0
-python-dotenv>=1.0
-passlib[bcrypt]>=1.7
-email-validator>=2.0
-python-multipart>=0.0.9
-pillow>=10.0
-pytesseract>=0.3.10
-fastapi-mcp>=0.1.0
-
-# Google OAuth / Calendar (used in app/main.py)
-google-auth-oauthlib>=1.2.0
-google-api-python-client>=2.120.0
-authlib 
-httpx

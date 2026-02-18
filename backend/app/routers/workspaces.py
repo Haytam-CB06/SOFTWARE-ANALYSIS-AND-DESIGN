@@ -369,7 +369,7 @@ def send_workspace_invite_email(email: str, workspace_id: int):
         server.login(sender, password)
         server.send_message(msg)
 
-frontend = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
+frontend = os.getenv("FRONTEND_ORIGIN", "https://uplan-frontend-bccb.onrender.com/?page=auth")
 
 @router.get("/join")
 def join_workspace(
