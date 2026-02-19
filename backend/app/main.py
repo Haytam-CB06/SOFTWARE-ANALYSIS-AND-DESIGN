@@ -107,9 +107,9 @@ from fastapi.middleware.cors import CORSMiddleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=list({
-        os.getenv("FRONTEND_ORIGIN", "https://uplan-frontend-bccb.onrender.com/?page=auth"),
-        "https://uplan-frontend-bccb.onrender.com/?page=auth",
-        "https://uplan-frontend-bccb.onrender.com/?page=auth",  # Vite default
+        os.getenv("FRONTEND_ORIGIN", "https://uplan-frontend-bccb.onrender.com"),
+        "https://uplan-frontend-bccb.onrender.com",
+        "https://uplan-frontend-bccb.onrender.com",  # Vite default
     }),
     allow_credentials=True,
     allow_methods=["*"],
@@ -413,7 +413,7 @@ async def google_callback(
 
     # Redirect back to the frontend and pass minimal info via query params.
     # Frontend will store currentUserId/currentUserEmail/currentUserName in localStorage.
-    frontend = os.getenv("FRONTEND_ORIGIN", "https://uplan-frontend-bccb.onrender.com/?page=auth")
+    frontend = os.getenv("FRONTEND_ORIGIN", "https://uplan-frontend-bccb.onrender.com")
     q_email = urllib.parse.quote(user.email or "")
     q_name = urllib.parse.quote(user.full_name or "")
     q_uid = str(user.id)
@@ -482,7 +482,7 @@ def oauth_callback(request: Request, db: Session = Depends(get_db)):
         request.session.pop("google_oauth_user_id", None)
 
         # Send the user back to the frontend (same tab)
-        frontend = os.getenv("FRONTEND_ORIGIN", "https://uplan-frontend-bccb.onrender.com/?page=auth")
+        frontend = os.getenv("FRONTEND_ORIGIN", "https://uplan-frontend-bccb.onrender.com")
         # Return user to the timetable page so they can click Export again.
         return RedirectResponse(f"{frontend}/?page=my-timetable&google=linked")
     except HTTPException:
