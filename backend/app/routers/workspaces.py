@@ -347,7 +347,7 @@ def send_workspace_invite_email(email: str, workspace_id: int):
         )
 
     token = generate_invite_token(workspace_id, email)
-    invite_url = f"{os.getenv('FRONTEND_ORIGIN', 'http://localhost:3000')}/workspaces/{workspace_id}/join?token={token}"
+    invite_url = f"{os.getenv('FRONTEND_ORIGIN', 'https://uplan-frontend-bccb.onrender.com')}/workspaces/{workspace_id}/join?token={token}"
 
     body = (
         "Hello,\n\n"

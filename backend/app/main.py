@@ -183,7 +183,7 @@ SCOPES: List[str] = [s for s in (
     x.strip() for x in _scopes_raw.replace(",", " ").split()) if s]
 
 REDIRECT_URI = os.getenv("OAUTH_REDIRECT_URI",
-                         "http://localhost:8000/auth/callback")
+                         "https://uplan-backend-gr4k.onrender.com/auth/callback")
 
 CLIENT_SECRETS_FILE = resolve_existing_path(
     os.getenv("GOOGLE_CLIENT_SECRETS_FILE"),
@@ -376,7 +376,7 @@ for key in ["DATABASE_URL", "GOOGLE_CLIENT", "GOOGLE_SECRET"]:
 
 @oauth_router.get("/login")
 async def google_login(request: Request):
-    redirect_uri = f"{os.getenv('BACKEND_BASE_URL', 'http://localhost:8000')}/callback"
+    redirect_uri = f"{os.getenv('BACKEND_BASE_URL', 'https://uplan-backend-gr4k.onrender.com')}/callback"
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 @oauth_router.get("/callback")
@@ -428,7 +428,7 @@ def oauth_start(request: Request, user_id: str):
     """Start Google OAuth for Calendar access.
 
     We **must** use the redirect URI already whitelisted in client_secret.json
-    (http://localhost:8000/auth/callback), so this endpoint simply starts the
+    (https://uplan-backend-gr4k.onrender.com/auth/callback), so this endpoint simply starts the
     flow and stores the `user_id` in the session.
     """
     flow = get_flow()
