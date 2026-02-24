@@ -7,7 +7,7 @@ import {
   ProgressTrackingScreenshot, 
   ExamIntegrationScreenshot 
 } from '../../components/ServiceScreenshots';
-
+  
 interface HomePageProps {
   onNavigate: (page: string) => void;
 }
@@ -343,7 +343,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
               className="bg-blue-600 hover:bg-blue-700"
               onClick={() => onNavigate('auth')}
             >
-              Get Started Today
+              Start now
             </Button>
           </div>
         </div>
