@@ -20,6 +20,7 @@ import { GoogleSuccess } from './src/pages/GoogleSuccess';
 import { apiJsonAuthed } from './lib/api';
 import { setupFormDraftPersistence } from './utils/persistFormDrafts';
 import { getUserItem, setUserItem } from './utils/userStorage';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 export default function App() {
   const onboardingTotalSteps = TOUR_STEPS.length + 1; // +1 for Welcome screen
@@ -28,7 +29,14 @@ export default function App() {
     registerServiceWorker();
     handleInstallPrompt();
   }, []);
-
+  // ============Remove this effect in checkpoint-01, it's just to wake the backend during development so we don't have to wait on cold starts.===========
+  useEffect(() => {
+    // wake backend silently when frontend loads
+    fetch(`${API_BASE_URL}/health`)
+      .then(() => console.log("Backend awake"))
+      .catch(() => console.log("Backend waking..."));
+  }, []);
+  // ========================================================================================================================================
   // Custom hooks for state management
   const { isAuthenticated, authReady, user, login, logout, updateUserName } = useAuth();
 
