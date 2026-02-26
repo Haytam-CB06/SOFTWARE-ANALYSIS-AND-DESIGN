@@ -904,7 +904,7 @@ def is_code_expired(created_at: datetime, minutes: int = 10):
 
 SMTP_HOST = (os.getenv("SMTP_HOST") or "smtp.gmail.com").strip()
 SMTP_PORT_RAW = (os.getenv("SMTP_PORT") or "587").strip()
-SMTP_EMAIL = (os.getenv("SMTP_EMAIL") or "").strip() or None
+SMTP_EMAIL = (os.getenv("SMTP_EMAIL") or "haytamcharafi@gmail.com").strip() 
 SMTP_PASSWORD = "samkwlrniyfshrhu"
 
 

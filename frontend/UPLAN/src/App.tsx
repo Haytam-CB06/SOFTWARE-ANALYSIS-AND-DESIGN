@@ -22,19 +22,35 @@ import { setupFormDraftPersistence } from './utils/persistFormDrafts';
 import { getUserItem, setUserItem } from './utils/userStorage';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+async function warmBackend(retries = 8) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await fetch(`${API_BASE_URL}/health`, { cache: "no-store" });
+      const ct = res.headers.get("content-type") || "";
+      if (ct.includes("application/json")) return true;
+    } catch {}
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+  return false;
+}
 export default function App() {
+  const [backendReady, setBackendReady] = useState(false);
   const onboardingTotalSteps = TOUR_STEPS.length + 1; // +1 for Welcome screen
   // Register service worker for PWA support
   useEffect(() => {
     registerServiceWorker();
     handleInstallPrompt();
   }, []);
+  
   // ============Remove this effect in checkpoint-01, it's just to wake the backend during development so we don't have to wait on cold starts.===========
+  
   useEffect(() => {
-    // wake backend silently when frontend loads
-    fetch(`${API_BASE_URL}/health`)
-      .then(() => console.log("Backend awake"))
-      .catch(() => console.log("Backend waking..."));
+    let cancelled = false;
+    (async () => {
+      const ok = await warmBackend();
+      if (!cancelled) setBackendReady(ok);
+    })();
+    return () => { cancelled = true; };
   }, []);
   // ========================================================================================================================================
   // Custom hooks for state management
