@@ -1,7 +1,7 @@
 // src/lib/api.ts
 export const API_BASE_URL: string =
   (import.meta as any).env?.VITE_API_BASE_URL ||
-  'https://uplan-backend-gr4k.onrender.com';
+  'https://software-analysis-and-design.onrender.com';
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 

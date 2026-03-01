@@ -380,7 +380,7 @@ for key in ["DATABASE_URL", "GOOGLE_CLIENT", "GOOGLE_SECRET"]:
 
 @oauth_router.get("/login")
 async def google_login(request: Request):
-    redirect_uri = f"{os.getenv('BACKEND_BASE_URL', 'https://uplan-backend-gr4k.onrender.com')}/callback"
+    redirect_uri = f"{os.getenv('BACKEND_BASE_URL', 'https://software-analysis-and-design.onrender.com')}/callback"
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 @oauth_router.get("/callback")
