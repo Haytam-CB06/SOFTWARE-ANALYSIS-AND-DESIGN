@@ -109,12 +109,11 @@ from fastapi.middleware.cors import CORSMiddleware
 origins=["https://uplan-frontend-bccb.onrender.com","http://localhost:3000"],
 app.add_middleware(
     CORSMiddleware,
-    #allow_origins=list({
-      #  os.getenv("FRONTEND_ORIGIN", "https://uplan-frontend-bccb.onrender.com"),
-       # "https://uplan-frontend-bccb.onrender.com",
-        #"https://uplan-frontend-bccb.onrender.com",  # Vite default
-   # }),
-    allow_origins=["https://uplan-frontend-bccb.onrender.com","http://localhost:3000"],
+    allow_origins=list({
+        os.getenv("FRONTEND_ORIGIN", "https://uplan-frontend-bccb.onrender.com"),
+        "https://uplan-frontend-bccb.onrender.com",
+        "https://uplan-frontend-bccb.onrender.com",  # Vite default
+   }),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
