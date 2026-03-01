@@ -212,7 +212,7 @@ def upload_profile_picture(
     target = UPLOAD_DIR / f"{user_id}.{ext}"
 
     # Limit to ~5MB to match frontend restriction
-    max_bytes = 5 * 1024 * 1024
+    max_bytes = 5 * 1024 * 1024 * 1024
     written = 0
     with target.open("wb") as out:
         while True:

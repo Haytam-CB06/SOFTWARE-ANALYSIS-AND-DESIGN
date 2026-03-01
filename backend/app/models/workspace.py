@@ -25,7 +25,8 @@ class Workspace(Base):
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
+    share_link_enabled = Column(Boolean, default=False, nullable=False)
+    share_link_version = Column(Integer, default=1, nullable=False)
     # ✅ relationships (optional but very useful)
     parent = relationship("Workspace", remote_side=[id], backref="subworkspaces")
 
@@ -86,3 +87,52 @@ class WorkspaceMember(Base):
         back_populates="member",
         cascade="all, delete-orphan"
     )
+
+# -------------------------------------------------------
+# ADD THIS to your app/models/workspace.py
+# (or import it from here in your models __init__)
+# -------------------------------------------------------
+
+import uuid
+from datetime import datetime, timezone
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum as SAEnum
+from sqlalchemy.dialects.postgresql import UUID
+
+
+class WorkspaceJoinRequest(Base):
+    __tablename__ = "workspace_join_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    workspace_id = Column(Integer, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    message = Column(Text, nullable=True)
+    status = Column(
+        SAEnum("pending", "approved", "rejected", name="joinrequeststatus"),
+        nullable=False,
+        default="pending",
+        index=True,
+    )
+    requested_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+
+
+# -------------------------------------------------------
+# Alembic migration (run after adding the model above):
+#
+#   alembic revision --autogenerate -m "add workspace_join_requests"
+#   alembic upgrade head
+#
+# Or raw SQL if you prefer:
+#
+# CREATE TYPE joinrequeststatus AS ENUM ('pending', 'approved', 'rejected');
+#
+# CREATE TABLE workspace_join_requests (
+#     id              SERIAL PRIMARY KEY,
+#     workspace_id    INTEGER NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+#     user_id         UUID    NOT NULL REFERENCES users(id)      ON DELETE CASCADE,
+#     message         TEXT,
+#     status          joinrequeststatus NOT NULL DEFAULT 'pending',
+#     requested_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+# );
+#
+# CREATE INDEX idx_wjr_workspace_status ON workspace_join_requests (workspace_id, status);
+# -------------------------------------------------------

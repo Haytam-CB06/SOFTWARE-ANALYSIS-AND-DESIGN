@@ -175,7 +175,23 @@ export default function Workspace({ onNavigate }: WorkspaceProps) {
   const [newSubworkspaceName, setNewSubworkspaceName] = useState('');
   const [newSubworkspaceDescription, setNewSubworkspaceDescription] = useState('');
   const [isLoadingSubworkspaces, setIsLoadingSubworkspaces] = useState(false);
+
   // Allow other pages (eg, My Timetable import) to deep-link to a specific workspace tab.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token') || params.get('invite_token') || params.get('join_token');
+
+    if (token) {
+      setJoinLinkId(token);
+
+      // optional clean URL
+      params.delete('token');
+      params.delete('invite_token');
+      params.delete('join_token');
+      const next = `${window.location.pathname}?${params.toString()}`;
+      window.history.replaceState({}, '', next.endsWith('?') ? window.location.pathname : next);
+    }
+  }, []);
   useEffect(() => {
     try {
       const initialTab = localStorage.getItem('workspaceInitialTab');
@@ -223,11 +239,25 @@ export default function Workspace({ onNavigate }: WorkspaceProps) {
   }, []);
 
   useEffect(() => {
-    if (currentWorkspaceId) {
-      const current = workspaces.find(w => w.id === currentWorkspaceId);
-      setWorkspace(current || null);
-    }
+    if (!currentWorkspaceId) return;
+    const current = workspaces.find(w => w.id === currentWorkspaceId) || null;
+    setWorkspace(current);
   }, [currentWorkspaceId, workspaces]);
+
+  // Fetch pending requests ONLY when workspace id changes
+  useEffect(() => {
+    if (!currentWorkspaceId) return;
+    loadPendingRequests(currentWorkspaceId);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentWorkspaceId]);
+
+    // 2) Load pending requests ONLY when workspace changes (not when workspaces changes)
+  useEffect(() => {
+      if (!currentWorkspaceId) return;
+      loadPendingRequests(currentWorkspaceId);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentWorkspaceId]);
 
   // Migrate old roles to new roles
   const migrateRole = (role: string): Member['role'] => {
@@ -722,50 +752,71 @@ const handleCreateSubworkspace = async () => {
   };
 
 
-  const handleApproveRequest = (requestId: string) => {
-    if (!workspace) return;
+  const loadPendingRequests = async (workspaceId: string) => {
+    // Only admins should fetch pending requests
+    const ws = workspaces.find(w => w.id === workspaceId) || workspace;
+    const myRole = ws?.members.find(m => m.id === currentUser.id)?.role;
+    if (myRole !== 'admin') return;
 
-    const request = workspace.pendingRequests?.find(r => r.id === requestId);
-    if (!request) return;
+    try {
+      const requests = await apiJsonAuthed<any[]>(
+        `/workspaces/${encodeURIComponent(workspaceId)}/join-requests?status=pending`,
+        'GET'
+      );
+      if (!Array.isArray(requests)) return;
 
-    // Check if email already exists in members
-    if (workspace.members.some(m => m.email === request.email)) {
-      toast.error('A member with this email already exists in this workspace');
-      return;
+      const mapped: PendingRequest[] = requests.map((r: any) => ({
+        id: String(r.id),
+        name: r.name || r.email || 'Unknown',
+        email: r.email || '',
+        requestedAt: r.requested_at || new Date().toISOString(),
+        message: r.message || undefined,
+      }));
+
+      setWorkspaces(prev =>
+        prev.map(w =>
+          w.id === workspaceId ? { ...w, pendingRequests: mapped } : w
+        )
+      );
+    } catch {
+      // Non-admins will get 403 — silently ignore
     }
-
-    // Add as member
-    const newMember: Member = {
-      id: `member-${Date.now()}`,
-      name: request.name,
-      email: request.email,
-      role: 'member',
-      joinedAt: new Date().toISOString()
-    };
-
-    const updatedWorkspace = {
-      ...workspace,
-      members: [...workspace.members, newMember],
-      pendingRequests: workspace.pendingRequests?.filter(r => r.id !== requestId) || []
-    };
-
-    saveWorkspace(updatedWorkspace);
-    toast.success(`${request.name} has been approved and added to the workspace`);
   };
 
-  const handleRejectRequest = (requestId: string) => {
+  const handleApproveRequest = async (requestId: string) => {
     if (!workspace) return;
-
     const request = workspace.pendingRequests?.find(r => r.id === requestId);
     if (!request) return;
 
-    const updatedWorkspace = {
-      ...workspace,
-      pendingRequests: workspace.pendingRequests?.filter(r => r.id !== requestId) || []
-    };
+    try {
+      await apiJsonAuthed(
+        `/workspaces/${workspace.id}/join-requests/${requestId}/approve`,
+        'POST'
+      );
+      toast.success(`${request.name} has been approved and added to the workspace`);
+      // refresh members and pending requests
+      await loadWorkspaces();
+      await loadPendingRequests(workspace.id);
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to approve request');
+    }
+  };
 
-    saveWorkspace(updatedWorkspace);
-    toast.success(`Request from ${request.name} has been rejected`);
+  const handleRejectRequest = async (requestId: string) => {
+    if (!workspace) return;
+    const request = workspace.pendingRequests?.find(r => r.id === requestId);
+    if (!request) return;
+
+    try {
+      await apiJsonAuthed(
+        `/workspaces/${workspace.id}/join-requests/${requestId}`,
+        'DELETE'
+      );
+      toast.success(`Request from ${request.name} has been rejected`);
+      await loadPendingRequests(workspace.id);
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to reject request');
+    }
   };
 
   const handleDeleteWorkspace = async () => {
@@ -999,23 +1050,45 @@ const handleCreateSubworkspace = async () => {
     }
   };
 
-  const disableShareLink = () => {
+  const disableShareLink = async () => {
     if (!workspace) return;
-    
-    if (confirm('Are you sure you want to disable the sharing link? No one will be able to use it to join.')) {
-      const updatedWorkspace = {
-        ...workspace,
-        sharing: undefined
-      };
-      
+
+    if (!confirm('Are you sure you want to disable the sharing link? No one will be able to use it to join.')) return;
+
+    try {
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+      const currentUserId = localStorage.getItem("currentUserId");
+
+      if (!currentUserId) {
+        toast.error("User not authenticated");
+        return;
+      }
+
+      const res = await fetch(`${API_BASE_URL}/workspaces/${workspace.id}/share-link/disable`, {
+        method: "POST",
+        headers: { "X-User-Id": currentUserId },
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        toast.error(data?.detail || "Failed to disable share link");
+        return;
+      }
+
+      const updatedWorkspace = { ...workspace, sharing: undefined };
       saveWorkspace(updatedWorkspace);
-      toast.success('Sharing link disabled');
+      toast.success("Sharing link disabled (revoked)");
+
+    } catch (e) {
+      console.error("Disable share link error:", e);
+      toast.error("Failed to disable share link");
     }
   };
 
   const copyShareLink = () => {
     if (!workspace?.sharing) return;
-    const shareUrl = `${window.location.origin}/workspaces/join?token=${workspace.sharing.linkId}`;
+    const shareUrl = `${window.location.origin}/?page=workspace&join_token=${encodeURIComponent(workspace.sharing.linkId)}`;
     navigator.clipboard.writeText(shareUrl).then(() => {
       toast.success('Link copied to clipboard!');
     }).catch(() => {
@@ -1428,6 +1501,23 @@ const handleCreateSubworkspace = async () => {
                           <CardTitle>Team Members</CardTitle>
                           <CardDescription>Manage who has access to this workspace</CardDescription>
                         </div>
+                      <div className="flex items-center gap-2">
+                        {isAdmin && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsPendingRequestsOpen(true)}
+                            className="border-orange-300 text-orange-700 hover:bg-orange-50 relative"
+                          >
+                            <UserPlus className="h-4 w-4 mr-2" />
+                            Pending Requests
+                            {(workspace.pendingRequests?.length ?? 0) > 0 && (
+                              <span className="ml-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-500 text-white text-xs font-bold">
+                                {workspace.pendingRequests!.length}
+                              </span>
+                            )}
+                          </Button>
+                        )}
                         <Button 
                           onClick={() => setIsAddMemberOpen(true)}
                           className="bg-blue-600 hover:bg-blue-700"
@@ -1435,6 +1525,7 @@ const handleCreateSubworkspace = async () => {
                           <Plus className="h-4 w-4 mr-2" />
                           Add Member
                         </Button>
+                      </div>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
