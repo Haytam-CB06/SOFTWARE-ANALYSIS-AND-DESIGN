@@ -20,7 +20,7 @@ from app.routers import user_profile
 from app.routers import study_timetables
 from app.routers import auto_generate
 from app.routers import achievements
-from app.routers import goals,admin,boards,subworkspaces
+from app.routers import goals,admin,boards,subworkspaces,notifications,chat,Notebook
 from app.models.oauth import OAuthAccount
 # backend/app/main.py
 import os
@@ -61,7 +61,9 @@ load_dotenv()   # make sure DATABASE_URL is loaded
 
 app = FastAPI(title="SmartStudy API")
 
-
+@app.get("/cors-check")
+def cors_check():
+    return {"ok": True}
 @app.on_event("startup")
 def _startup():
     # Initialize SQLAlchemy engine / session factory
@@ -112,7 +114,7 @@ app.add_middleware(
        # "https://uplan-frontend-bccb.onrender.com",
         #"https://uplan-frontend-bccb.onrender.com",  # Vite default
    # }),
-    allow_origins=origins,  # allow all origins (for testing; restrict in production)
+    allow_origins=["https://uplan-frontend-bccb.onrender.com","http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
