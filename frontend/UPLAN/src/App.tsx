@@ -39,8 +39,10 @@ export default function App() {
   const onboardingTotalSteps = TOUR_STEPS.length + 1; // +1 for Welcome screen
   // Register service worker for PWA support
   useEffect(() => {
-    registerServiceWorker();
-    handleInstallPrompt();
+    if (import.meta.env.DEV) {
+      registerServiceWorker();
+      handleInstallPrompt();
+    }
   }, []);
   
   // ============Remove this effect in checkpoint-01, it's just to wake the backend during development so we don't have to wait on cold starts.===========
@@ -461,14 +463,7 @@ export default function App() {
     setPendingNavigationPage(null);
   };
 
-  // Render authenticated view
-  if (isAuthenticated && !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        Loading...
-      </div>
-    );
-  }
+  
   if (isAuthenticated ) {
     return (
       <TourProvider>
