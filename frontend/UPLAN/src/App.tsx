@@ -34,6 +34,7 @@ async function warmBackend(retries = 8) {
   return false;
 }
 export default function App() {
+  const { isAuthenticated, authReady, user, login, logout, updateUserName } = useAuth();
   const [backendReady, setBackendReady] = useState(false);
   const onboardingTotalSteps = TOUR_STEPS.length + 1; // +1 for Welcome screen
   // Register service worker for PWA support
@@ -54,7 +55,6 @@ export default function App() {
   }, []);
   // ========================================================================================================================================
   // Custom hooks for state management
-  const { isAuthenticated, authReady, user, login, logout, updateUserName } = useAuth();
 
   // Handle Google OAuth redirect back from backend (/callback -> FRONTEND_ORIGIN)
   useEffect(() => {
@@ -90,29 +90,59 @@ export default function App() {
 
   const [isGlobalAdmin, setIsGlobalAdmin] = useState(false);
 
+  // --- Handle share-link deep link: /?page=workspace&join_token=... ---
   useEffect(() => {
-    let cancelled = false;
-    if (!authReady) return;
-    if (!isAuthenticated) {
-      setIsGlobalAdmin(false);
-      return;
-    }
-    (async () => {
-      try {
-        await apiJsonAuthed(`/admin/active-count?days=1`, 'GET');
-        if (!cancelled) setIsGlobalAdmin(true);
-      } catch {
-        if (!cancelled) setIsGlobalAdmin(false);
+      const params = new URLSearchParams(window.location.search);
+      const joinToken = params.get('join_token');
+      if (!joinToken) return;
+
+      // Save for after login
+      sessionStorage.setItem('pendingJoinToken', joinToken);
+
+      // Wait until auth state is hydrated
+      if (!authReady) return;
+
+      if (!isAuthenticated) {
+        params.set('page', 'auth');
+        window.history.replaceState({}, document.title, `?${params.toString()}`);
+        setCurrentPage('auth'); 
+        return;
       }
-    })();
-    return () => { cancelled = true; };
-  }, [authReady, isAuthenticated, user?.email]);
+
+      // logged in -> go workspace, keep token so Workspace.tsx opens dialog
+      params.set('page', 'workspace');
+      window.history.replaceState({}, document.title, `?${params.toString()}`);
+      setCurrentPage('workspace'); 
+  }, [authReady, isAuthenticated]);
+
+  
+  // After login, resume pending share-link join
+  useEffect(() => {
+    if (!authReady) return;
+    if (!isAuthenticated) return;
+
+    const token = sessionStorage.getItem('pendingJoinToken');
+    if (!token) return;
+
+    const params = new URLSearchParams(window.location.search);
+    params.set('page', 'workspace');
+    params.set('join_token', token);
+
+    window.history.replaceState({}, document.title, `?${params.toString()}`);
+    setCurrentPage('workspace');
+    sessionStorage.removeItem('pendingJoinToken');
+  }, [authReady, isAuthenticated]);
 
   const getInitialPage = (): PageType => {
     try {
       const params = new URLSearchParams(window.location.search);
+
+      // ✅ support shared links like /workspaces/join?token=...
+     
+
       const p = params.get('page') as PageType | null;
       if (p) return p;
+
       const last = localStorage.getItem('lastPage') as PageType | null;
       return last || 'home';
     } catch {
@@ -432,7 +462,14 @@ export default function App() {
   };
 
   // Render authenticated view
-  if (isAuthenticated) {
+  if (isAuthenticated && !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Loading...
+      </div>
+    );
+  }
+  if (isAuthenticated ) {
     return (
       <TourProvider>
         <PomodoroProvider>

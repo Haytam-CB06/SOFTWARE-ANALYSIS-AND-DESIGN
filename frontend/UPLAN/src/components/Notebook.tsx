@@ -165,7 +165,7 @@ export default function Notebook() {
             <Search className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <Input
               className="pl-9"
-              placeholder="Search notes..."
+              placeholder="       Search notes..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />

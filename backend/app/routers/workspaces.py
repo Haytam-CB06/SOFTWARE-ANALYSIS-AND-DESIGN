@@ -30,8 +30,18 @@ from app.schemas import (
 )
 
 from pydantic import BaseModel
+from enum import Enum as PyEnum
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
+
+# -----------------------------
+# Join Request Status Enum
+# -----------------------------
+
+class JoinRequestStatus(str, PyEnum):
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
 
 # -----------------------------
 # Auth helpers (header-based)
@@ -188,7 +198,22 @@ def _guard_workspace_member(db: Session, workspace_id: int, user_id: UUID) -> st
     if not role:
         raise HTTPException(status_code=403, detail="Not a workspace member")
     return role or "member"
+@router.get("/verify-invite")
+def verify_invite(token: str, db: Session = Depends(get_db)):
+    try:
+        payload = verify_invite_token(token)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid or expired invite link")
 
+    workspace_id = payload.get("workspace_id")
+    if not workspace_id:
+        raise HTTPException(status_code=400, detail="Invalid invite payload")
+
+    ws = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+    if not ws:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    return {"id": ws.id, "name": ws.name, "description": ws.description}
 @router.get("/{workspace_id}/sessions", response_model=List[CalendarSessionOut])
 def get_workspace_calendar_sessions(
     workspace_id: int,
@@ -325,8 +350,11 @@ def accept_invite(
 
     return workspace_id
 
-def generate_invite_token(workspace_id: int, email: str) -> str:
-    return serializer.dumps({"workspace_id": workspace_id, "email": email}, salt=SALT)
+def generate_invite_token(workspace_id: int, email: str, share_v: int | None = None) -> str:
+    payload = {"workspace_id": workspace_id, "email": email}
+    if email == "*" and share_v is not None:
+        payload["share_v"] = share_v
+    return serializer.dumps(payload, salt=SALT)
 
 def verify_invite_token(token: str, max_age: int = 1440) -> dict:
     return serializer.loads(token, salt=SALT, max_age=max_age)
@@ -347,7 +375,8 @@ def send_workspace_invite_email(email: str, workspace_id: int):
         )
 
     token = generate_invite_token(workspace_id, email)
-    invite_url = f"{os.getenv('FRONTEND_ORIGIN', 'https://uplan-frontend-bccb.onrender.com')}/workspaces/{workspace_id}/join?token={token}"
+    #invite_url = f"{os.getenv('FRONTEND_ORIGIN', 'https://uplan-frontend-bccb.onrender.com')}/workspaces/{workspace_id}/join?token={token}"
+    invite_url = f"https://uplan-backend-gr4k.onrender.com/workspaces/{workspace_id}/join?token={token}"
 
     body = (
         "Hello,\n\n"
@@ -702,7 +731,8 @@ def generate_workspace_share_link(
         raise HTTPException(status_code=404, detail="Workspace not found")
 
     # No email → open invite
-    token = generate_invite_token(workspace_id, email="*")
+    workspace.share_link_enabled = True
+    token = generate_invite_token(workspace_id, email="*", share_v=workspace.share_link_version)
 
     return {
         "link_id": token,
@@ -777,6 +807,197 @@ def change_workspace_member_role(
         "member_id": str(member_id),
         "role": new_role,
     }
+
+# -----------------------------
+# Join Requests
+# -----------------------------
+
+class JoinRequestIn(BaseModel):
+    message: Optional[str] = None
+
+class JoinRequestOut(BaseModel):
+    id: int
+    workspace_id: int
+    user_id: str
+    name: str
+    email: str
+    message: Optional[str]
+    status: str
+    requested_at: str
+
+    model_config = {"from_attributes": True}
+
+
+def _join_request_out(db: Session, req) -> dict:
+    u = db.query(User).filter(User.id == req.user_id).first()
+    name = email = ""
+    if u:
+        name = getattr(u, "full_name", None) or getattr(u, "username", None) or u.email
+        email = u.email or ""
+    return {
+        "id": req.id,
+        "workspace_id": req.workspace_id,
+        "user_id": str(req.user_id),
+        "name": name or str(req.user_id),
+        "email": email,
+        "message": req.message,
+        "status": req.status,
+        "requested_at": req.requested_at.isoformat() if req.requested_at else "",
+    }
+
+
+@router.post("/{workspace_id}/join-requests", status_code=201)
+def create_join_request(
+    workspace_id: int,
+    payload: JoinRequestIn,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Authenticated user requests to join a workspace.
+    Fails if already a member or already has a pending request.
+    """
+    from app.models.workspace import WorkspaceJoinRequest  # local import to keep it tidy
+
+    workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    # Already a member?
+    if _is_workspace_member(db, workspace_id, current_user.id):
+        raise HTTPException(status_code=400, detail="You are already a member of this workspace")
+
+    # Already has a pending request?
+    existing = (
+        db.query(WorkspaceJoinRequest)
+        .filter(
+            WorkspaceJoinRequest.workspace_id == workspace_id,
+            WorkspaceJoinRequest.user_id == current_user.id,
+            WorkspaceJoinRequest.status == JoinRequestStatus.pending,
+        )
+        .first()
+    )
+    if existing:
+        raise HTTPException(status_code=400, detail="You already have a pending request for this workspace")
+
+    req = WorkspaceJoinRequest(
+        workspace_id=workspace_id,
+        user_id=current_user.id,
+        message=(payload.message or "").strip() or None,
+        status=JoinRequestStatus.pending,
+        requested_at=datetime.now(timezone.utc),
+    )
+    db.add(req)
+    db.commit()
+    db.refresh(req)
+    return _join_request_out(db, req)
+
+
+@router.get("/{workspace_id}/join-requests")
+def list_join_requests(
+    workspace_id: int,
+    status: Optional[str] = Query(default="pending"),
+    current_user_id: UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    """
+    Admin-only: list join requests for a workspace.
+    Defaults to only pending requests.
+    """
+    from app.models.workspace import WorkspaceJoinRequest
+
+    role = _get_user_workspace_role(db, workspace_id, current_user_id)
+    if not role:
+        raise HTTPException(status_code=403, detail="Not a workspace member")
+    if role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can view join requests")
+
+    q = db.query(WorkspaceJoinRequest).filter(WorkspaceJoinRequest.workspace_id == workspace_id)
+    if status:
+        q = q.filter(WorkspaceJoinRequest.status == status)
+    requests = q.order_by(WorkspaceJoinRequest.requested_at.asc()).all()
+    return [_join_request_out(db, r) for r in requests]
+
+
+@router.post("/{workspace_id}/join-requests/{request_id}/approve")
+def approve_join_request(
+    workspace_id: int,
+    request_id: int,
+    current_user_id: UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    """
+    Admin-only: approve a pending join request → creates WorkspaceMember.
+    """
+    from app.models.workspace import WorkspaceJoinRequest
+
+    role = _get_user_workspace_role(db, workspace_id, current_user_id)
+    if not role or role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can approve join requests")
+
+    req = (
+        db.query(WorkspaceJoinRequest)
+        .filter(
+            WorkspaceJoinRequest.id == request_id,
+            WorkspaceJoinRequest.workspace_id == workspace_id,
+        )
+        .first()
+    )
+    if not req:
+        raise HTTPException(status_code=404, detail="Join request not found")
+    if req.status != JoinRequestStatus.pending:
+        raise HTTPException(status_code=400, detail=f"Request is already {req.status}")
+
+    # Check they're not already a member (edge case)
+    existing_member = (
+        db.query(WorkspaceMember)
+        .filter(
+            WorkspaceMember.workspace_id == workspace_id,
+            WorkspaceMember.user_id == req.user_id,
+        )
+        .first()
+    )
+    if not existing_member:
+        db.add(WorkspaceMember(workspace_id=workspace_id, user_id=req.user_id, role="member"))
+
+    req.status = JoinRequestStatus.approved
+    db.commit()
+    return {"ok": True, "message": "Join request approved", "request": _join_request_out(db, req)}
+
+
+@router.delete("/{workspace_id}/join-requests/{request_id}")
+def reject_join_request(
+    workspace_id: int,
+    request_id: int,
+    current_user_id: UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    """
+    Admin-only: reject (delete) a pending join request.
+    """
+    from app.models.workspace import WorkspaceJoinRequest
+
+    role = _get_user_workspace_role(db, workspace_id, current_user_id)
+    if not role or role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can reject join requests")
+
+    req = (
+        db.query(WorkspaceJoinRequest)
+        .filter(
+            WorkspaceJoinRequest.id == request_id,
+            WorkspaceJoinRequest.workspace_id == workspace_id,
+        )
+        .first()
+    )
+    if not req:
+        raise HTTPException(status_code=404, detail="Join request not found")
+    if req.status != JoinRequestStatus.pending:
+        raise HTTPException(status_code=400, detail=f"Request is already {req.status}")
+
+    req.status = JoinRequestStatus.rejected
+    db.commit()
+    return {"ok": True, "message": "Join request rejected"}
+
 
 # -----------------------------
 # Workspace progress (team dashboard)
@@ -952,3 +1173,27 @@ def workspace_progress(
         "period_end": pe.isoformat(),
         "members": out,
     }
+
+
+@router.post("/{workspace_id}/share-link/disable")
+def disable_workspace_share_link(
+    workspace_id: int,
+    current_user_id: UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    role = _get_user_workspace_role(db, workspace_id, current_user_id)
+    if not role:
+        raise HTTPException(status_code=403, detail="Not a workspace member")
+    if role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can disable share links")
+
+    workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    workspace.share_link_enabled = False
+    workspace.share_link_version = (workspace.share_link_version or 1) + 1  # ✅ revoke old tokens
+    db.commit()
+    db.refresh(workspace)
+
+    return {"ok": True}

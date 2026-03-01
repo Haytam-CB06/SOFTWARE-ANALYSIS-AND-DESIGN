@@ -104,13 +104,15 @@ app.add_middleware(
 # CORS (local dev / frontend)
 from fastapi.middleware.cors import CORSMiddleware
 
+origins=["https://uplan-frontend-bccb.onrender.com","http://localhost:3000"],
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=list({
-        os.getenv("FRONTEND_ORIGIN", "https://uplan-frontend-bccb.onrender.com"),
-        "https://uplan-frontend-bccb.onrender.com",
-        "https://uplan-frontend-bccb.onrender.com",  # Vite default
-    }),
+    #allow_origins=list({
+      #  os.getenv("FRONTEND_ORIGIN", "https://uplan-frontend-bccb.onrender.com"),
+       # "https://uplan-frontend-bccb.onrender.com",
+        #"https://uplan-frontend-bccb.onrender.com",  # Vite default
+   # }),
+    allow_origins=["*"],  # allow all origins (for testing; restrict in production)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

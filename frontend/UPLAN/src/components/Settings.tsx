@@ -126,10 +126,10 @@ export default function Settings({ userName, onUpdateName, darkMode, onToggleDar
     const file = e.target.files?.[0];
     if (file) {
       // Check file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('Image size should be less than 5MB');
-        return;
-      }
+      //if (file.size > 5 * 1024 * 1024) {
+       // toast.error('Image size should be less than 5MB');
+        //return;
+      //}
 
       // Check file type
       if (!file.type.startsWith('image/')) {
@@ -281,7 +281,7 @@ export default function Settings({ userName, onUpdateName, darkMode, onToggleDar
     }
   };
 
-
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
   const handleChangePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
       toast.error('Please fill in all password fields');
@@ -314,7 +314,7 @@ export default function Settings({ userName, onUpdateName, darkMode, onToggleDar
     }
 
     try {
-      const res = await fetch('https://uplan-backend-40b5.onrender.com/change-password', {
+      const res = await fetch(`${API_BASE_URL}/change-password`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

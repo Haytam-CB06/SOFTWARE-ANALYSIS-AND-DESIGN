@@ -1,182 +1,126 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import { toast } from './ui/sonner';
-import { Users, Send, X } from 'lucide-react';
+import { toast } from 'sonner';
+import { Users, Send, X, CheckCircle2 } from 'lucide-react';
 
-interface Workspace {
-  id: string;
+interface WorkspaceInfo {
+  id: number;
   name: string;
   description?: string;
-  members: Member[];
-  pendingRequests?: PendingRequest[];
-  sharing?: {
-    linkId: string;
-    enabled: boolean;
-    accessType: 'request' | 'auto';
-    expiresAt?: string;
-  };
-}
-
-interface Member {
-  id: string;
-  name: string;
-  email: string;
-  role: 'admin' | 'member';
-  joinedAt: string;
-  isOnline?: boolean;
-  lastActive?: string;
-}
-
-interface PendingRequest {
-  id: string;
-  name: string;
-  email: string;
-  requestedAt: string;
-  message?: string;
 }
 
 interface JoinWorkspaceDialogProps {
-  linkId: string | null;
+  linkId: string | null;   // this is actually the invite token from the URL
   onClose: () => void;
   onJoinSuccess?: () => void;
 }
 
 export default function JoinWorkspaceDialog({ linkId, onClose, onJoinSuccess }: JoinWorkspaceDialogProps) {
-  const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const [workspaceInfo, setWorkspaceInfo] = useState<WorkspaceInfo | null>(null);
   const [loading, setLoading] = useState(true);
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [linkError, setLinkError] = useState('');
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  const currentUserId = localStorage.getItem('currentUserId');
+
+  // ─── Step 1: verify the token and get workspace info ───────────────────────
   useEffect(() => {
-    if (linkId) {
-      findWorkspaceByLink(linkId);
-    } else {
+    if (!linkId) {
       setLoading(false);
-    }
-  }, [linkId]);
-
-  const findWorkspaceByLink = (id: string) => {
-    try {
-      const savedWorkspaces = localStorage.getItem('workspaces');
-      if (savedWorkspaces) {
-        const workspaces: Workspace[] = JSON.parse(savedWorkspaces);
-        const foundWorkspace = workspaces.find(
-          w => w.sharing?.linkId === id && w.sharing?.enabled
-        );
-        
-        if (foundWorkspace) {
-          // Check if link is expired
-          if (foundWorkspace.sharing?.expiresAt) {
-            const expiryDate = new Date(foundWorkspace.sharing.expiresAt);
-            if (expiryDate < new Date()) {
-              toast.error('This invite link has expired');
-              setLoading(false);
-              return;
-            }
-          }
-          setWorkspace(foundWorkspace);
-        } else {
-          toast.error('Invalid or disabled invite link');
-        }
-      }
-    } catch (error) {
-      console.error('Error finding workspace:', error);
-      toast.error('Failed to find workspace');
-    }
-    setLoading(false);
-  };
-
-  const handleSubmitRequest = () => {
-    if (!workspace) return;
-
-    // Validation
-    if (!name.trim()) {
-      toast.error('Please enter your name');
       return;
     }
+    verifyToken(linkId);
+  }, [linkId]);
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email.trim() || !emailRegex.test(email)) {
-      toast.error('Please enter a valid email address');
+  const verifyToken = async (token: string) => {
+    setLoading(true);
+    setLinkError('');
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/workspaces/verify-invite?token=${encodeURIComponent(token)}`);
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        setLinkError(data?.detail || 'Invalid invite link');
+        return;
+      }
+
+      setWorkspaceInfo({ id: data.id, name: data.name, description: data.description });
+
+    } catch (e) {
+      console.error('[JoinWorkspaceDialog] verifyToken error:', e);
+      setLinkError('Invalid or expired invite link');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ─── Step 2: user submits a join request ───────────────────────────────────
+  const handleSubmitRequest = async () => {
+    if (!workspaceInfo || !linkId) return;
+
+    if (!currentUserId) {
+      toast.error('You must be logged in to request to join a workspace');
+      // Always use ONE key name everywhere
+      sessionStorage.setItem('pendingJoinToken', linkId);
+
+      const url = new URL(window.location.href);
+      // keep the token in URL too (helps refresh / direct resume)
+      url.searchParams.set('join_token', linkId);
+      url.searchParams.set('page', 'auth');
+
+      window.location.replace(url.toString());
       return;
     }
 
     setSubmitting(true);
-
     try {
-      const savedWorkspaces = localStorage.getItem('workspaces');
-      if (savedWorkspaces) {
-        const workspaces: Workspace[] = JSON.parse(savedWorkspaces);
-        const workspaceIndex = workspaces.findIndex(w => w.id === workspace.id);
-        
-        if (workspaceIndex === -1) {
-          toast.error('Workspace not found');
-          setSubmitting(false);
-          return;
+      const res = await fetch(
+        `${API_BASE_URL}/workspaces/${workspaceInfo.id}/join-requests`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-User-Id': currentUserId,
+          },
+          body: JSON.stringify({ message: message.trim() || null }),
         }
+      );
 
-        // Check if email already exists in members
-        if (workspaces[workspaceIndex].members.some(m => m.email === email)) {
-          toast.error('You are already a member of this workspace');
-          setSubmitting(false);
-          return;
-        }
+      const data = await res.json().catch(() => ({}));
 
-        // Check if email already has a pending request
-        if (workspaces[workspaceIndex].pendingRequests?.some(r => r.email === email)) {
-          toast.error('You already have a pending request for this workspace');
-          setSubmitting(false);
-          return;
-        }
-
-        // Create pending request
-        const newRequest: PendingRequest = {
-          id: `request-${Date.now()}`,
-          name: name.trim(),
-          email: email.trim(),
-          requestedAt: new Date().toISOString(),
-          message: message.trim() || undefined
-        };
-
-        // Add request to workspace
-        if (!workspaces[workspaceIndex].pendingRequests) {
-          workspaces[workspaceIndex].pendingRequests = [];
-        }
-        workspaces[workspaceIndex].pendingRequests!.push(newRequest);
-
-        // Save to localStorage
-        localStorage.setItem('workspaces', JSON.stringify(workspaces));
-
-        toast.success('Request sent successfully! The workspace admin will review your request.');
-        
-        // Reset form
-        setName('');
-        setEmail('');
-        setMessage('');
-        
-        // Close dialog after short delay
-        setTimeout(() => {
-          onClose();
+      if (!res.ok) {
+        // 400 "already a member" → treat as success-like
+        if (res.status === 400 && (data.detail || '').toLowerCase().includes('already a member')) {
+          toast.success("You're already a member of this workspace!");
           onJoinSuccess?.();
-        }, 1500);
+          onClose();
+          return;
+        }
+        throw new Error(data.detail || `Request failed (${res.status})`);
       }
-    } catch (error) {
-      console.error('Error submitting request:', error);
-      toast.error('Failed to submit request');
+
+      setSubmitted(true);
+      toast.success('Request sent! The admin will review it shortly.');
+      setTimeout(() => {
+        onClose();
+        onJoinSuccess?.();
+      }, 2500);
+
+    } catch (e: any) {
+      console.error('[JoinWorkspaceDialog] submit error:', e);
+      toast.error(e.message || 'Failed to send request');
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (!linkId) {
-    return null;
-  }
+  if (!linkId) return null;
 
   return (
     <Dialog open={!!linkId} onOpenChange={(open) => !open && onClose()}>
@@ -187,74 +131,78 @@ export default function JoinWorkspaceDialog({ linkId, onClose, onJoinSuccess }: 
             Join Workspace
           </DialogTitle>
           <DialogDescription className="text-gray-400">
-            {loading 
-              ? 'Loading workspace details...' 
-              : workspace 
-                ? 'Request to join this workspace'
-                : 'Invalid or expired invite link'
-            }
+            {loading
+              ? 'Verifying invite link…'
+              : linkError
+                ? 'Invalid or expired invite link'
+                : submitted
+                  ? 'Your request has been sent'
+                  : `Request to join "${workspaceInfo?.name}"`}
           </DialogDescription>
         </DialogHeader>
 
-        {loading ? (
+        {/* Loading */}
+        {loading && (
           <div className="py-8 text-center">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-            <p className="mt-4 text-gray-400">Loading...</p>
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+            <p className="mt-4 text-gray-400">Verifying link…</p>
           </div>
-        ) : workspace ? (
+        )}
+
+        {/* Error */}
+        {!loading && linkError && (
+          <div className="py-8 text-center">
+            <X className="h-12 w-12 mx-auto text-red-500 mb-3" />
+            <p className="text-gray-400 mb-4">{linkError}</p>
+            <Button onClick={onClose} variant="outline" className="border-gray-600 text-gray-300 hover:bg-gray-800">
+              Close
+            </Button>
+          </div>
+        )}
+
+        {/* Success state */}
+        {!loading && !linkError && submitted && (
+          <div className="py-8 text-center">
+            <CheckCircle2 className="h-12 w-12 mx-auto text-green-500 mb-3" />
+            <p className="text-white font-medium mb-1">Request Sent!</p>
+            <p className="text-gray-400 text-sm">
+              The workspace admin will review your request and you'll be added once approved.
+            </p>
+          </div>
+        )}
+
+        {/* Form */}
+        {!loading && !linkError && !submitted && workspaceInfo && (
           <div className="space-y-4">
-            {/* Workspace Info */}
+            {/* Workspace info card */}
             <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-              <h3 className="font-medium text-white mb-1">{workspace.name}</h3>
-              {workspace.description && (
-                <p className="text-sm text-gray-400">{workspace.description}</p>
+              <h3 className="font-medium text-white mb-1">{workspaceInfo.name}</h3>
+              {workspaceInfo.description && (
+                <p className="text-sm text-gray-400">{workspaceInfo.description}</p>
               )}
-              <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
-                <Users className="h-3 w-3" />
-                <span>{workspace.members.length} member{workspace.members.length !== 1 ? 's' : ''}</span>
-              </div>
             </div>
 
-            {/* Request Form */}
-            <div className="space-y-3">
-              <div>
-                <Label htmlFor="join-name" className="text-gray-300">Your Name *</Label>
-                <Input
-                  id="join-name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Enter your full name"
-                  className="bg-gray-800 border-gray-600 text-white placeholder:text-gray-500 mt-1"
-                  disabled={submitting}
-                />
+            {/* Not logged in warning */}
+            {!currentUserId && (
+              <div className="bg-yellow-900/30 border border-yellow-700 rounded-lg p-3 text-sm text-yellow-300">
+                ⚠️ You need to be logged in to send a join request.
               </div>
+            )}
 
-              <div>
-                <Label htmlFor="join-email" className="text-gray-300">Your Email *</Label>
-                <Input
-                  id="join-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="your.email@example.com"
-                  className="bg-gray-800 border-gray-600 text-white placeholder:text-gray-500 mt-1"
-                  disabled={submitting}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="join-message" className="text-gray-300">Message (Optional)</Label>
-                <Textarea
-                  id="join-message"
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Tell the admin why you'd like to join..."
-                  className="bg-gray-800 border-gray-600 text-white placeholder:text-gray-500 mt-1 min-h-[80px] resize-none"
-                  disabled={submitting}
-                  maxLength={500}
-                />
-                <p className="text-xs text-gray-500 mt-1">{message.length}/500 characters</p>
-              </div>
+            {/* Optional message */}
+            <div>
+              <label className="text-sm text-gray-300 block mb-1">
+                Message <span className="text-gray-500">(optional)</span>
+              </label>
+              <Textarea
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Tell the admin why you'd like to join…"
+                className="bg-gray-800 border-gray-600 text-white placeholder:text-gray-500 min-h-[80px] resize-none"
+                disabled={submitting || !currentUserId}
+                maxLength={500}
+              />
+              <p className="text-xs text-gray-500 mt-1">{message.length}/500</p>
             </div>
 
             {/* Actions */}
@@ -271,24 +219,12 @@ export default function JoinWorkspaceDialog({ linkId, onClose, onJoinSuccess }: 
               <Button
                 onClick={handleSubmitRequest}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-                disabled={submitting}
+                disabled={submitting || !currentUserId}
               >
                 <Send className="h-4 w-4 mr-2" />
-                {submitting ? 'Sending...' : 'Send Request'}
+                {submitting ? 'Sending…' : 'Send Request'}
               </Button>
             </div>
-          </div>
-        ) : (
-          <div className="py-8 text-center">
-            <X className="h-12 w-12 mx-auto text-red-500 mb-3" />
-            <p className="text-gray-400 mb-4">This invite link is invalid or has been disabled</p>
-            <Button
-              onClick={onClose}
-              variant="outline"
-              className="border-gray-600 text-gray-300 hover:bg-gray-800"
-            >
-              Close
-            </Button>
           </div>
         )}
       </DialogContent>
