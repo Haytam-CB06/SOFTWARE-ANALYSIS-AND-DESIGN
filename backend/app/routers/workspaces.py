@@ -376,7 +376,7 @@ def send_workspace_invite_email(email: str, workspace_id: int):
 
     token = generate_invite_token(workspace_id, email)
     #invite_url = f"{os.getenv('FRONTEND_ORIGIN', 'https://uplan-frontend-bccb.onrender.com')}/workspaces/{workspace_id}/join?token={token}"
-    invite_url = f"https://uplan-backend-gr4k.onrender.com/workspaces/{workspace_id}/join?token={token}"
+    invite_url = f"https://software-analysis-and-design.onrender.com/workspaces/{workspace_id}/join?token={token}"
 
     body = (
         "Hello,\n\n"
