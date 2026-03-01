@@ -1,4 +1,6 @@
+import { API_BASE_URL } from "./api";
 
+let backendReady = false;
 const redirectToBackend = async (path: string) => {
   // if backend not ready yet, try to wake it now
   if (!backendReady) {
