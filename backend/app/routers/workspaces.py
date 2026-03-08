@@ -2,13 +2,15 @@ from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta, timezone
 
+from fileinput import filename
 import os
 import uuid
 import smtplib
 from email.mime.text import MIMEText
 from typing import List, Optional
 from uuid import UUID
-
+from fastapi import UploadFile, File
+from pathlib import Path
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from itsdangerous import URLSafeTimedSerializer
@@ -362,8 +364,8 @@ def verify_invite_token(token: str, max_age: int = 1440) -> dict:
 def _smtp_config() -> tuple[str, int, str, str]:
     host = os.getenv("SMTP_HOST", "smtp.gmail.com")
     port = int(os.getenv("SMTP_PORT", "587"))
-    sender = os.getenv("SMTP_EMAIL", "haytamcharafi@gmail.com")
-    password = "samkwlrniyfshrhu"
+    sender = os.getenv("SMTP_EMAIL", "")
+    password = os.getenv("SMTP_PASSWORD", "")
     return host, port, sender, password
 
 def send_workspace_invite_email(email: str, workspace_id: int):
@@ -564,7 +566,16 @@ def delete_workspace(
     workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
     if not workspace:
         raise HTTPException(status_code=404, detail="Workspace not found")
+     # 🔹 Check if it has subworkspaces
+    subworkspaces = db.query(Workspace).filter(
+        Workspace.parent_id == workspace_id
+    ).first()
 
+    if subworkspaces:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete a workspace that still has subworkspaces. Delete the subworkspaces first."
+        )
     db.delete(workspace)
     db.commit()
     return {"message": "Workspace deleted successfully"}
@@ -1197,3 +1208,102 @@ def disable_workspace_share_link(
     db.refresh(workspace)
 
     return {"ok": True}
+MAX_IMAGE_SIZE = 4 * 1024 * 1024  # 4MB
+
+
+ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+from app.services.cloudinary import *
+import cloudinary.uploader
+
+@router.post("/{workspace_id}/image")
+async def upload_workspace_image(
+    workspace_id: int,
+    image: UploadFile = File(...),
+    current_user_id: UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    role = _get_user_workspace_role(db, workspace_id, current_user_id)
+    if not role:
+        raise HTTPException(status_code=403, detail="Not a workspace member")
+
+    workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    contents = await image.read()
+
+    result = cloudinary.uploader.upload(
+        contents,
+        folder="uplan/workspaces",
+        public_id=f"workspace_{workspace_id}",
+        overwrite=True,
+        resource_type="image",
+    )
+
+    workspace.image_url = result["secure_url"]
+    db.commit()
+    db.refresh(workspace)
+
+    return {
+        "message": "Workspace image uploaded successfully",
+        "image_url": workspace.image_url,
+    }
+
+@router.delete("/{workspace_id}/image")
+def delete_workspace_image(
+    workspace_id: int,
+    current_user_id: UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    role = _get_user_workspace_role(db, workspace_id, current_user_id)
+    if not role:
+        raise HTTPException(status_code=403, detail="Not a workspace member")
+
+    workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    cloudinary.uploader.destroy(f"uplan/workspaces/workspace_{workspace_id}", resource_type="image")
+
+    workspace.image_url = None
+    db.commit()
+
+    return {"message": "Workspace image removed successfully"}
+
+class WorkspaceUpdate(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+
+@router.put("/{workspace_id}")
+def update_workspace(
+    workspace_id: int,
+    payload: WorkspaceUpdate,
+    db: Session = Depends(get_db),
+    current_user_id: UUID = Depends(get_current_user_id),
+):
+    workspace = (
+        db.query(Workspace)
+        .filter(Workspace.id == workspace_id)
+        .first()
+    )
+
+    if not workspace:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+
+    # Optional: only owner can edit
+    if str(workspace.owner_id) != str(current_user_id):
+        raise HTTPException(status_code=403, detail="Not allowed to edit this workspace")
+
+    workspace.name = payload.name.strip()
+    workspace.description = payload.description.strip() if payload.description else None
+
+    db.commit()
+    db.refresh(workspace)
+
+    return {
+        "id": workspace.id,
+        "name": workspace.name,
+        "description": workspace.description,
+        "owner_id": str(workspace.owner_id),
+    }

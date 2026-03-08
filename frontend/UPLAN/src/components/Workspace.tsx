@@ -56,7 +56,7 @@ import TeamCollaboration from './TeamCollaboration';
 import CalendarView from './CalendarView';
 import AutoGenerateTimetable from './AutoGenerateTimetable';
 import JoinWorkspaceDialog from './JoinWorkspaceDialog';
-import { apiJsonAuthed, ApiError } from '../lib/api';
+import { apiJsonAuthed, ApiError, API_BASE_URL } from '../lib/api';
 import CollaborationBoard from './CollaborationBoard';
 
 interface Member {
@@ -105,7 +105,7 @@ interface Workspace {
   createdAt: string;
   members: Member[];
   parentId?: string | null;
-  avatar?: string;
+  image_url?: string | null;
   sharedSchedules?: SharedSchedule[];
   teamProgress?: TeamProgress[];
   pendingRequests?: PendingRequest[];
@@ -175,7 +175,42 @@ export default function Workspace({ onNavigate }: WorkspaceProps) {
   const [newSubworkspaceName, setNewSubworkspaceName] = useState('');
   const [newSubworkspaceDescription, setNewSubworkspaceDescription] = useState('');
   const [isLoadingSubworkspaces, setIsLoadingSubworkspaces] = useState(false);
+  const getWorkspaceColor = (name: string) => {
+    const colors = [
+      "bg-red-500",
+      "bg-orange-500",
+      "bg-amber-500",
+      "bg-yellow-500",
+      "bg-lime-500",
+      "bg-green-500",
+      "bg-emerald-500",
+      "bg-teal-500",
+      "bg-cyan-500",
+      "bg-sky-500",
+      "bg-blue-500",
+      "bg-indigo-500",
+      "bg-violet-500",
+      "bg-purple-500",
+      "bg-fuchsia-500",
+      "bg-pink-500"
+    ];
 
+    let hash = 0;
+
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+
+    return colors[Math.abs(hash) % colors.length];
+  };
+  const getWorkspaceInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((w) => w[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
+  };
   // Allow other pages (eg, My Timetable import) to deep-link to a specific workspace tab.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -330,6 +365,7 @@ export default function Workspace({ onNavigate }: WorkspaceProps) {
             description: w.description || '',
             createdAt: w.created_at || new Date().toISOString(),
             members,
+            image_url: w.image_url ?? null,
             pendingRequests: [],
           } as Workspace;
         })
@@ -399,6 +435,7 @@ export default function Workspace({ onNavigate }: WorkspaceProps) {
             createdAt: (w.created_at || new Date().toISOString()),
             members,
             parentId: w.parent_id ?? w.parent_workspace_id ?? null,
+            image_url: w.image_url ?? null,
             pendingRequests: [],
           } as Workspace;
         })
@@ -421,20 +458,49 @@ export default function Workspace({ onNavigate }: WorkspaceProps) {
     }
   };
 
-  const saveWorkspace = (updatedWorkspace: Workspace) => {
-    const updatedWorkspaces = workspaces.map(w => 
-      w.id === updatedWorkspace.id ? updatedWorkspace : w
-    );
-    setWorkspaces(updatedWorkspaces);
-    setWorkspace(updatedWorkspace);
-  };
+
 useEffect(() => {
   if (!workspace?.id) return;
 
   const parentId = workspace.parentId ? String(workspace.parentId) : String(workspace.id);
   loadSubworkspaces(parentId);
 }, [workspace?.id, workspace?.parentId]);
+const updateWorkspaceState = (updatedWorkspace: Workspace) => {
+  setWorkspaces((prev) =>
+    prev.map((w) => (w.id === updatedWorkspace.id ? updatedWorkspace : w))
+  );
+  setWorkspace(updatedWorkspace);
+};
 
+const persistWorkspaceDetails = async (updatedWorkspace: Workspace) => {
+  const userId =
+    localStorage.getItem("currentUserId") ||
+    localStorage.getItem("userId") ||
+    localStorage.getItem("user_id");
+
+  const response = await fetch(
+    `${API_BASE_URL}/workspaces/${updatedWorkspace.id}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "X-User-Id": userId || "",
+      },
+      body: JSON.stringify({
+        name: updatedWorkspace.name,
+        description: updatedWorkspace.description,
+      }),
+    }
+  );
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.detail || "Failed to update workspace");
+  }
+
+  return data;
+};
 const handleCreateSubworkspace = async () => {
   const parentId = createSubworkspaceParentId || workspace?.id;
   if (!parentId) return;
@@ -737,7 +803,7 @@ const handleCreateSubworkspace = async () => {
         ),
       };
 
-      saveWorkspace(updatedWorkspace);
+      updateWorkspaceState(updatedWorkspace);
 
       toast.success(
         `${member.name}'s role has been updated to ${
@@ -889,24 +955,29 @@ const handleCreateSubworkspace = async () => {
   };
 
 
-  const handleEditWorkspace = () => {
-    if (!workspace) return;
+const handleEditWorkspace = async () => {
+  if (!workspace) return;
 
-    if (!workspaceName.trim()) {
-      toast.error('Workspace name is required');
-      return;
-    }
+  if (!workspaceName.trim()) {
+    toast.error('Workspace name is required');
+    return;
+  }
 
-    const updatedWorkspace = {
-      ...workspace,
-      name: workspaceName,
-      description: workspaceDescription
-    };
+  const updatedWorkspace: Workspace = {
+    ...workspace,
+    name: workspaceName,
+    description: workspaceDescription,
+  };
 
-    saveWorkspace(updatedWorkspace);
+  try {
+    await persistWorkspaceDetails(updatedWorkspace);
+    updateWorkspaceState(updatedWorkspace);
     setIsEditWorkspaceOpen(false);
     toast.success('Workspace updated successfully');
-  };
+  } catch (e: any) {
+    toast.error(e?.message || 'Failed to update workspace');
+  }
+};
 
   const openEditWorkspace = () => {
     if (workspace) {
@@ -944,7 +1015,7 @@ const handleCreateSubworkspace = async () => {
     if (diffDays < 7) return `${diffDays}d ago`;
     return lastActiveDate.toLocaleDateString();
   };
-
+  
   const getRoleStats = () => {
     if (!workspace) return { admins: 0, members: 0 };
     return {
@@ -954,53 +1025,97 @@ const handleCreateSubworkspace = async () => {
   };
 
   // Handle workspace avatar upload
-  const handleAvatarUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const handleAvatarUpload = async (
+      event: React.ChangeEvent<HTMLInputElement>
+    ) => {
+      const file = event.target.files?.[0];
+      if (!file || !workspace) return;
 
-    // Check file size (max 2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error('Image size must be less than 2MB');
-      return;
-    }
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Image size must be less than 5MB");
+        return;
+      }
 
-    // Check file type
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file');
-      return;
-    }
+      if (!file.type.startsWith("image/")) {
+        toast.error("Please select an image file");
+        return;
+      }
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64String = reader.result as string;
-      
-      if (workspace) {
+      try {
+        const formData = new FormData();
+        formData.append("image", file);
+
+        const response = await fetch(
+          `${import.meta.env.VITE_API_BASE_URL}/workspaces/${workspace.id}/image`,
+          {
+            method: "POST",
+            body: formData,
+            headers: {
+              "X-User-Id": localStorage.getItem("currentUserId") || "",
+            },
+          }
+        );
+
+        const text = await response.text();
+        console.log("Raw response:", text);
+
+        let data : any = {};
+        if (text) {
+          data = JSON.parse(text);
+        }
+        if (!response.ok) {
+          throw new Error(data.detail || "Failed to upload workspace image");
+        }
+
         const updatedWorkspace = {
           ...workspace,
-          avatar: base64String
+          image_url: data.image_url,
         };
-        saveWorkspace(updatedWorkspace);
-        toast.success('Workspace avatar updated successfully!');
+
+        updateWorkspaceState(updatedWorkspace);
+        toast.success("Workspace avatar updated successfully!");
+      } catch (error: any) {
+        toast.error(error.message || "Upload failed");
+      } finally {
+        event.target.value = "";
       }
     };
-    reader.readAsDataURL(file);
-  };
 
-  const triggerAvatarUpload = () => {
-    document.getElementById('workspace-avatar-upload')?.click();
-  };
+    const triggerAvatarUpload = () => {
+      document.getElementById("workspace-avatar-upload")?.click();
+    };
 
-  const handleRemoveAvatar = () => {
-    if (workspace) {
-      const updatedWorkspace = {
-        ...workspace,
-        avatar: undefined
-      };
-      saveWorkspace(updatedWorkspace);
-      toast.success('Workspace avatar removed successfully!');
-    }
-  };
+    const handleRemoveAvatar = async () => {
+      if (!workspace) return;
 
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_API_BASE_URL}/workspaces/${workspace.id}/image`,
+          {
+            method: "DELETE",
+            headers: {
+              "X-User-Id": localStorage.getItem("currentUserId") || "",
+            },
+          }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.detail || "Failed to remove workspace image");
+        }
+
+        const updatedWorkspace = {
+          ...workspace,
+          image_url: null,
+        };
+
+        updateWorkspaceState(updatedWorkspace);
+        toast.success("Workspace avatar removed successfully!");
+      } catch (error: any) {
+        toast.error(error.message || "Remove failed");
+      }
+  };
   // Sharing Link Functions
   const generateShareLink = async () => {
     if (!workspace) return;
@@ -1041,7 +1156,7 @@ const handleCreateSubworkspace = async () => {
       },
     };
 
-    saveWorkspace(updatedWorkspace);
+    updateWorkspaceState(updatedWorkspace);
     toast.success("Sharing link generated successfully!");
 
     } catch (err: any) {
@@ -1077,7 +1192,7 @@ const handleCreateSubworkspace = async () => {
       }
 
       const updatedWorkspace = { ...workspace, sharing: undefined };
-      saveWorkspace(updatedWorkspace);
+      updateWorkspaceState(updatedWorkspace);
       toast.success("Sharing link disabled (revoked)");
 
     } catch (e) {
@@ -1108,7 +1223,7 @@ const handleCreateSubworkspace = async () => {
       }
     };
     
-    saveWorkspace(updatedWorkspace);
+    updateWorkspaceState(updatedWorkspace);
     toast.success(`Access type updated to ${type === 'open' ? 'Open to everyone' : 'Domain-restricted'}`);
   };
 
@@ -1123,7 +1238,7 @@ const handleCreateSubworkspace = async () => {
       }
     };
     
-    saveWorkspace(updatedWorkspace);
+    updateWorkspaceState(updatedWorkspace);
   };
 
   if (!workspace) {
@@ -1175,11 +1290,23 @@ const handleCreateSubworkspace = async () => {
                   variant="ghost" 
                   className="text-white hover:bg-white/20 gap-2 px-4 py-2 h-auto border border-white/30 rounded-lg transition-all hover:border-white/50 hover:shadow-lg"
                 >
-                  <Users className="h-5 w-5" />
+                  <div className="w-8 h-8 rounded-lg overflow-hidden bg-white/10 flex items-center justify-center">
+                    {workspace.image_url ? (
+                      <img
+                        src={workspace.image_url}
+                        alt={workspace.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Users className="h-5 w-5" />
+                    )}
+                  </div>
+
                   <div className="flex flex-col items-start">
                     <span className="text-xs text-white/70 uppercase tracking-wide">Workspace</span>
                     <span className="font-semibold text-sm">{workspace.name}</span>
                   </div>
+
                   <ChevronDown className="h-4 w-4 ml-2 text-white/70" />
                 </Button>
               </DropdownMenuTrigger>
@@ -1205,8 +1332,8 @@ const handleCreateSubworkspace = async () => {
                       >
                         <div className="flex items-center gap-3 flex-1 py-1">
                           <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
-                            {ws.avatar ? (
-                              <img src={ws.avatar} alt={ws.name} className="w-full h-full object-cover rounded-lg" />
+                            {ws.image_url ? (
+                              <img src={ws.image_url} alt={ws.name} className="w-full h-full object-cover rounded-lg" />
                             ) : (
                               <Users className="h-5 w-5 text-white" />
                             )}
@@ -1242,9 +1369,17 @@ const handleCreateSubworkspace = async () => {
                           kids.map((sw) => (
                             <DropdownMenuItem key={sw.id} onClick={() => handleSwitchWorkspace(sw.id)}>
                               <div className="flex items-center gap-3 flex-1 py-1">
-                                <div className="w-10 h-10 bg-gray-900 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
-                                  <Building2 className="h-5 w-5 text-white" />
-                                </div>
+                                <div className="w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0 shadow-sm bg-gray-900">
+                                    {sw.image_url ? (
+                                      <img
+                                        src={sw.image_url}
+                                        alt={sw.name}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    ) : (
+                                      <Building2 className="h-5 w-5 text-white" />
+                                    )}
+                                  </div>
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-medium truncate text-gray-900">{sw.name}</p>
                                   <p className="text-xs text-gray-500 truncate">
@@ -1323,11 +1458,21 @@ const handleCreateSubworkspace = async () => {
                 onChange={handleAvatarUpload}
               />
               <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center overflow-hidden relative">
-                {workspace.avatar ? (
-                  <img src={workspace.avatar} alt={workspace.name} className="w-full h-full object-cover" />
-                ) : (
-                  <Users className="h-6 w-6 text-white" />
-                )}
+                {workspace.image_url ? (
+                <img
+                  src={workspace.image_url}
+                  alt={workspace.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div
+                className={`w-full h-full flex items-center justify-center text-white font-semibold ${getWorkspaceColor(
+                  workspace.name
+                )}`}
+              >
+                {getWorkspaceInitials(workspace.name)}
+              </div>
+              )}
               </div>
               {/* Upload Button Overlay */}
               <button
@@ -1920,11 +2065,15 @@ const handleCreateSubworkspace = async () => {
               <Label>Workspace Avatar</Label>
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 bg-blue-600 rounded-lg flex items-center justify-center overflow-hidden">
-                  {workspace?.avatar ? (
-                    <img src={workspace.avatar} alt={workspace.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <Users className="h-8 w-8 text-white" />
-                  )}
+                  {workspace?.image_url ? (
+                  <img
+                    src={workspace.image_url}
+                    alt="Workspace avatar"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <Users className="h-8 w-8 text-white" />
+                )}
                 </div>
                 <div className="flex gap-2">
                   <input
@@ -1941,10 +2090,10 @@ const handleCreateSubworkspace = async () => {
                     className="border-blue-300"
                   >
                     <Upload className="h-4 w-4 mr-2" />
-                    {workspace?.avatar ? 'Change Avatar' : 'Upload Avatar'}
+                    {workspace?.image_url ? 'Change Avatar' : 'Upload Avatar'}
                   </Button>
-                  {workspace?.avatar && (
-                    <Button
+                  {workspace?.image_url && (
+                     <Button
                       variant="outline"
                       size="sm"
                       onClick={handleRemoveAvatar}
@@ -1999,7 +2148,7 @@ const handleCreateSubworkspace = async () => {
                           allowAllMembersToEditTimetables: checked
                         }
                       };
-                      saveWorkspace(updatedWorkspace);
+                      updateWorkspaceState(updatedWorkspace);
                       toast.success(checked ? 'All members can now edit timetables' : 'Timetable editing restricted to owners and admins');
                     }
                   }}

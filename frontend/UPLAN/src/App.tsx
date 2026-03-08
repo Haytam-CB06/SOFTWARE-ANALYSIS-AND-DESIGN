@@ -91,7 +91,38 @@ export default function App() {
   const { darkMode, toggleDarkMode } = useDarkMode();
 
   const [isGlobalAdmin, setIsGlobalAdmin] = useState(false);
+useEffect(() => {
+  const checkGlobalAdmin = async () => {
+    const currentUserId = localStorage.getItem("currentUserId");
 
+    if (!isAuthenticated || !currentUserId) {
+      setIsGlobalAdmin(false);
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL}/admin/users?limit=1&offset=0`,
+        {
+          headers: {
+            "X-User-Id": currentUserId,
+          },
+        }
+      );
+
+      if (res.status === 403 || res.status === 401) {
+        setIsGlobalAdmin(false);
+        return;
+      }
+
+      setIsGlobalAdmin(res.ok);
+    } catch {
+      setIsGlobalAdmin(false);
+    }
+  };
+
+  checkGlobalAdmin();
+}, [isAuthenticated]);
   // --- Handle share-link deep link: /?page=workspace&join_token=... ---
   useEffect(() => {
       const params = new URLSearchParams(window.location.search);

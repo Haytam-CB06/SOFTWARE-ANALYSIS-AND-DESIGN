@@ -375,7 +375,7 @@ def debug_env():
 
     }
 
-for key in ["DATABASE_URL", "GOOGLE_CLIENT", "GOOGLE_SECRET"]:
+for key in ["DATABASE_URL", "GOOGLE_CLIENT", "GOOGLE_SECRET", "SMTP_PASSWORD", "SMTP_EMAIL","ADMIN_EMAILS"]:
     print(f"{key} = {os.getenv(key)}")
 
 @oauth_router.get("/login")
@@ -862,7 +862,6 @@ def login(payload: LoginIn, request: Request):
     }
 
 
-
 app.include_router(auth_router)
 # domain routers
 app.include_router(timetable.router)
@@ -908,7 +907,7 @@ def is_code_expired(created_at: datetime, minutes: int = 10):
 
 SMTP_HOST = (os.getenv("SMTP_HOST") or "smtp.gmail.com").strip()
 SMTP_PORT_RAW = (os.getenv("SMTP_PORT") or "587").strip()
-SMTP_EMAIL = (os.getenv("SMTP_EMAIL") or "haytamcharafi@gmail.com").strip() 
+SMTP_EMAIL = (os.getenv("SMTP_EMAIL") or "").strip() 
 SMTP_PASSWORD = "samkwlrniyfshrhu"
 
 

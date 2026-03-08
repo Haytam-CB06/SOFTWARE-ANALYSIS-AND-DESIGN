@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, Smile, Paperclip, MoreVertical, Trash2, Edit2, Check, X } from 'lucide-react';
+import { Send, Smile, Paperclip, MoreVertical, Edit2, Check, X, ArrowDown } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { toast } from 'sonner@2.0.3';
+
 
 interface Member {
   id: string;
@@ -50,12 +51,51 @@ export default function WorkspaceChat({ workspace, currentUser }: WorkspaceChatP
   const [editingContent, setEditingContent] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isFetchingRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  const prevMessagesLengthRef = useRef(0);
 
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [newMessagesCount, setNewMessagesCount] = useState(0);
+
+
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+useEffect(() => {
+  const prevLength = prevMessagesLengthRef.current;
+
+  if (messages.length > prevLength) {
+    if (isUserAtBottom()) {
+      setTimeout(() => scrollToBottom(), 50);
+    } else {
+      setShowScrollButton(true);
+      setNewMessagesCount((count) => count + (messages.length - prevLength));
+    }
+  }
+
+  prevMessagesLengthRef.current = messages.length;
+}, [messages]);
+useEffect(() => {
+  const prevLength = prevMessagesLengthRef.current;
+
+  if (prevLength === 0) {
+    prevMessagesLengthRef.current = messages.length;
+    setTimeout(() => scrollToBottom(), 50);
+    return;
+  }
+
+  if (messages.length > prevLength) {
+    if (isUserAtBottom()) {
+      setTimeout(() => scrollToBottom(), 50);
+    } else {
+      setShowScrollButton(true);
+      setNewMessagesCount((count) => count + (messages.length - prevLength));
+    }
+  }
+
+  prevMessagesLengthRef.current = messages.length;
+}, [messages]);
   useEffect(() => {
     // Poll every 2 seconds, but only while this component is mounted (i.e., on the Chat tab/route)
     loadMessages();
@@ -68,9 +108,7 @@ export default function WorkspaceChat({ workspace, currentUser }: WorkspaceChatP
     };
   }, [workspace.id]);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+  
 
   // Close emoji picker when clicking outside
   useEffect(() => {
@@ -85,6 +123,29 @@ export default function WorkspaceChat({ workspace, currentUser }: WorkspaceChatP
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showEmojiPicker]);
 
+const scrollToBottom = () => {
+  messagesEndRef.current?.scrollIntoView({
+    behavior: "smooth",
+  });
+
+  setShowScrollButton(false);
+  setNewMessagesCount(0);
+};
+
+  const isUserAtBottom = () => {
+    const el = messagesContainerRef.current;
+    if (!el) return true;
+
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  };
+
+  const handleMessagesScroll = () => {
+    if (isUserAtBottom()) {
+      setShowScrollButton(false);
+      setNewMessagesCount(0);
+    }
+  };
+  
   const loadMessages = async () => {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
@@ -116,6 +177,7 @@ export default function WorkspaceChat({ workspace, currentUser }: WorkspaceChatP
         userName: m.username || 'Unknown',
         content: m.content,
         timestamp: m.created_at,
+        edited: Boolean(m.edited),
       }));
 
       // If empty, show a UI-only welcome message (not persisted)
@@ -142,9 +204,7 @@ export default function WorkspaceChat({ workspace, currentUser }: WorkspaceChatP
     }
   };
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  
 
   // Local UI helper for edit/delete actions (not persisted to backend yet)
   const saveMessages = (updated: Message[]) => {
@@ -201,20 +261,49 @@ export default function WorkspaceChat({ workspace, currentUser }: WorkspaceChatP
       setEditingContent(message.content);
     }
   };
-
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editingContent.trim() || !editingMessageId) return;
 
-    const updatedMessages = messages.map(m =>
-      m.id === editingMessageId
-        ? { ...m, content: editingContent.trim(), edited: true }
-        : m
-    );
+    try {
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+      const res = await fetch(
+        `${API_BASE_URL}/chat/workspaces/messages/${editingMessageId}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-User-Id': currentUser.id,
+          },
+          body: JSON.stringify({
+            content: editingContent.trim(),
+          }),
+        }
+      );
 
-    saveMessages(updatedMessages);
-    setEditingMessageId(null);
-    setEditingContent('');
-    toast.success('Message updated');
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.detail || `Failed to update message (${res.status})`);
+      }
+
+      const updatedMessages = messages.map((m) =>
+        m.id === editingMessageId
+          ? {
+              ...m,
+              content: data.content,
+              edited: Boolean(data.edited),
+            }
+          : m
+      );
+
+      saveMessages(updatedMessages);
+      setEditingMessageId(null);
+      setEditingContent('');
+      toast.success('Message updated');
+    } catch (e: any) {
+      console.error('[WorkspaceChat] edit error:', e);
+      toast.error(e.message || 'Failed to update message');
+    }
   };
 
   const handleCancelEdit = () => {
@@ -294,10 +383,11 @@ export default function WorkspaceChat({ workspace, currentUser }: WorkspaceChatP
   };
 
   return (
-    <div className="h-full flex flex-col bg-white">
+    <div className="relative h-full flex flex-col">
       {/* Messages Container */}
       <div 
-        ref={chatContainerRef}
+        ref={messagesContainerRef}
+        onScroll={handleMessagesScroll}
         className="flex-1 overflow-y-auto px-4 py-4 space-y-4"
       >
         {messages.length === 0 ? (
@@ -426,14 +516,7 @@ export default function WorkspaceChat({ workspace, currentUser }: WorkspaceChatP
                             <DropdownMenuItem onClick={() => handleEditMessage(message.id)}>
                               <Edit2 className="h-4 w-4 mr-2" />
                               Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleDeleteMessage(message.id)}
-                              className="text-red-600"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
+                            </DropdownMenuItem>     
                           </DropdownMenuContent>
                         </DropdownMenu>
                       )}
@@ -446,7 +529,17 @@ export default function WorkspaceChat({ workspace, currentUser }: WorkspaceChatP
         )}
         <div ref={messagesEndRef} />
       </div>
-
+      {showScrollButton && (
+        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-10">
+          <button
+            onClick={scrollToBottom}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full shadow-lg transition"
+          >
+            <ArrowDown className="h-4 w-4" />
+            {newMessagesCount > 0 ? `${newMessagesCount} new messages` : 'New messages'}
+          </button>
+        </div>
+      )}
       {/* Message Input */}
       <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
         {/* Emoji Picker */}
@@ -477,7 +570,6 @@ export default function WorkspaceChat({ workspace, currentUser }: WorkspaceChatP
             </div>
           </div>
         )}
-
         <form onSubmit={handleSendMessage} className="flex items-end gap-3">
           <div className="flex-1 bg-white border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent">
             <Input
@@ -493,6 +585,7 @@ export default function WorkspaceChat({ workspace, currentUser }: WorkspaceChatP
               }}
             />
           </div>
+          
           <div className="flex items-center gap-2">
             {/* Hidden file input */}
             <input
@@ -526,7 +619,6 @@ export default function WorkspaceChat({ workspace, currentUser }: WorkspaceChatP
             >
               <Paperclip className="h-5 w-5 text-gray-600" />
             </Button>
-            
             {/* Send Button */}
             <Button
               type="submit"

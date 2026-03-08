@@ -19,7 +19,7 @@ class Workspace(Base):
     name = Column(String(100), nullable=False)
     description = Column(Text)
     owner_id = Column(UUID(as_uuid=True), nullable=True)
-
+    image_url = Column(String, nullable=True) 
     # ✅ NEW: parent workspace (null means "top-level workspace")
     parent_id = Column(Integer, ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=True, index=True)
 
