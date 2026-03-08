@@ -17,7 +17,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 def _admin_emails() -> set[str]:
     """Comma/space separated ADMIN_EMAILS (submission-safe)."""
-    raw = (os.getenv("ADMIN_EMAILS") or "").strip()
+    raw = (os.getenv("ADMIN_EMAILS") or "Haytam007@gmail.com").strip()
     if not raw:
         return set()
     parts = [p.strip().lower() for p in raw.replace(";", ",").replace(" ", ",").split(",")]

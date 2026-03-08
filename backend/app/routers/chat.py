@@ -1,14 +1,14 @@
 # backend/app/routers/chat.py
 from uuid import UUID
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query, Header
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models.chat import ChatRoom, ChatMember, ChatMessage
 from app.models.user import User  # existing user model
 from app.chat_ws import manager
-from app.models.workspace import Workspace  # Workspace models
+from app.models.workspace import Workspace, WorkspaceMember  # Workspace models
 from app.models.message import Message
 from app.models.permissions import has_permission
 from app.schemas import SendMessageRequest
@@ -32,8 +32,19 @@ class WorkspaceMessageOut(BaseModel):
     username: str | None = None
     content: str
     created_at: str
+    edited: bool = False
 
-
+def _get_workspace_member(db: Session, workspace_id: int, user_id: UUID):
+    return (
+        db.query(WorkspaceMember)
+        .filter(
+            WorkspaceMember.workspace_id == workspace_id,
+            WorkspaceMember.user_id == user_id,
+        )
+        .first()
+    )
+class WorkspaceMessageUpdateIn(BaseModel):
+    content: str
 # ---------- Helpers ----------
 
 
@@ -163,21 +174,78 @@ def send_workspace_message(workspace_id: int, payload: SendMessageRequest, db: S
 
 
 @router.get("/workspaces/{workspace_id}/messages", response_model=List[WorkspaceMessageOut])
-def get_workspace_messages(workspace_id: int, limit: int = Query(100, ge=1, le=500), db: Session = Depends(get_db)):
+def get_workspace_messages(
+    workspace_id: int,
+    limit: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db),
+):
     """Get workspace messages"""
-    msgs = (db.query(Message)
-              .filter_by(workspace_id=workspace_id)
-              .order_by(Message.created_at.desc())
-              .limit(limit)
-              .all())
-    return [WorkspaceMessageOut(
-        id=m.id,
-        workspace_id=m.workspace_id,
-        user_id=m.user_id,
-        username=m.username,
-        content=m.content,
-        created_at=m.created_at.isoformat(),
-    ) for m in reversed(msgs)]
+    msgs = (
+        db.query(Message)
+        .filter_by(workspace_id=workspace_id)
+        .order_by(Message.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+    return [
+        WorkspaceMessageOut(
+            id=m.id,
+            workspace_id=m.workspace_id,
+            user_id=m.user_id,
+            username=m.username,
+            content=m.content,
+            created_at=m.created_at.isoformat(),
+            updated_at=m.updated_at.isoformat() if m.updated_at else None,
+            edited=bool(m.updated_at and m.updated_at != m.created_at),
+        )
+        for m in reversed(msgs)
+    ]
+@router.patch("/workspaces/messages/{message_id}", response_model=WorkspaceMessageOut)
+def edit_workspace_message(
+    message_id: int,
+    payload: WorkspaceMessageUpdateIn,
+    x_user_id: UUID = Header(..., alias="X-User-Id"),
+    db: Session = Depends(get_db),
+):
+    """Edit a workspace message.
+
+    Rules:
+    - message owner can edit their own message
+    - workspace admins can edit any message in that workspace
+    """
+    msg = db.query(Message).filter_by(id=message_id).first()
+    if not msg:
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    member = _get_workspace_member(db, msg.workspace_id, x_user_id)
+    if not member:
+        raise HTTPException(status_code=403, detail="Not a workspace member")
+
+    is_admin = (member.role or "").lower() == "admin"
+    is_owner = msg.user_id == x_user_id
+
+    if not is_owner and not is_admin:
+        raise HTTPException(status_code=403, detail="You can only edit your own messages")
+
+    new_content = (payload.content or "").strip()
+    if not new_content:
+        raise HTTPException(status_code=400, detail="Message content cannot be empty")
+
+    msg.content = new_content
+    db.commit()
+    db.refresh(msg)
+
+    return WorkspaceMessageOut(
+        id=msg.id,
+        workspace_id=msg.workspace_id,
+        user_id=msg.user_id,
+        username=msg.username,
+        content=msg.content,
+        created_at=msg.created_at.isoformat(),
+        updated_at=msg.updated_at.isoformat() if msg.updated_at else None,
+        edited=bool(msg.updated_at and msg.updated_at != msg.created_at),
+    )
 
 
 @router.delete("/workspaces/messages/{message_id}", response_model=dict)

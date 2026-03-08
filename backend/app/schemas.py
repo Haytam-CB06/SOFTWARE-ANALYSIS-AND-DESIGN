@@ -159,7 +159,7 @@ class WorkspaceResponse(BaseModel):
     description: Optional[str]
     parent_id: Optional[int] = None
     created_at: Optional[datetime]
-
+    image_url: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
 
