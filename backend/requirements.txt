@@ -9,7 +9,7 @@ python-multipart>=0.0.9
 pillow>=10.0
 pytesseract>=0.3.10
 fastapi-mcp>=0.1.0
-
+cloudinary
 # Google OAuth / Calendar (used in app/main.py)
 google-auth-oauthlib>=1.2.0
 google-api-python-client>=2.120.0
