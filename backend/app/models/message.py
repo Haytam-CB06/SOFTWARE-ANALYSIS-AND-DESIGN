@@ -15,7 +15,7 @@ as `from app.models.message import Message`.
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -47,7 +47,7 @@ class Message(Base):
     # Stored for display/history
     username = Column(String(100), nullable=True)
     content = Column(Text, nullable=False)
-
+    edited = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False, index=True)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 

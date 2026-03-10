@@ -32,6 +32,7 @@ class WorkspaceMessageOut(BaseModel):
     username: str | None = None
     content: str
     created_at: str
+    updated_at: str | None = None
     edited: bool = False
 
 def _get_workspace_member(db: Session, workspace_id: int, user_id: UUID):
@@ -197,7 +198,7 @@ def get_workspace_messages(
             content=m.content,
             created_at=m.created_at.isoformat(),
             updated_at=m.updated_at.isoformat() if m.updated_at else None,
-            edited=bool(m.updated_at and m.updated_at != m.created_at),
+            edited=bool(m.edited),
         )
         for m in reversed(msgs)
     ]
@@ -233,6 +234,7 @@ def edit_workspace_message(
         raise HTTPException(status_code=400, detail="Message content cannot be empty")
 
     msg.content = new_content
+    msg.edited = True
     db.commit()
     db.refresh(msg)
 
@@ -244,7 +246,7 @@ def edit_workspace_message(
         content=msg.content,
         created_at=msg.created_at.isoformat(),
         updated_at=msg.updated_at.isoformat() if msg.updated_at else None,
-        edited=bool(msg.updated_at and msg.updated_at != msg.created_at),
+        edited=bool(msg.edited),
     )
 
 
