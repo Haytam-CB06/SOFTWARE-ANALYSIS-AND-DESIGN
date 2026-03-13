@@ -40,7 +40,7 @@ export default function Notebook() {
   const [tagsText, setTagsText] = useState(""); // comma typing for UX
   const [pinned, setPinned] = useState(false);
   const [archived, setArchived] = useState(false);
-
+  const [mobileNotesOpen, setMobileNotesOpen] = useState(false);
     const allTags = useMemo(() => {
         const s = new Set<string>();
         notes.forEach(n => (n.tags || []).forEach(t => s.add(t)));
@@ -116,7 +116,7 @@ export default function Notebook() {
 
   const onNew = async () => {
     try {
-      const n = await createNote({ title: "Untitled", content: "", tags: [], pinned: false, archived: false });
+      const n = await createNote({ title: "  Untitled", content: "", tags: [], pinned: false, archived: false });
       toast.success("Note created");
       setNotes(prev => [n, ...prev]);
       setSelectedId(n.id);
@@ -157,49 +157,109 @@ export default function Notebook() {
   };
 
   return (
-    <div className="h-full flex bg-gray-50">
-      {/* Sidebar */}
-      <div className="w-80 border-r bg-white flex flex-col">
-        <div className="p-4 flex items-center gap-2 border-b">
-          <div className="relative flex-1">
-            <Search className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <Input
-              className="pl-9"
-              placeholder="       Search notes..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
+  <div className="flex h-full min-h-0 flex-col bg-background">
+    {/* Mobile top bar */}
+    <div className="sticky top-0 z-30 flex items-center justify-between border-b bg-background/95 px-4 py-3 backdrop-blur lg:hidden">
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-9 rounded-xl px-3"
+        onClick={() => setMobileNotesOpen(true)}
+      >
+        <Search className="mr-2 h-4 w-4" />
+        Notes
+      </Button>
+          <div className="mx-2 min-w-0 flex-1 text-center">
+      <div className="truncate text-sm font-semibold text-foreground">
+        {selected ? "Editing note" : "Notebook"}
+      </div>
+      <div className="truncate text-[11px] text-muted-foreground">
+        {selected ? "Tap Notes to switch" : "Your notes"}
+      </div>
+    </div>
+
+      <Button onClick={onNew} size="sm" className="h-9 rounded-xl bg-blue-600 px-3 hover:bg-blue-700">
+      <Plus className="h-4 w-4 sm:mr-2" />
+      <span className="hidden sm:inline">Add</span>
+    </Button>
+    </div>
+
+    <div className="flex min-h-0 flex-1">
+      {/* Desktop sidebar */}
+      <div className="hidden w-[340px] shrink-0 border-r bg-card/80 backdrop-blur lg:flex lg:flex-col">
+        <div className="border-b p-4">
+          <div className="mb-3">
+            <div className="text-lg font-semibold text-foreground">My Notes</div>
+            <div className="text-sm text-muted-foreground">
+              {notes.length} note{notes.length === 1 ? "" : "s"}
+            </div>
           </div>
-          <Button onClick={onNew} className="bg-blue-600 hover:bg-blue-700">
-            <Plus className="h-4 w-4" />
-          </Button>
+
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                className="h-10 rounded-xl pl-9"
+                placeholder="      Search notes..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
+            <Button onClick={onNew} className="h-10 rounded-xl bg-blue-600 px-3 hover:bg-blue-700">
+              <Plus className="mr-2 h-4 w-4" />
+              New
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
-        <div className="p-3 space-y-2">
-          <div className="flex gap-2">
-            <Button variant={filter === "all" ? "default" : "outline"} size="sm" onClick={() => setFilter("all")}>All</Button>
-            <Button variant={filter === "pinned" ? "default" : "outline"} size="sm" onClick={() => setFilter("pinned")}>Pinned</Button>
-            <Button variant={filter === "archived" ? "default" : "outline"} size="sm" onClick={() => setFilter("archived")}>Archived</Button>
+        <div className="space-y-3 p-3">
+          <div className="grid grid-cols-3 gap-2">
+            <Button
+              variant={filter === "all" ? "default" : "outline"}
+              size="sm"
+              className="rounded-lg"
+              onClick={() => setFilter("all")}
+            >
+              All
+            </Button>
+            <Button
+              variant={filter === "pinned" ? "default" : "outline"}
+              size="sm"
+              className="rounded-lg"
+              onClick={() => setFilter("pinned")}
+            >
+              Pinned
+            </Button>
+            <Button
+              variant={filter === "archived" ? "default" : "outline"}
+              size="sm"
+              className="rounded-lg"
+              onClick={() => setFilter("archived")}
+            >
+              Archived
+            </Button>
           </div>
 
           {allTags.length > 0 && (
             <>
               <Separator />
-              <div className="text-xs text-gray-500 font-medium">Tags</div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Tags
+              </div>
               <div className="flex flex-wrap gap-2">
                 <Badge
                   variant={tagFilter === null ? "default" : "outline"}
-                  className="cursor-pointer"
+                  className="cursor-pointer rounded-md px-2.5 py-1"
                   onClick={() => setTagFilter(null)}
                 >
                   All
                 </Badge>
-                {allTags.map(t => (
+                {allTags.map((t) => (
                   <Badge
                     key={t}
                     variant={tagFilter === t ? "default" : "outline"}
-                    className="cursor-pointer"
+                    className="cursor-pointer rounded-md px-2.5 py-1"
                     onClick={() => setTagFilter(t)}
                   >
                     {t}
@@ -215,33 +275,41 @@ export default function Notebook() {
         {/* Notes list */}
         <div className="flex-1 overflow-auto">
           {notes.length === 0 ? (
-            <div className="p-6 text-sm text-gray-500">No notes yet. Click + to create one.</div>
+            <div className="p-6">
+              <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+                No notes yet. Click <span className="font-medium text-foreground">New</span> to create one.
+              </div>
+            </div>
           ) : (
-            <div className="p-2 space-y-2">
-              {notes.map(n => (
+            <div className="space-y-2 p-3">
+              {notes.map((n) => (
                 <Card
                   key={n.id}
-                  className={`p-3 cursor-pointer hover:shadow-sm transition ${
-                    n.id === selectedId ? "border-blue-300 bg-blue-50" : ""
+                  className={`cursor-pointer rounded-xl border p-3 shadow-sm transition-all hover:-translate-y-[1px] hover:shadow-md ${
+                    n.id === selectedId
+                      ? "border-blue-500/60 bg-blue-100 dark:bg-blue-950/40 ring-1 ring-blue-400/40"
+                    : "bg-background hover:bg-accent/40"
                   }`}
                   onClick={async () => {
-                        if (n.id === selectedId) return;
+                    if (n.id === selectedId) return;
 
-                        if (isDirty) {
-                            const ok = await onSave();
-                            if (!ok) return;   // 👈 prevent switching if save failed
-                        }
+                    if (isDirty) {
+                      const ok = await onSave();
+                      if (!ok) return;
+                    }
 
-                        setSelectedId(n.id);
-                        }}
+                    setSelectedId(n.id);
+                  }}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="font-medium truncate">{n.title || "Untitled"}</div>
-                      <div className="text-xs text-gray-500 truncate mt-1">
-                        {n.content?.slice(0, 80) || "No content"}
+                      <div className="truncate text-sm font-semibold text-foreground">
+                        {n.title || "Untitled"}
                       </div>
-                      <div className="text-xs text-gray-400 mt-2">
+                      <div className="mt-1 line-clamp-2 text-xs text-foreground/70 dark:text-foreground/60">
+                        {n.content?.slice(0, 120) || "No content"}
+                      </div>
+                      <div className="mt-2 text-[11px] text-foreground/50">
                         Updated {timeAgo(n.updated_at)}
                       </div>
                     </div>
@@ -257,64 +325,232 @@ export default function Notebook() {
         </div>
       </div>
 
+      {/* Mobile notes sheet */}
+      {mobileNotesOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setMobileNotesOpen(false)}
+          />
+          <div className="absolute inset-x-0 bottom-0 top-20 flex flex-col rounded-t-3xl border bg-background shadow-2xl">
+            <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-muted-foreground/30" />
+
+            <div className="border-b p-4">
+              <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="text-lg font-semibold text-foreground">My Notes</div>
+                  <div className="text-sm text-muted-foreground">
+                    {notes.length} note{notes.length === 1 ? "" : "s"}
+                  </div>
+                </div>
+                <Button
+                onClick={() => {
+                  setMobileNotesOpen(false);
+                  onNew();
+                }}
+                className="w-full rounded-xl bg-blue-600 px-3 hover:bg-blue-700 sm:w-auto"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Note
+              </Button>
+              </div>
+
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  className="h-10 rounded-xl pl-9"
+                  placeholder="    Search notes..."
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+              </div>
+
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                <Button
+                  variant={filter === "all" ? "default" : "outline"}
+                  size="sm"
+                  className="rounded-lg"
+                  onClick={() => setFilter("all")}
+                >
+                  All
+                </Button>
+                <Button
+                  variant={filter === "pinned" ? "default" : "outline"}
+                  size="sm"
+                  className="rounded-lg"
+                  onClick={() => setFilter("pinned")}
+                >
+                  Pinned
+                </Button>
+                <Button
+                  variant={filter === "archived" ? "default" : "outline"}
+                  size="sm"
+                  className="rounded-lg"
+                  onClick={() => setFilter("archived")}
+                >
+                  Archived
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-auto p-3">
+              {notes.length === 0 ? (
+                <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+                  No notes yet. Tap <span className="font-medium text-foreground">Add Note</span> to create one.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {notes.map((n) => (
+                    <Card
+                      key={n.id}
+                      className={`cursor-pointer rounded-xl border p-3 shadow-sm transition-all ${
+                        n.id === selectedId
+                        ? "border-blue-500/60 bg-blue-100 dark:bg-blue-950/40 ring-1 ring-blue-400/40"
+                        : "bg-background hover:bg-accent/40"
+                      }`}
+                      onClick={async () => {
+                        if (n.id === selectedId) {
+                          setMobileNotesOpen(false);
+                          return;
+                        }
+
+                        if (isDirty) {
+                          const ok = await onSave();
+                          if (!ok) return;
+                        }
+
+                        setSelectedId(n.id);
+                        setMobileNotesOpen(false);
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-foreground">
+                            {n.title || "Untitled"}
+                          </div>
+                          <div className="mt-1 line-clamp-2 text-xs text-foreground/70 dark:text-foreground/60">
+                            {n.content?.slice(0, 120) || "No content"}
+                          </div>
+                          <div className="mt-2 text-[11px] text-foreground/50">
+                            Updated {timeAgo(n.updated_at)}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {n.pinned && <Pin className="h-4 w-4 text-blue-600" />}
+                          {n.archived && <Archive className="h-4 w-4 text-gray-500" />}
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Editor */}
-      <div className="flex-1 p-6 overflow-auto">
+      <div className="flex-1 min-h-0 overflow-auto bg-muted/10 p-4 sm:p-6">
         {!selected ? (
-          <div className="h-full flex items-center justify-center text-gray-500">
-            Select a note or create a new one.
+          <div className="flex h-full items-center justify-center">
+            <div className="rounded-2xl border border-dashed bg-background px-8 py-10 text-center shadow-sm">
+              <div className="text-base font-medium text-foreground">No note selected</div>
+              <div className="mt-2 text-sm text-muted-foreground">
+                Open the notes menu or create a new note to get started.
+              </div>
+              <Button onClick={onNew} className="mt-4 rounded-xl bg-blue-600 hover:bg-blue-700">
+                <Plus className="mr-2 h-4 w-4" />
+                Create note
+              </Button>
+            </div>
           </div>
         ) : (
-          <div className="max-w-3xl space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-500">
+          <div className="mx-auto max-w-4xl space-y-4 pb-6">
+            <div className="hidden sticky top-0 z-10 flex-col gap-3 rounded-2xl border bg-background/90 p-3 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between lg:flex">
+              <div className="text-sm text-muted-foreground">
                 Last updated {timeAgo(selected.updated_at)}
               </div>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" onClick={onDelete} className="text-red-600 border-red-200 hover:bg-red-50">
-                  <Trash2 className="h-4 w-4 mr-2" /> Delete
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onDelete}
+                  className="border-red-200 text-red-600 hover:bg-red-50"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
                 </Button>
                 <Button onClick={onSave} className="bg-blue-600 hover:bg-blue-700">
                   Save
                 </Button>
               </div>
             </div>
-
-            <Input
-              className="text-lg font-semibold"
-              placeholder="Note title..."
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-
-            <div className="flex items-center justify-between rounded-lg border bg-white p-3">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-700">Pinned</span>
-                <Switch checked={pinned} onCheckedChange={setPinned} />
+              <div className="flex flex-col gap-3 rounded-2xl border bg-background p-3 shadow-sm lg:hidden">
+                <div className="text-xs text-muted-foreground">
+                Updated {timeAgo(selected.updated_at)}
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-700">Archived</span>
-                <Switch checked={archived} onCheckedChange={setArchived} />
+
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onDelete}
+                  className="h-10 border-red-300 text-red-600 hover:bg-red-50 dark:border-red-900/60 dark:hover:bg-red-950/30"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </Button>
+
+                <Button
+                  size="sm"
+                  onClick={onSave}
+                  className="h-10 bg-blue-600 hover:bg-blue-700"
+                >
+                  Save
+                </Button>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <div className="text-sm text-gray-600">Tags (comma separated)</div>
+            <div className="rounded-3xl border bg-background p-4 shadow-sm sm:p-6">
               <Input
-                placeholder="school, exam, todo"
-                value={tagsText}
-                onChange={(e) => setTagsText(e.target.value)}
+                className="h-11 rounded-xl border-0 bg-transparent px-0 text-xl font-bold shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 sm:h-12 sm:text-2xl"
+                placeholder="Untitled note"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+
+              <div className="mt-4 flex flex-col gap-3 rounded-2xl border bg-background p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-foreground">Pinned</span>
+                  <Switch checked={pinned} onCheckedChange={setPinned} />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-foreground">Archived</span>
+                  <Switch checked={archived} onCheckedChange={setArchived} />
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-2 rounded-2xl border bg-background p-4 shadow-sm">
+                <div className="text-sm font-medium text-foreground">Tags</div>
+                <Input
+                  className="rounded-xl"
+                  placeholder="school, exam, todo"
+                  value={tagsText}
+                  onChange={(e) => setTagsText(e.target.value)}
+                />
+              </div>
+
+              <Textarea
+                className="mt-4 min-h-[520px] rounded-2xl border bg-background p-5 text-[15px] leading-7 shadow-sm"
+                placeholder="Start writing..."
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
               />
             </div>
-
-            <Textarea
-              className="min-h-[420px]"
-              placeholder="Write your note..."
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-            />
           </div>
         )}
       </div>
     </div>
-  );
+  </div>
+);
 }

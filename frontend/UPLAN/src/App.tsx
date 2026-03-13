@@ -20,6 +20,8 @@ import { GoogleSuccess } from './src/pages/GoogleSuccess';
 import { apiJsonAuthed } from './lib/api';
 import { setupFormDraftPersistence } from './utils/persistFormDrafts';
 import { getUserItem, setUserItem } from './utils/userStorage';
+
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 async function warmBackend(retries = 8) {
@@ -34,10 +36,12 @@ async function warmBackend(retries = 8) {
   return false;
 }
 export default function App() {
+  
   const { isAuthenticated, authReady, user, login, logout, updateUserName } = useAuth();
   const [backendReady, setBackendReady] = useState(false);
   const onboardingTotalSteps = TOUR_STEPS.length + 1; // +1 for Welcome screen
   // Register service worker for PWA support
+  
   useEffect(() => {
     if (import.meta.env.DEV) {
       registerServiceWorker();
@@ -308,7 +312,7 @@ useEffect(() => {
   useEffect(() => {
     // Don't run redirect/normalization logic until auth has hydrated from storage.
     if (!authReady) return;
-
+    
     if (isAuthenticated) {
       const params = new URLSearchParams(window.location.search);
       const urlPage = params.get('page') as PageType | null;

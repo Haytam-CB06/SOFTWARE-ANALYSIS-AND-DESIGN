@@ -8,9 +8,7 @@ import {
   MoreVertical, 
   Calendar, 
   User, 
-  Tag, 
   Clock, 
-  AlertCircle,
   CheckCircle2,
   Circle,
   Trash2,
@@ -20,7 +18,6 @@ import {
   ChevronUp,
   Flag,
   MessageSquare,
-  Paperclip,
   Eye,
   BarChart3
 } from 'lucide-react';
@@ -130,12 +127,12 @@ const TaskCard = ({ task, onEdit, onDelete, moveTask }: any) => {
   return (
     <div
       ref={drag}
-      className={`bg-white border border-gray-200 rounded-lg p-3 mb-2 cursor-move hover:shadow-md transition-shadow ${
+      className={`bg-white border border-gray-200 rounded-xl p-3 mb-2 cursor-move active:cursor-grabbing hover:shadow-md transition-shadow touch-manipulation ${
         isDragging ? 'opacity-50' : ''
       }`}
     >
       <div className="flex items-start justify-between mb-2">
-        <h4 className="text-sm font-medium text-gray-900 flex-1 pr-2">{task.title}</h4>
+        <h4 className="flex-1 pr-2 text-sm font-medium text-gray-900 break-words [overflow-wrap:anywhere]"> {task.title}</h4>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
@@ -147,7 +144,32 @@ const TaskCard = ({ task, onEdit, onDelete, moveTask }: any) => {
               <Edit className="h-4 w-4 mr-2" />
               Edit Task
             </DropdownMenuItem>
+
             <DropdownMenuSeparator />
+
+            {task.status !== 'todo' && (
+              <DropdownMenuItem onClick={() => moveTask(task.id, 'todo')}>
+                Move to To Do
+              </DropdownMenuItem>
+            )}
+            {task.status !== 'in-progress' && (
+              <DropdownMenuItem onClick={() => moveTask(task.id, 'in-progress')}>
+                Move to In Progress
+              </DropdownMenuItem>
+            )}
+            {task.status !== 'review' && (
+              <DropdownMenuItem onClick={() => moveTask(task.id, 'review')}>
+                Move to In Review
+              </DropdownMenuItem>
+            )}
+            {task.status !== 'done' && (
+              <DropdownMenuItem onClick={() => moveTask(task.id, 'done')}>
+                Move to Done
+              </DropdownMenuItem>
+            )}
+
+            <DropdownMenuSeparator />
+
             <DropdownMenuItem onClick={() => onDelete(task.id)} className="text-red-600">
               <Trash2 className="h-4 w-4 mr-2" />
               Delete Task
@@ -157,7 +179,7 @@ const TaskCard = ({ task, onEdit, onDelete, moveTask }: any) => {
       </div>
 
       {task.description && (
-        <p className="text-xs text-gray-600 mb-3 line-clamp-2">{task.description}</p>
+        <p className="mb-3 text-xs text-gray-600 line-clamp-3 break-words [overflow-wrap:anywhere]">{task.description}</p>
       )}
 
       {/* Labels */}
@@ -176,8 +198,8 @@ const TaskCard = ({ task, onEdit, onDelete, moveTask }: any) => {
       )}
 
       {/* Footer */}
-      <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-        <div className="flex items-center gap-2">
+      <div className="mt-3 flex items-start justify-between gap-2 border-t border-gray-100 pt-3">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Priority */}
           <Badge variant="outline" className={`text-xs ${priorityConfig.color}`}>
             <span className="mr-1">{priorityConfig.icon}</span>
@@ -237,12 +259,12 @@ const Column = ({ column, tasks, onAddTask, onEdit, onDelete, moveTask }: any) =
   return (
     <div 
       ref={drop}
-      className={`bg-gray-50 rounded-lg p-4 min-h-[500px] transition-colors ${
+      className={`w-[280px] sm:w-[320px] xl:w-auto border border-gray-200 bg-gray-50 rounded-xl p-3 sm:p-4 min-h-[420px] xl:min-h-[500px] transition-colors ${
         isOver ? 'bg-blue-50 ring-2 ring-blue-300' : ''
       }`}
     >
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <ColumnIcon className="h-5 w-5 text-gray-600" />
           <h3 className="font-semibold text-gray-900">{column.title}</h3>
           <Badge variant="secondary" className="ml-1">
@@ -270,9 +292,9 @@ const Column = ({ column, tasks, onAddTask, onEdit, onDelete, moveTask }: any) =
           />
         ))}
         {tasks.length === 0 && (
-          <div className="text-center py-8 text-gray-400">
-            <Circle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">No tasks</p>
+          <div className="rounded-xl border border-dashed border-gray-200 bg-white/60 py-10 text-center text-gray-400">
+            <p className="text-sm font-medium">No tasks yet</p>
+            <p className="mt-1 text-xs text-gray-500">Add a task to get started</p>
           </div>
         )}
       </div>
@@ -596,22 +618,21 @@ export default function CollaborationBoard({ workspace, currentUser }: Collabora
     overdue: tasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'done').length
   };
 
-  const [filtersExpanded, setFiltersExpanded] = useState(false);
 
   return (
     <DndProvider backend={HTML5Backend}>
-      <div className="h-full overflow-auto bg-gray-50">
+      <div className="flex h-full min-h-0 flex-col bg-transparent">
         {/* Header */}
-        <div className="bg-white border-b border-gray-200">
-          <div className={`px-6 transition-all duration-200 ${showDetails ? 'py-4' : 'py-2'}`}>
-            <div className="flex items-center justify-between">
+        <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
+          <div className={`px-3 sm:px-4 lg:px-6 transition-all duration-200 ${showDetails ? 'py-4' : 'py-2'}`}>
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
               <div className="flex-1">
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   <h2 className={`text-gray-900 transition-all duration-200 ${showDetails ? 'text-2xl mb-1' : 'text-lg mb-0'}`}>
                     Collaboration Board
                   </h2>
                   {!showDetails && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                       <Badge variant="secondary" className="text-xs">
                         {stats.total} tasks
                       </Badge>
@@ -630,26 +651,26 @@ export default function CollaborationBoard({ workspace, currentUser }: Collabora
                   <p className="text-gray-600 text-sm">Manage tasks and track progress with your team</p>
                 )}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex w-full flex-wrap items-center gap-1 sm:gap-2 sm:w-auto">
                 {!showDetails && (
-                  <div className="flex items-center gap-2 mr-2">
-                    <div className="relative">
+                  <div className="flex w-full items-center gap-2 xl:mr-2 xl:w-auto">
+                    <div className="relative w-full">
                       <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                       <Input
                         placeholder="Quick search..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-8 h-8 w-48 text-sm border-gray-300"
+                        className="h-9 w-full pl-8 text-sm border-gray-300 xl:w-48"
                       />
                     </div>
                   </div>
                 )}
                 <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowDetails(!showDetails)}
-                  className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors h-8"
-                >
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowDetails(!showDetails)}
+                    className="h-9 w-full justify-between text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 sm:w-auto"
+                  >
                   <BarChart3 className="h-4 w-4 mr-2" />
                   {showDetails ? 'Compact' : 'Detailed'}
                   {showDetails ? (
@@ -658,17 +679,20 @@ export default function CollaborationBoard({ workspace, currentUser }: Collabora
                     <ChevronDown className="h-4 w-4 ml-4" />
                   )}
                 </Button>
-                <Button onClick={() => handleAddTask()} className="bg-blue-600 hover:bg-blue-800 dark:hover:bg-blue-900 shadow-sm h-8">
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Task
-                </Button>
+                <Button
+                onClick={() => handleAddTask()}
+                className="h-9 w-full bg-blue-600 px-3 shadow-sm hover:bg-blue-800 dark:hover:bg-blue-900 sm:w-auto"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                <span>New Task</span>
+              </Button>
               </div>
             </div>
           </div>
 
           {/* Collapsible Analytics & Filters Section */}
           <Collapsible open={showDetails} className="border-t border-gray-100">
-            <CollapsibleContent className="px-6 py-4 space-y-4 animate-in slide-in-from-top-2 duration-200">
+            <CollapsibleContent className="space-y-4 px-3 py-4 sm:px-4 lg:px-6 animate-in slide-in-from-top-2 duration-200">
               {/* Stats */}
               <div>
                 <div className="flex items-center gap-2 mb-3">
@@ -733,8 +757,8 @@ export default function CollaborationBoard({ workspace, currentUser }: Collabora
                   <Filter className="h-4 w-4 text-gray-500" />
                   <h3 className="text-sm font-medium text-gray-700">Filters</h3>
                 </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex-1 min-w-[200px]">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr),160px,160px]">
+                  <div className="min-w-0">
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                       <Input
@@ -747,7 +771,7 @@ export default function CollaborationBoard({ workspace, currentUser }: Collabora
                   </div>
                   
                   <Select value={filterPriority} onValueChange={setFilterPriority}>
-                    <SelectTrigger className="w-[160px] border-gray-300">
+                    <SelectTrigger className="w-full border-gray-300">
                       <Flag className="h-4 w-4 mr-2 text-gray-500" />
                       <SelectValue />
                     </SelectTrigger>
@@ -761,7 +785,7 @@ export default function CollaborationBoard({ workspace, currentUser }: Collabora
                   </Select>
 
                   <Select value={filterAssignee} onValueChange={setFilterAssignee}>
-                    <SelectTrigger className="w-[160px] border-gray-300">
+                    <SelectTrigger className="w-full border-gray-300">
                       <User className="h-4 w-4 mr-2 text-gray-500" />
                       <SelectValue />
                     </SelectTrigger>
@@ -782,8 +806,8 @@ export default function CollaborationBoard({ workspace, currentUser }: Collabora
         </div>
 
         {/* Board */}
-        <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 min-w-[900px]">
+        <div className="flex-1 min-h-0 overflow-x-auto overflow-y-auto p-3 sm:p-4 lg:p-6">
+  <div className="grid min-w-[1100px] grid-cols-4 gap-4 xl:min-w-0">
             {COLUMNS.map((column) => (
               <Column
                 key={column.id}
@@ -800,7 +824,7 @@ export default function CollaborationBoard({ workspace, currentUser }: Collabora
 
         {/* Task Dialog */}
         <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-h-[90vh] w-[calc(100vw-1rem)] max-w-2xl overflow-y-auto rounded-xl sm:w-full">
             <DialogHeader>
               <DialogTitle>{editingTask ? 'Edit Task' : 'Create New Task'}</DialogTitle>
               <DialogDescription>
@@ -808,7 +832,7 @@ export default function CollaborationBoard({ workspace, currentUser }: Collabora
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4 py-4">
+            <div className="space-y-4 py-2 sm:py-4">
               {/* Title */}
               <div className="space-y-2">
                 <Label htmlFor="title">Title *</Label>
@@ -833,7 +857,7 @@ export default function CollaborationBoard({ workspace, currentUser }: Collabora
               </div>
 
               {/* Status and Priority */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="status">Status</Label>
                   <Select
@@ -877,7 +901,7 @@ export default function CollaborationBoard({ workspace, currentUser }: Collabora
               </div>
 
               {/* Assignee and Due Date */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="assignee">Assignee</Label>
                   <Select
@@ -915,19 +939,19 @@ export default function CollaborationBoard({ workspace, currentUser }: Collabora
               {/* Labels */}
               <div className="space-y-2">
                 <Label>Labels</Label>
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <Input
                     placeholder="Add a label..."
                     value={newTask.newLabel}
                     onChange={(e) => setNewTask({ ...newTask, newLabel: e.target.value })}
-                    onKeyPress={(e) => {
+                    onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
                         addLabel();
                       }
                     }}
                   />
-                  <Button type="button" onClick={addLabel} variant="outline">
+                  <Button type="button" onClick={addLabel} variant="outline" className="w-full sm:w-auto">
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
@@ -951,11 +975,11 @@ export default function CollaborationBoard({ workspace, currentUser }: Collabora
               </div>
             </div>
 
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsTaskDialogOpen(false)}>
+            <DialogFooter className="flex-col gap-2 sm:flex-row">
+              <Button variant="outline" onClick={() => setIsTaskDialogOpen(false)} className="w-full sm:w-auto">
                 Cancel
               </Button>
-              <Button onClick={handleSaveTask} className="bg-blue-600 hover:bg-blue-800 dark:hover:bg-blue-900">
+              <Button onClick={handleSaveTask} className="w-full bg-blue-600 hover:bg-blue-800 dark:hover:bg-blue-900 sm:w-auto">
                 {editingTask ? 'Update Task' : 'Create Task'}
               </Button>
             </DialogFooter>

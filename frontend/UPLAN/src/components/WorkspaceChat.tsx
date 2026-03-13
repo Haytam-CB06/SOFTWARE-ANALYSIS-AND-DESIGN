@@ -62,20 +62,7 @@ export default function WorkspaceChat({ workspace, currentUser }: WorkspaceChatP
 
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-useEffect(() => {
-  const prevLength = prevMessagesLengthRef.current;
 
-  if (messages.length > prevLength) {
-    if (isUserAtBottom()) {
-      setTimeout(() => scrollToBottom(), 50);
-    } else {
-      setShowScrollButton(true);
-      setNewMessagesCount((count) => count + (messages.length - prevLength));
-    }
-  }
-
-  prevMessagesLengthRef.current = messages.length;
-}, [messages]);
 useEffect(() => {
   const prevLength = prevMessagesLengthRef.current;
 
@@ -86,11 +73,13 @@ useEffect(() => {
   }
 
   if (messages.length > prevLength) {
+    const addedCount = messages.length - prevLength;
+
     if (isUserAtBottom()) {
       setTimeout(() => scrollToBottom(), 50);
     } else {
       setShowScrollButton(true);
-      setNewMessagesCount((count) => count + (messages.length - prevLength));
+      setNewMessagesCount((count) => count + addedCount);
     }
   }
 
@@ -247,6 +236,7 @@ const scrollToBottom = () => {
         };
         setMessages((prev) => [...prev.filter((m) => m.id !== 'welcome'), message]);
         setNewMessage('');
+        setTimeout(() => scrollToBottom(), 50);
       } catch (e: any) {
         console.error('[WorkspaceChat] send error:', e);
         toast.error(e.message || 'Failed to send message');
@@ -383,15 +373,15 @@ const scrollToBottom = () => {
   };
 
   return (
-    <div className="relative h-full flex flex-col">
+   <div className="relative flex h-full min-h-0 flex-col">
       {/* Messages Container */}
       <div 
         ref={messagesContainerRef}
         onScroll={handleMessagesScroll}
-        className="flex-1 overflow-y-auto px-4 py-4 space-y-4"
+        className="flex-1 min-h-0 overflow-y-auto px-3 pt-4 pb-0 sm:px-4"
       >
         {messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-gray-500">
+          <div className="flex h-full items-center justify-center px-4 text-gray-500">
             <div className="text-center">
               <Send className="h-12 w-12 mx-auto mb-3 text-gray-300" />
               <p>No messages yet</p>
@@ -399,6 +389,7 @@ const scrollToBottom = () => {
             </div>
           </div>
         ) : (
+          
           messages.map((message, index) => {
             const isSystem = isSystemMessage(message);
             const isOwn = isOwnMessage(message);
@@ -418,37 +409,35 @@ const scrollToBottom = () => {
             return (
               <div
                 key={message.id}
-                className={`flex gap-3 ${isOwn ? 'flex-row-reverse' : 'flex-row'} ${!showAvatar ? 'ml-12' : ''}`}
+                className={`flex w-full gap-3 ${isOwn ? 'justify-end' : 'justify-start'}`}
               >
-                {showAvatar ? (
+                {isOwn ? (
+                  <div className="h-10 w-10 flex-shrink-0" />
+                ) : showAvatar ? (
                   <Avatar className="h-10 w-10 flex-shrink-0">
                     {API_BASE_URL && message.userId !== 'system' && uuidLike(message.userId) ? (
                       <AvatarImage src={`${API_BASE_URL}/user/${message.userId}/profile-picture`} alt={message.userName} />
                     ) : null}
-                    <AvatarFallback className={`${
-                      isOwn 
-                        ? 'bg-blue-400 to-blue-600' 
-                        : 'bg-gray-400 to-gray-600'
-                    } text-white`}>
+                    <AvatarFallback className="bg-gray-500 text-white">
                       {getInitials(message.userName)}
                     </AvatarFallback>
                   </Avatar>
                 ) : (
-                  <div className="w-10 flex-shrink-0" />
+                  <div className="h-10 w-10 flex-shrink-0" />
                 )}
 
-                <div className={`flex-1 ${isOwn ? 'items-end' : 'items-start'} flex flex-col max-w-[70%]`}>
+                <div className={`flex min-w-0 flex-col ${isOwn ? 'items-end' : 'items-start'} max-w-[85%] sm:max-w-[75%] lg:max-w-[68%]`}>
                   {showAvatar && (
-                    <div className={`flex items-center gap-2 mb-1 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
-                      <span className="text-sm text-gray-900">{message.userName}</span>
-                      <Badge 
-                        variant="outline" 
-                        className={`text-xs ${roleColors[role]} border-current`}
-                      >
-                        {role}
-                      </Badge>
-                    </div>
-                  )}
+                      <div className={`flex items-center gap-2 mb-1 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+                        <span className="text-sm text-gray-900">{isOwn ? 'Me' : message.userName}</span>
+                        <Badge
+                          variant="outline"
+                          className={`text-xs ${roleColors[role]} border-current`}
+                        >
+                          {role}
+                        </Badge>
+                      </div>
+                    )}
 
                   <div className={`group relative ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
                     {editingMessageId === message.id ? (
@@ -481,13 +470,15 @@ const scrollToBottom = () => {
                       </div>
                     ) : (
                       <div
-                        className={`rounded-lg px-4 py-2 ${
-                          isOwn
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-100 text-gray-900'
-                        }`}
-                      >
-                        <p className="break-words">{message.content}</p>
+                          className={`min-w-0 max-w-full rounded-2xl px-4 py-2.5 shadow-sm ${
+                            isOwn
+                              ? 'bg-blue-600 text-white'
+                              : 'border border-gray-200 bg-gray-50 text-gray-900'
+                          }`}
+                        >
+                      <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm leading-6">
+                        {message.content}
+                      </p>
                         {message.edited && (
                           <span className={`text-xs mt-1 block ${isOwn ? 'text-white/70' : 'text-gray-500'}`}>
                             (edited)
@@ -541,10 +532,10 @@ const scrollToBottom = () => {
         </div>
       )}
       {/* Message Input */}
-      <div className="border-t border-gray-200 px-6 py-4 bg-gray-50">
+      <div className="shrink-0 border-t border-gray-200 bg-white px-3 py-3 sm:px-4 lg:px-6">
         {/* Emoji Picker */}
         {showEmojiPicker && (
-          <div className="emoji-picker-container mb-3 p-4 bg-white border border-gray-200 rounded-lg shadow-lg">
+          <div className="emoji-picker-container mb-3 rounded-lg border border-gray-200 bg-white p-3 shadow-lg sm:p-4">
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-sm font-medium text-gray-900">Quick Emojis</h4>
               <Button
@@ -556,7 +547,7 @@ const scrollToBottom = () => {
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            <div className="grid grid-cols-9 gap-2">
+            <div className="grid grid-cols-6 gap-2 sm:grid-cols-8 lg:grid-cols-9">
               {commonEmojis.map((emoji, index) => (
                 <button
                   key={index}
@@ -570,7 +561,7 @@ const scrollToBottom = () => {
             </div>
           </div>
         )}
-        <form onSubmit={handleSendMessage} className="flex items-end gap-3">
+        <form onSubmit={handleSendMessage} className="flex items-end gap-2 sm:gap-3">
           <div className="flex-1 bg-white border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent">
             <Input
               value={newMessage}
@@ -621,13 +612,13 @@ const scrollToBottom = () => {
             </Button>
             {/* Send Button */}
             <Button
-              type="submit"
-              disabled={!newMessage.trim()}
-              
-            >
-              <Send className="h-4 w-4 mr-2" />
-              Send
-            </Button>
+            type="submit"
+            disabled={!newMessage.trim()}
+            className="shrink-0"
+          >
+            <Send className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Send</span>
+          </Button>
           </div>
         </form>
         <p className="text-xs text-gray-500 mt-2">

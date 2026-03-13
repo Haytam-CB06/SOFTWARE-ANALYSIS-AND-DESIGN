@@ -16,7 +16,7 @@ import SessionCard from './SessionCard';
 import SessionDialog from './SessionDialog';
 import ImportDialog from './ImportDialog';
 import googleCalendarIcon from 'figma:asset/9cdb2bc588344ebf952e674647c637e389c6663e.png';
-
+import { MoreHorizontal } from "lucide-react";
 // Timetable sessions use the Goals/Achievements numeric accent (purple) for uniqueness.
 const TIMETABLE_SESSION_COLOR = '#6366F1';
 
@@ -997,73 +997,246 @@ export default function CalendarView({
       confirmVariant: 'default',
     });
   };
+const hexToRgb = (hex: string) => {
+  const cleaned = hex.replace('#', '');
+  const normalized =
+    cleaned.length === 3
+      ? cleaned.split('').map((c) => c + c).join('')
+      : cleaned;
 
+  const num = Number.parseInt(normalized, 16);
+
+  return {
+    r: (num >> 16) & 255,
+    g: (num >> 8) & 255,
+    b: num & 255,
+  };
+};
+
+const truncateText = (doc: any, text: string, maxWidth: number) => {
+  if (!text) return '';
+  let result = text;
+
+  while (result.length > 0 && doc.getTextWidth(result) > maxWidth) {
+    result = result.slice(0, -1);
+  }
+
+  return result === text ? text : `${result}…`;
+};
   const exportToPDF = async () => {
-    const weekId = getWeekIdentifier(currentDate);
-    const target = calendarExportRef.current;
-    if (!target) {
-      toast.error('Unable to export: calendar view not found');
-      return;
-    }
+  const weekId = getWeekIdentifier(currentDate);
 
-    try {
-      const { jsPDF } = await import('jspdf');
-      const { toPng } = await import('html-to-image');
+  try {
+    const { jsPDF } = await import('jspdf');
 
-      // Create a landscape PDF to better match the calendar layout.
-      const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'pt',
+      format: 'a4',
+    });
 
-      // Render the calendar container to a PNG.
-      const dataUrl = await toPng(target, {
-        cacheBust: true,
-        pixelRatio: 2,
-        backgroundColor: '#FFFFFF',
-      });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 36;
+    const headerHeight = 70;
+    const contentTop = margin + headerHeight;
+    const contentBottom = pageHeight - margin;
 
-      // Get rendered image dimensions
-      const img = new Image();
-      img.src = dataUrl;
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = () => reject(new Error('Image load failed'));
-      });
+    const weekDates = getWeekDates();
+    const start = weekDates[0];
+    const end = weekDates[6];
 
-      const imgWidth = img.naturalWidth || img.width;
-      const imgHeight = img.naturalHeight || img.height;
+    const dateRange = `${start.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    })} - ${end.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })} (${weekId})`;
 
-      // Fit image to PDF page while keeping aspect ratio
-      const scale = Math.min(pageWidth / imgWidth, pageHeight / imgHeight);
-      const renderWidth = imgWidth * scale;
-      const renderHeight = imgHeight * scale;
+    const sessionsByDay = days.map((dayName, dayIndex) => {
+      const items = [...allSessions]
+        .filter((s) => s.day === dayIndex)
+        .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
 
-      // Multi-page support if the calendar is too tall.
-      let y = 0;
-      let remaining = renderHeight;
-      const xOffset = (pageWidth - renderWidth) / 2;
+      return {
+        dayName,
+        dateLabel: weekDates[dayIndex].toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+        }),
+        items,
+      };
+    });
 
-      // Add the image in slices (jsPDF uses top-left origin)
-      while (remaining > 0) {
-        doc.addImage(
-          dataUrl,
-          'PNG',
-          xOffset,
-          -y,
-          renderWidth,
-          renderHeight
-        );
-        remaining -= pageHeight;
-        y += pageHeight;
-        if (remaining > 0) doc.addPage();
+    const columnGap = 12;
+    const usableWidth = pageWidth - margin * 2;
+    const colWidth = (usableWidth - columnGap * 6) / 7;
+
+    const drawPageHeader = (pageNumber: number) => {
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, pageWidth, pageHeight, 'F');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.text('Study Timetable', margin, margin + 20);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.text(dateRange, margin, margin + 40);
+
+      if (pageNumber > 1) {
+        doc.text(`Page ${pageNumber}`, pageWidth - margin - 40, margin + 20);
+      }
+    };
+
+    const getSessionBoxHeight = (session: Session) => {
+      const lines = [
+        session.subject || 'Untitled',
+        `${session.startTime} - ${session.endTime}`,
+        session.type === 'test'
+          ? 'Test/Quiz'
+          : session.type.charAt(0).toUpperCase() + session.type.slice(1),
+        session.deadline
+          ? `Deadline: ${new Date(session.deadline).toLocaleDateString('en-US')}`
+          : '',
+      ].filter(Boolean);
+
+      return 14 + lines.length * 11 + 10;
+    };
+
+    let pageNumber = 1;
+    drawPageHeader(pageNumber);
+
+    // Track where each day continues on the current page
+    let dayOffsets = new Array(7).fill(0);
+
+    while (true) {
+      let anythingDrawnThisPage = false;
+
+      for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
+        const dayData = sessionsByDay[dayIndex];
+        const x = margin + dayIndex * (colWidth + columnGap);
+        let y = contentTop;
+
+        // draw day header on every page
+        doc.setDrawColor(220, 220, 220);
+        doc.setFillColor(245, 247, 250);
+        doc.roundedRect(x, y, colWidth, 38, 8, 8, 'FD');
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.text(dayData.dayName, x + 8, y + 14);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.text(dayData.dateLabel, x + 8, y + 28);
+
+        y += 48;
+
+        const startIndex = dayOffsets[dayIndex];
+
+        if (dayData.items.length === 0 && pageNumber === 1) {
+          doc.setDrawColor(235, 235, 235);
+          doc.setFillColor(252, 252, 252);
+          doc.roundedRect(x, y, colWidth, 34, 8, 8, 'FD');
+
+          doc.setFont('helvetica', 'italic');
+          doc.setFontSize(8);
+          doc.text('No sessions', x + 8, y + 20);
+          continue;
+        }
+
+        for (let i = startIndex; i < dayData.items.length; i++) {
+          const session = dayData.items[i];
+          const boxHeight = getSessionBoxHeight(session);
+
+          if (y + boxHeight > contentBottom) {
+            break;
+          }
+
+          anythingDrawnThisPage = true;
+          dayOffsets[dayIndex] = i + 1;
+
+          const typeLabel =
+            session.type === 'test'
+              ? 'Test/Quiz'
+              : session.type.charAt(0).toUpperCase() + session.type.slice(1);
+
+          doc.setDrawColor(225, 225, 225);
+          doc.setFillColor(255, 255, 255);
+          doc.roundedRect(x, y, colWidth, boxHeight, 8, 8, 'FD');
+
+          const rgb = hexToRgb(session.color || '#6366F1');
+          doc.setFillColor(rgb.r, rgb.g, rgb.b);
+          doc.roundedRect(x + 4, y + 4, 4, boxHeight - 8, 2, 2, 'F');
+
+          let textY = y + 14;
+
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(9);
+          doc.text(
+            truncateText(doc, session.subject || 'Untitled', colWidth - 18),
+            x + 12,
+            textY
+          );
+
+          textY += 11;
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(8);
+          doc.text(`${session.startTime} - ${session.endTime}`, x + 12, textY);
+
+          textY += 11;
+          doc.text(typeLabel, x + 12, textY);
+
+          if (session.deadline) {
+            textY += 11;
+            doc.text(
+              `Deadline: ${new Date(session.deadline).toLocaleDateString('en-US')}`,
+              x + 12,
+              textY
+            );
+          }
+
+          y += boxHeight + 8;
+        }
+
+        // continuation marker only if there are still more items left for this day
+        if (dayOffsets[dayIndex] < dayData.items.length) {
+          doc.setFont('helvetica', 'italic');
+          doc.setFontSize(8);
+          doc.text('Continued on next page', x + 8, contentBottom - 6);
+        }
       }
 
-      doc.save(`timetable_${weekId}.pdf`);
-      toast.success('Timetable exported as PDF');
-    } catch (err: any) {
-      toast.error('PDF export failed', { description: err?.message || 'Unknown error' });
+      const allDone = dayOffsets.every(
+        (offset, dayIndex) => offset >= sessionsByDay[dayIndex].items.length
+      );
+
+      if (allDone) {
+        break;
+      }
+
+      if (!anythingDrawnThisPage) {
+        // safety guard
+        throw new Error('PDF layout failed: content is too large to fit on page.');
+      }
+
+      doc.addPage();
+      pageNumber += 1;
+      drawPageHeader(pageNumber);
     }
-  };
+
+    doc.save(`timetable_${weekId}.pdf`);
+    toast.success('Timetable exported as PDF');
+  } catch (err: any) {
+    console.error('PDF export failed:', err);
+    toast.error('PDF export failed', {
+      description: err?.message || 'Unknown error',
+    });
+  }
+};
 
   const exportToExcel = async () => {
     const XLSX = await import('xlsx');
@@ -1562,514 +1735,691 @@ export default function CalendarView({
         return 'bg-gray-100 text-gray-700 border-gray-200';
     }
   };
-
+const [mobileSelectedDay, setMobileSelectedDay] = useState(
+  new Date().getDay() === 0 ? 6 : new Date().getDay() - 1
+);
   return (
-    <div data-tour="my-timetable-main" className="h-full flex flex-col bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+  <div
+    data-tour="my-timetable-main"
+    className="flex h-full flex-col bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.10),_transparent_35%),radial-gradient(circle_at_bottom_right,_rgba(168,85,247,0.10),_transparent_30%)] bg-background"
+  >
+    {/* Top shell */}
+    <div className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-xl">
       {/* Header */}
-      <div data-tour="my-timetable-header" className="border-b border-gray-200 bg-white/90 backdrop-blur-sm shadow-sm">
-        {/* Collapsible Header Content */}
-        <div 
-          className="overflow-hidden transition-all duration-300 ease-in-out"
-          style={{
-            maxHeight: headerCollapsed ? '0px' : '500px',
-            opacity: headerCollapsed ? 0 : 1,
-          }}
-        >
-          <div className="p-4 sm:px-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-3 mb-1">
-                  <h1 data-tour="my-timetable-title" className="text-xl sm:text-2xl text-gray-800 dark:text-gray-100">Study Timetable</h1>
-                </div>
-                <p className="text-gray-600 dark:text-gray-400 text-sm">
-                  Plan and organize your study sessions • Each week has its own schedule
-                </p>
-                <div className="flex items-center gap-2 mt-2 flex-wrap">
-                  {allSessions.filter(s => s.deadline && (s.type === 'assignment' || s.type === 'test' || s.type === 'exam')).length > 0 && (
-                    <Badge variant="outline" className="text-xs border-red-600 text-red-600 bg-red-50 dark:border-red-400 dark:text-red-400 dark:bg-red-950/30">
-                      📅 {allSessions.filter(s => s.deadline && (s.type === 'assignment' || s.type === 'test' || s.type === 'exam')).length} Deadline{allSessions.filter(s => s.deadline && (s.type === 'assignment' || s.type === 'test' || s.type === 'exam')).length > 1 ? 's' : ''}
-                    </Badge>
-                  )}
-
-                  {workspaceStatusCounts && (
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="outline" className={`text-xs ${statusBadgeClass('completed')}`}>✅ {workspaceStatusCounts.completed} completed</Badge>
-                      <Badge variant="outline" className={`text-xs ${statusBadgeClass('missed')}`}>⚠️ {workspaceStatusCounts.missed} missed</Badge>
-                      <Badge variant="outline" className={`text-xs ${statusBadgeClass('skipped')}`}>⏭️ {workspaceStatusCounts.skipped} skipped</Badge>
-                      <Badge variant="outline" className={`text-xs ${statusBadgeClass('planned')}`}>🗓️ {workspaceStatusCounts.planned} planned</Badge>
-                      {isStatusLoading && (
-                        <Badge variant="outline" className="text-xs bg-gray-50 text-gray-600 border-gray-200">Loading…</Badge>
-                      )}
+      <div
+        data-tour="my-timetable-header"
+        className="mx-auto w-full max-w-7xl px-3 pb-3 pt-3 sm:px-6"
+      >
+        <div className="overflow-hidden rounded-[28px] border border-border/60 bg-card/90 shadow-[0_8px_30px_rgba(0,0,0,0.06)]">
+          {/* Collapsible Header Content */}
+          <div
+            className="overflow-hidden transition-all duration-300 ease-in-out"
+            style={{
+              maxHeight: headerCollapsed ? "0px" : "520px",
+              opacity: headerCollapsed ? 0 : 1,
+            }}
+          >
+            <div className="p-4 sm:p-5">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                {/* Left: title + meta */}
+                <div className="min-w-0">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-sm ring-1 ring-blue-500/20">
+                      <CalendarIcon className="h-5 w-5" />
                     </div>
-                  )}
 
-                  {!workspaceStatus && showStatusBadges && isPersonalStatusLoading && (
-                    <Badge variant="outline" className="text-xs bg-gray-50 text-gray-600 border-gray-200">Loading statuses…</Badge>
-                  )}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h1
+                          data-tour="my-timetable-title"
+                          className="truncate text-xl font-semibold tracking-tight text-foreground sm:text-2xl"
+                        >
+                          Study Timetable
+                        </h1>
+                      </div>
+
+                      <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                        Plan and organize your study sessions • each week has its own schedule
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    {allSessions.filter(
+                      (s) =>
+                        s.deadline &&
+                        (s.type === "assignment" ||
+                          s.type === "test" ||
+                          s.type === "exam")
+                    ).length > 0 && (
+                      <Badge
+                        variant="outline"
+                        className="rounded-full border-red-200 bg-red-50 px-3 py-1 text-xs text-red-700 dark:border-red-500/30 dark:bg-red-950/30 dark:text-red-300"
+                      >
+                        📅{" "}
+                        {
+                          allSessions.filter(
+                            (s) =>
+                              s.deadline &&
+                              (s.type === "assignment" ||
+                                s.type === "test" ||
+                                s.type === "exam")
+                          ).length
+                        }{" "}
+                        deadline
+                        {allSessions.filter(
+                          (s) =>
+                            s.deadline &&
+                            (s.type === "assignment" ||
+                              s.type === "test" ||
+                              s.type === "exam")
+                        ).length > 1
+                          ? "s"
+                          : ""}
+                      </Badge>
+                    )}
+
+                    {workspaceStatusCounts && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge
+                          variant="outline"
+                          className={`rounded-full px-3 py-1 text-xs ${statusBadgeClass("completed")}`}
+                        >
+                          ✅ {workspaceStatusCounts.completed} completed
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className={`rounded-full px-3 py-1 text-xs ${statusBadgeClass("missed")}`}
+                        >
+                          ⚠️ {workspaceStatusCounts.missed} missed
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className={`rounded-full px-3 py-1 text-xs ${statusBadgeClass("skipped")}`}
+                        >
+                          ⏭️ {workspaceStatusCounts.skipped} skipped
+                        </Badge>
+                        <Badge
+                          variant="outline"
+                          className={`rounded-full px-3 py-1 text-xs ${statusBadgeClass("planned")}`}
+                        >
+                          🗓️ {workspaceStatusCounts.planned} planned
+                        </Badge>
+
+                        {isStatusLoading && (
+                          <Badge
+                            variant="outline"
+                            className="rounded-full border-border bg-muted px-3 py-1 text-xs text-muted-foreground"
+                          >
+                            Loading…
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+
+                    {!workspaceStatus && showStatusBadges && isPersonalStatusLoading && (
+                      <Badge
+                        variant="outline"
+                        className="rounded-full border-border bg-muted px-3 py-1 text-xs text-muted-foreground"
+                      >
+                        Loading statuses…
+                      </Badge>
+                    )}
+                  </div>
                 </div>
-              </div>
-              
-              <div className="flex flex-wrap gap-2 justify-end">
-                {/* Add New Session Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="default" 
-                      size="sm"
-                      disabled={!isCurrentWeek()}
-                      onClick={() => {
-                        setSelectedSlot(null);
-                        setEditingSession(null);
-                        setIsDialogOpen(true);
-                      }}
-                      className="bg-blue-600 hover:bg-blue-800 dark:hover:bg-blue-800"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    <p>Add new session</p>
-                  </TooltipContent>
-                </Tooltip>
 
-                {/* Auto Generate Button (opens the hidden AI generation section) */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="default" 
-                      size="sm"
-                      onClick={() => {
-                        if (onNavigate) {
-                          onNavigate('auto-generate');
-                        } else {
-                          toast.error('Navigation is not available');
-                        }
-                      }}
-                      className="bg-blue-600 hover:bg-blue-800 dark:hover:bg-blue-800"
-                    >
-                      <Sparkles className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    <p>Auto Generate</p>
-                  </TooltipContent>
-                </Tooltip>
+                {/* Right: actions */}
+                <div className="flex flex-col gap-3 lg:items-end">
+                  <div className="grid grid-cols-4 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          disabled={!isCurrentWeek()}
+                          onClick={() => {
+                            setSelectedSlot(null);
+                            setEditingSession(null);
+                            setIsDialogOpen(true);
+                          }}
+                          className="h-10 rounded-2xl bg-blue-600 px-3 shadow-sm hover:bg-blue-700"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        <p>Add new session</p>
+                      </TooltipContent>
+                    </Tooltip>
 
-                {/* Import Timetable Button (optional) */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={() => {
-                        // Non-admin users should use the Auto Generate flow for importing.
-                        if (!isGlobalAdmin) {
-                          try {
-                            localStorage.setItem('autoGenerateOpenUpload', 'true');
-                          } catch {
-                            // ignore
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => {
+                            if (onNavigate) {
+                              onNavigate("auto-generate");
+                            } else {
+                              toast.error("Navigation is not available");
+                            }
+                          }}
+                          className="h-10 rounded-2xl bg-blue-600 px-3 shadow-sm hover:bg-blue-700"
+                        >
+                          <Sparkles className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        <p>Auto Generate</p>
+                      </TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => {
+                            if (!isGlobalAdmin) {
+                              try {
+                                localStorage.setItem("autoGenerateOpenUpload", "true");
+                              } catch {
+                                // ignore
+                              }
+                              if (onNavigate) onNavigate("auto-generate");
+                              toast.info(
+                                "Import is done from Auto Generate for non-admin users."
+                              );
+                              return;
+                            }
+
+                            setIsImportTargetDialogOpen(true);
+                          }}
+                          className="h-10 rounded-2xl bg-blue-600 px-3 shadow-sm hover:bg-blue-700"
+                        >
+                          <Upload className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        <p>Import</p>
+                      </TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={handleRecurse}
+                          className="h-10 rounded-2xl bg-blue-600 px-3 shadow-sm hover:bg-blue-700"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        <p>Copy to next week</p>
+                      </TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={exportToGoogleCalendar}
+                          className={
+                            hasExportedThisWeek
+                              ? "h-10 rounded-2xl border-green-500/30 bg-green-50 px-3 text-green-700 hover:bg-green-100 dark:bg-green-950/20 dark:text-green-300"
+                              : "h-10 rounded-2xl border-border bg-background px-3 text-foreground hover:bg-muted"
                           }
-                          if (onNavigate) onNavigate('auto-generate');
-                          toast.info('Import is done from Auto Generate for non-admin users.');
-                          return;
-                        }
+                        >
+                          <img
+                            src={googleCalendarIcon}
+                            alt="Google Calendar"
+                            className="h-4 w-4"
+                          />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        <p>Export to Google Calendar</p>
+                      </TooltipContent>
+                    </Tooltip>
 
-                        // Admin users choose import target.
-                        setIsImportTargetDialogOpen(true);
-                      }}
-                      className="bg-blue-600 hover:bg-blue-800 dark:hover:bg-blue-800"
-                    >
-                      <Upload className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    <p>Import</p>
-                  </TooltipContent>
-                </Tooltip>
-
-                {/* Copy to Next Week Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="default" 
-                      size="sm"
-                      onClick={handleRecurse}
-                      className="bg-blue-600 hover:bg-blue-800 dark:hover:bg-blue-800"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    <p>Copy to next week</p>
-                  </TooltipContent>
-                </Tooltip>
-
-                {/* Clear All Sessions Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="default" 
-                      size="sm"
-                      onClick={handleClearAll}
-                      className="bg-red-600 hover:bg-red-800 dark:hover:bg-red-900"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    <p>Clear all sessions</p>
-                  </TooltipContent>
-                </Tooltip>
-
-                {/* Google Calendar Export Button */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant={hasExportedThisWeek ? "outline" : "outline"}
-                      size="sm"
-                      onClick={exportToGoogleCalendar}
-                      className={hasExportedThisWeek 
-                        ? "border-green-600 text-green-600 hover:bg-green-50 dark:hover:bg-green-950/20" 
-                        : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-900"
-                      }
-                    >
-                      <img src={googleCalendarIcon} alt="Google Calendar" className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    <p>Export to Google Calendar</p>
-                  </TooltipContent>
-                </Tooltip>
-
-                {/* Timetable Menu Button */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="default" size="sm" className="bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-800" title="More options">
-                      <CalendarIcon className="h-4 w-4" />
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem onClick={exportToPDF}>
-                      <FileText className="h-4 w-4 mr-2" />
-                      Export as PDF
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={exportToExcel}>
-                      <Download className="h-4 w-4 mr-2" />
-                      Export as Excel
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-10 rounded-2xl border-border bg-background px-3 text-foreground hover:bg-muted"
+                          title="More options"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
+                        className="w-52 rounded-2xl border border-border bg-popover p-1 text-popover-foreground"
+                      >
+                        <DropdownMenuItem onClick={exportToPDF} className="rounded-xl">
+                          <FileText className="mr-2 h-4 w-4" />
+                          Export as PDF
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={exportToExcel} className="rounded-xl">
+                          <Download className="mr-2 h-4 w-4" />
+                          Export as Excel
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={handleClearAll}
+                          className="rounded-xl text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Clear all sessions
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Toggle Button - Always Visible */}
-        <div className="flex justify-center border-t border-gray-200">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              const next = !headerCollapsed;
-              setHeaderCollapsed(next);
-              onOuterCollapseChange?.(next);
-            }}
-            className="rounded-none rounded-b-md hover:bg-blue-50 text-gray-600 hover:text-blue-600 transition-all duration-200 px-8 py-1"
-          >
-            {headerCollapsed ? (
-              <>
-                <ChevronDown className="h-4 w-4 mr-2" />
-                <span className="text-xs">Show Details</span>
-              </>
-            ) : (
-              <>
-                <ChevronUp className="h-4 w-4 mr-2" />
-                <span className="text-xs">Hide Details</span>
-              </>
-            )}
-          </Button>
+          {/* Toggle */}
+          <div className="flex justify-center border-t border-border/60 bg-muted/20">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                const next = !headerCollapsed;
+                setHeaderCollapsed(next);
+                onOuterCollapseChange?.(next);
+              }}
+              className="h-9 rounded-none rounded-b-2xl px-8 text-muted-foreground transition-all duration-200 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950/20"
+            >
+              {headerCollapsed ? (
+                <>
+                  <ChevronDown className="mr-2 h-4 w-4" />
+                  <span className="text-xs font-medium">Show details</span>
+                </>
+              ) : (
+                <>
+                  <ChevronUp className="mr-2 h-4 w-4" />
+                  <span className="text-xs font-medium">Hide details</span>
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Week Navigation */}
-      <div className="px-4 sm:px-6 py-3 bg-white border-b border-gray-200">
-        <div className="flex items-center justify-between max-w-7xl mx-auto">
+      {/* Week navigation */}
+      <div className="sticky top-[72px] z-30 border-b border-border/60 bg-background/80 backdrop-blur-xl">
+        <div className="mx-auto flex w-full max-w-7xl items-center gap-2 px-3 py-3 sm:px-6">
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={previousWeek}
-            className="hover:bg-gray-100"
+            className="h-10 w-10 rounded-2xl border-border bg-background p-0 hover:bg-muted"
           >
             <ChevronLeft className="h-5 w-5" />
           </Button>
-          <div className="text-center flex-1">
-            <div className="text-base sm:text-lg text-gray-700">{formatDateRange()}</div>
+
+          <div className="flex-1 rounded-2xl border border-border/60 bg-card px-4 py-2.5 text-center shadow-sm">
+            <div className="text-sm font-medium text-muted-foreground sm:text-[13px]">
+              Weekly view
+            </div>
+            <div className="text-sm font-semibold tracking-tight text-foreground sm:text-base">
+              {formatDateRange()}
+            </div>
           </div>
+
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={nextWeek}
-            className="hover:bg-gray-100"
+            className="h-10 w-10 rounded-2xl border-border bg-background p-0 hover:bg-muted"
           >
             <ChevronRight className="h-5 w-5" />
           </Button>
         </div>
-      </div>
-      
-      {!isCurrentWeek() && (
-        <div className="px-4 sm:px-6 py-2 bg-blue-50 border-b border-blue-100">
-          <div className="flex justify-center">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={goToToday}
-              className="gap-2 border-blue-300 bg-white hover:bg-blue-50"
-            >
-              <CalendarIcon className="h-4 w-4" />
-              Go to Current Week
-            </Button>
+
+        {!isCurrentWeek() && (
+          <div className="mx-auto w-full max-w-7xl px-3 pb-3 sm:px-6">
+            <div className="flex justify-center">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToToday}
+                className="h-10 rounded-2xl border-blue-200 bg-blue-50 px-4 text-blue-700 hover:bg-blue-100 dark:border-blue-500/30 dark:bg-blue-950/20 dark:text-blue-300"
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                Go to current week
+              </Button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      
+      {/* Calendar */}
+      <div className="min-w-full md:w-full">
+        <div className="mx-auto w-full max-w-7xl px-3 py-3 sm:px-6">
+          <div className="relative overflow-hidden rounded-[28px] border border-border/60 bg-card shadow-[0_12px_40px_rgba(0,0,0,0.06)]">
+            <div
+              data-tour="my-timetable-preview"
+              aria-hidden
+              className="absolute left-0 top-0 h-[260px] w-full rounded-2xl"
+              style={{ opacity: 0, pointerEvents: "none" }}
+            />
 
-      {/* Calendar Grid - Simple Table Structure */}
-      <div className="flex-1 overflow-auto">
-        <div className="relative">
-          {/* Tour target: spotlight a portion of the timetable grid (not the full table) */}
-          {/*
-            Tour target: highlight the *top portion* of the timetable grid (week range + day headers + first rows).
-            This ensures users can actually SEE the timetable while leaving room for the tooltip below.
-          */}
-          <div
-            data-tour="my-timetable-preview"
-            aria-hidden
-            className="absolute left-0 top-0 h-[260px] w-full rounded-2xl"
-            style={{ opacity: 0, pointerEvents: 'none' }}
-          />
-          <div ref={calendarExportRef} className="min-w-[900px]">
-          {/*
-            Use a fixed table layout so each day column has equal width.
-            Without table-fixed, HTML tables size each column based on its
-            widest cell content, which can make one day (often Wednesday)
-            appear wider than the rest.
-          */}
-          <table className="w-full border-collapse table-fixed">
-            {/*
-              Force truly equal day column widths.
-              Even with `table-fixed`, browsers can distribute leftover fractional pixels unevenly,
-              which can make one day (often mid-week) appear slightly wider.
-              A colgroup with explicit widths prevents that.
-            */}
-            <colgroup>
-              <col style={{ width: '4rem' }} />
-              {Array.from({ length: 7 }).map((_, i) => (
-                <col key={i} style={{ width: 'calc((100% - 4rem) / 7)' }} />
-              ))}
-            </colgroup>
-            <thead className="sticky top-0 z-20 bg-blue-50 shadow-md">
-              <tr>
-                {/* Slightly narrower time column for more space in the timetable grid */}
-                <th className="sticky left-0 z-30 border border-gray-300 px-2 py-3 text-left w-16 bg-blue-50">
-                  <div className="text-sm font-semibold text-gray-700">Time</div>
-                </th>
-                {days.map((day, index) => {
-                  const date = weekDates[index];
-                  const isToday = date.toDateString() === new Date().toDateString();
-                  
-                  return (
-                    <th 
-                      key={day} 
-                      className={`border border-gray-300 px-3 py-3 text-center ${
-                        isToday 
-                          ? 'bg-blue-100' 
-                          : 'bg-blue-50'
-                      }`}
-                    >
-                      <div className={`text-sm font-semibold ${isToday ? 'text-blue-700' : 'text-gray-700'}`}>
-                        {day}
-                      </div>
-                      <div className={`text-xs mt-1 ${isToday ? 'text-blue-600 font-medium' : 'text-gray-500'}`}>
-                        {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </div>
-                    </th>
-                  );
-                })}
-              </tr>
-            </thead>
-            <tbody>
-              {timeSlots.map((time) => (
-                <tr key={time}>
-                  <td className="sticky left-0 z-10 border border-gray-300 px-2 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-50/50 dark:bg-gray-800/50 w-16">
-                    {time}
-                  </td>
-                  {days.map((day, dayIndex) => {
-                    const date = weekDates[dayIndex];
-                    const isToday = date.toDateString() === new Date().toDateString();
-                    
-                    // Find sessions that START in this time slot
-                    const sessionsInSlot = allSessions.filter(
-                      s => s.day === dayIndex && sessionStartsInSlot(s, time)
-                    );
-                    
-                    // Check if sessions in this slot have actual time conflicts (overlapping times)
-                    // NOT just if they're in the same cell
-                    const hasConflict = sessionsInSlot.some((session1, idx1) => {
-                      return sessionsInSlot.some((session2, idx2) => {
-                        if (idx1 >= idx2) return false; // Avoid checking same pair twice
-                        
-                        const start1 = timeToMinutes(session1.startTime);
-                        const end1 = timeToMinutes(session1.endTime);
-                        const start2 = timeToMinutes(session2.startTime);
-                        const end2 = timeToMinutes(session2.endTime);
-                        
-                        // Two sessions conflict if their times actually overlap
-                        return (start1 < end2 && end1 > start2);
-                      });
-                    });
-                    
-                    const isDropTarget = dragOverSlot?.day === dayIndex && dragOverSlot?.time === time;
+            <div
+              ref={calendarExportRef}
+              className="overflow-visible bg-white"
+            >
+              <div className="min-w-[900px]">
+                <table className="w-max min-w-full md:w-full table-fixed border-collapse">
+                  <colgroup>
+                  <col style={{ width: "56px" }} />
+                  {Array.from({ length: 7 }).map((_, i) => (
+                    <col
+                      key={i}
+                      style={{
+                        width: window.innerWidth >= 768 ? "calc((100% - 56px) / 7)" : "120px",
+                      }}
+                    />
+                  ))}
+                </colgroup>
 
-                    return (
-                      <td
-                        key={`${day}-${time}`}
-                        className={`border border-gray-300 p-2 align-top relative transition-colors ${
-                          hasConflict
-                            ? 'bg-red-50 border-red-300'
-                            : isDropTarget 
-                              ? 'bg-blue-100' 
-                              : isToday 
-                                ? 'bg-blue-50/30 hover:bg-blue-100/50' 
-                                : 'bg-white hover:bg-gray-50'
-                        }`}
-                        style={{ height: '80px' }}
-                        onDragOver={(e) => handleDragOver(e, dayIndex, time)}
-                        onDrop={(e) => handleDrop(e, dayIndex, time)}
-                      >
-                        {/* Conflict Warning Badge */}
-                        {hasConflict && (
-                          <div className="absolute top-1 right-1 z-30">
-                            <Badge variant="destructive" className="text-xs px-1.5 py-0.5 bg-red-600 text-white shadow-md">
-                              ⚠️ Conflict
-                            </Badge>
-                          </div>
-                        )}
-                        
-                        {/* Availability Blocks (Sleep, Lunch, Dinner) */}
-                        {getAvailabilityBlocksInSlot(dayIndex, time).map((block, index) => {
-                          const blockStartMinutes = timeToMinutes(block.start);
-                          const blockEndMinutes = timeToMinutes(block.end);
-                          const slotStartMinutes = timeToMinutes(time);
-                          
-                          // Calculate position and height within this slot
-                          const offsetMinutes = Math.max(0, blockStartMinutes - slotStartMinutes);
-                          const offsetPixels = (offsetMinutes / 60) * 80;
-                          
-                          const visibleStart = Math.max(blockStartMinutes, slotStartMinutes);
-                          const visibleEnd = Math.min(blockEndMinutes, slotStartMinutes + 60);
-                          const visibleDuration = visibleEnd - visibleStart;
-                          const height = (visibleDuration / 60) * 80;
-                          
-                          
-                        })
-                        }                        
-                        
-                        {/* Sessions in this slot */}
-                        {sessionsInSlot.map((session) => {
-                          const height = calculateSessionHeight(session);
-                          const isPast = isSessionPast(session);
-                          const uiStatus: WorkspaceSessionStatus | null = workspaceStatus
-                            ? getEffectiveWorkspaceStatus(session)
-                            : (showStatusBadges ? getEffectivePersonalStatus(session) : null);
-                          const shouldShowBadge = !!workspaceStatus || (uiStatus !== 'planned' || isPast);
-                          // Keep this tiny to avoid covering the session title.
-                          const statusLabel = (s: WorkspaceSessionStatus) => {
-                            switch (s) {
-                              case 'completed': return '✅';
-                              case 'missed': return '⚠️';
-                              case 'skipped': return '⏭️';
-                              default: return '🗓️';
-                            }
-                          };
-                          // Place the badge bottom-right so it never blocks the title/time.
-                          
-                          // Calculate vertical offset within the hour slot
-                          // For example, a session at 11:40 in the 11:00 slot should start 40 minutes down
-                          const slotStartMinutes = timeToMinutes(time);
-                          const sessionStartMinutes = timeToMinutes(session.startTime);
-                          const offsetMinutes = sessionStartMinutes - slotStartMinutes;
-                          const offsetPixels = (offsetMinutes / 60) * 80; // 80px per hour slot
-                          
-                          return (
+                  <thead className="sticky top-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
+                    <tr>
+                      <th className="sticky left-0 z-30 border-b border-r border-border/70 bg-card px-2 py-3 text-left">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          Time
+                        </div>
+                      </th>
+
+                      {days.map((day, index) => {
+                        const date = weekDates[index];
+                        const isToday =
+                          date.toDateString() === new Date().toDateString();
+
+                        return (
+                          <th
+                            key={day}
+                            className={`border-b border-border/70 px-2 py-3 text-center ${
+                              isToday ? "bg-blue-50/80 dark:bg-blue-950/20" : "bg-card"
+                            }`}
+                          >
                             <div
-                              key={session.id}
-                              style={{ 
-                                height: `${height}px`, 
-                                minHeight: '40px',
-                                top: `${offsetPixels}px`,
-                                // Past sessions should still keep a hint of the original color.
-                                filter: isPast ? 'saturate(0.9) opacity(0.85)' : undefined,
-                              }}
-                              className="mb-1 absolute left-0 right-0 z-10 px-2 pt-2 group"
+                              className={`text-sm font-semibold ${
+                                isToday ? "text-blue-700 dark:text-blue-300" : "text-foreground"
+                              }`}
                             >
-                              {uiStatus && shouldShowBadge && (
-                                <div className="absolute bottom-2 right-2 z-20 pointer-events-none">
-                                  <Badge
-                                    variant="outline"
-                                    className={`text-[10px] px-1 py-0 leading-none ${statusBadgeClass(uiStatus)} whitespace-nowrap`}
-                                    title={uiStatus}
-                                  >
-                                    {statusLabel(uiStatus)}
+                              {day}
+                            </div>
+                            <div
+                              className={`mt-1 text-xs ${
+                                isToday
+                                  ? "font-medium text-blue-600 dark:text-blue-400"
+                                  : "text-muted-foreground"
+                              }`}
+                            >
+                              {date.toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                              })}
+                            </div>
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {timeSlots.map((time) => (
+                      <tr key={time}>
+                        <td className="sticky left-0 z-10 border-b border-r border-border/70 bg-card px-2 py-2 align-top">
+                          <div className="text-xs font-medium text-muted-foreground sm:text-sm">
+                            {time}
+                          </div>
+                        </td>
+
+                        {days.map((day, dayIndex) => {
+                          const date = weekDates[dayIndex];
+                          const isToday =
+                            date.toDateString() === new Date().toDateString();
+
+                          const sessionsInSlot = allSessions.filter(
+                            (s) => s.day === dayIndex && sessionStartsInSlot(s, time)
+                          );
+
+                          const hasConflict = sessionsInSlot.some((session1, idx1) => {
+                            return sessionsInSlot.some((session2, idx2) => {
+                              if (idx1 >= idx2) return false;
+
+                              const start1 = timeToMinutes(session1.startTime);
+                              const end1 = timeToMinutes(session1.endTime);
+                              const start2 = timeToMinutes(session2.startTime);
+                              const end2 = timeToMinutes(session2.endTime);
+
+                              return start1 < end2 && end1 > start2;
+                            });
+                          });
+
+                          const isDropTarget =
+                            dragOverSlot?.day === dayIndex &&
+                            dragOverSlot?.time === time;
+
+                          return (
+                            <td
+                              key={`${day}-${time}`}
+                              className={`group relative border-b border-r border-border/60 p-2 align-top transition-colors ${
+                                hasConflict
+                                  ? "bg-red-50/70 dark:bg-red-950/20"
+                                  : isDropTarget
+                                  ? "bg-blue-100/70 dark:bg-blue-900/30"
+                                  : isToday
+                                  ? "bg-blue-50/30 hover:bg-blue-50/60 dark:bg-blue-950/10 dark:hover:bg-blue-950/20"
+                                  : "bg-background hover:bg-muted/30"
+                              }`}
+                              style={{ height: "84px" }}
+                              onDragOver={(e) => handleDragOver(e, dayIndex, time)}
+                              onDrop={(e) => handleDrop(e, dayIndex, time)}
+                            >
+                              {hasConflict && (
+                                <div className="absolute right-2 top-2 z-30">
+                                  <Badge className="rounded-full bg-red-600 px-2 py-0.5 text-[10px] text-white shadow-sm">
+                                    ⚠ Conflict
                                   </Badge>
                                 </div>
                               )}
 
-                              {workspaceStatus && workspaceStatus.canEdit && !isPast && (
-                                <div className="absolute top-2 right-4 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button variant="outline" size="sm" className="h-6 px-2 py-0 text-xs bg-white/90">
-                                        <ChevronDown className="h-3 w-3" />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      <DropdownMenuItem onClick={() => setWorkspaceSessionStatus(session.id, 'completed')}>✅ Mark completed</DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => setWorkspaceSessionStatus(session.id, 'missed')}>⚠️ Mark missed</DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => setWorkspaceSessionStatus(session.id, 'skipped')}>⏭️ Mark skipped</DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => setWorkspaceSessionStatus(session.id, 'planned')}>🗓️ Reset to planned</DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
+                              {getAvailabilityBlocksInSlot(dayIndex, time).map((block, index) => {
+                                const blockStartMinutes = timeToMinutes(block.start);
+                                const blockEndMinutes = timeToMinutes(block.end);
+                                const slotStartMinutes = timeToMinutes(time);
+
+                                const offsetMinutes = Math.max(
+                                  0,
+                                  blockStartMinutes - slotStartMinutes
+                                );
+                                const offsetPixels = (offsetMinutes / 60) * 84;
+
+                                const visibleStart = Math.max(
+                                  blockStartMinutes,
+                                  slotStartMinutes
+                                );
+                                const visibleEnd = Math.min(
+                                  blockEndMinutes,
+                                  slotStartMinutes + 60
+                                );
+                                const visibleDuration = visibleEnd - visibleStart;
+                                const height = (visibleDuration / 60) * 84;
+
+                                return (
+                                  <div
+                                    key={`${block.type}-${index}`}
+                                    className="absolute left-1 right-1 rounded-xl border border-dashed border-border/60 bg-muted/40"
+                                    style={{
+                                      top: `${offsetPixels}px`,
+                                      height: `${height}px`,
+                                    }}
+                                  />
+                                );
+                              })}
+
+                              {sessionsInSlot.map((session) => {
+                                const height = calculateSessionHeight(session);
+                                const isPast = isSessionPast(session);
+                                const uiStatus: WorkspaceSessionStatus | null = workspaceStatus
+                                  ? getEffectiveWorkspaceStatus(session)
+                                  : showStatusBadges
+                                  ? getEffectivePersonalStatus(session)
+                                  : null;
+
+                                const shouldShowBadge =
+                                  !!workspaceStatus || uiStatus !== "planned" || isPast;
+
+                                const statusLabel = (s: WorkspaceSessionStatus) => {
+                                  switch (s) {
+                                    case "completed":
+                                      return "✅";
+                                    case "missed":
+                                      return "⚠️";
+                                    case "skipped":
+                                      return "⏭️";
+                                    default:
+                                      return "🗓️";
+                                  }
+                                };
+
+                                const slotStartMinutes = timeToMinutes(time);
+                                const sessionStartMinutes = timeToMinutes(
+                                  session.startTime
+                                );
+                                const offsetMinutes =
+                                  sessionStartMinutes - slotStartMinutes;
+                                const offsetPixels = (offsetMinutes / 60) * 84;
+
+                                return (
+                                  <div
+                                    key={session.id}
+                                    style={{
+                                      height: `${height}px`,
+                                      minHeight: "40px",
+                                      top: `${offsetPixels}px`,
+                                      filter: isPast
+                                        ? "saturate(0.92) opacity(0.85)"
+                                        : undefined,
+                                    }}
+                                    className="group absolute left-0 right-0 z-10 mb-1 px-2 pt-2"
+                                  >
+                                    {uiStatus && shouldShowBadge && (
+                                      <div className="pointer-events-none absolute bottom-2 right-2 z-20">
+                                        <Badge
+                                          variant="outline"
+                                          className={`whitespace-nowrap rounded-full px-1.5 py-0 text-[10px] leading-none ${statusBadgeClass(
+                                            uiStatus
+                                          )}`}
+                                          title={uiStatus}
+                                        >
+                                          {statusLabel(uiStatus)}
+                                        </Badge>
+                                      </div>
+                                    )}
+
+                                    {workspaceStatus && workspaceStatus.canEdit && !isPast && (
+                                      <div className="absolute right-4 top-2 z-20 opacity-0 transition-opacity group-hover:opacity-100">
+                                        <DropdownMenu>
+                                          <DropdownMenuTrigger asChild>
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              className="h-6 rounded-lg border-border bg-background/90 px-2 py-0 text-xs shadow-sm"
+                                            >
+                                              <MoreHorizontal className="h-3 w-3" />
+                                            </Button>
+                                          </DropdownMenuTrigger>
+                                          <DropdownMenuContent
+                                            align="end"
+                                            className="rounded-2xl border border-border bg-popover"
+                                          >
+                                            <DropdownMenuItem
+                                              onClick={() =>
+                                                setWorkspaceSessionStatus(
+                                                  session.id,
+                                                  "completed"
+                                                )
+                                              }
+                                            >
+                                              ✅ Mark completed
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                              onClick={() =>
+                                                setWorkspaceSessionStatus(
+                                                  session.id,
+                                                  "missed"
+                                                )
+                                              }
+                                            >
+                                              ⚠️ Mark missed
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                              onClick={() =>
+                                                setWorkspaceSessionStatus(
+                                                  session.id,
+                                                  "skipped"
+                                                )
+                                              }
+                                            >
+                                              ⏭️ Mark skipped
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                              onClick={() =>
+                                                setWorkspaceSessionStatus(
+                                                  session.id,
+                                                  "planned"
+                                                )
+                                              }
+                                            >
+                                              🗓️ Reset to planned
+                                            </DropdownMenuItem>
+                                          </DropdownMenuContent>
+                                        </DropdownMenu>
+                                      </div>
+                                    )}
+
+                                    <SessionCard
+                                      session={session}
+                                      onEdit={handleEditSession}
+                                      onDelete={handleDeleteSession}
+                                      onDragStart={() => handleDragStart(session.id)}
+                                      isDragging={draggingSession === session.id}
+                                      dimmed={
+                                        isPast &&
+                                        (workspaceStatus != null || showStatusBadges)
+                                      }
+                                    />
+                                  </div>
+                                );
+                              })}
+
+                              <button
+                                onClick={() => handleAddSession(dayIndex, time)}
+                                className="absolute inset-0 z-0 flex h-full w-full items-center justify-center rounded-none transition-colors"
+                              >
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-background/80 text-muted-foreground opacity-0 shadow-sm ring-1 ring-border/60 transition-all group-hover:opacity-100 group-hover:scale-100 scale-95">
+                                  <Plus className="h-4 w-4" />
                                 </div>
-                              )}
-                              <SessionCard
-                                session={session}
-                                onEdit={handleEditSession}
-                                onDelete={handleDeleteSession}
-                                onDragStart={() => handleDragStart(session.id)}
-                                isDragging={draggingSession === session.id}
-                                dimmed={isPast && (workspaceStatus != null || showStatusBadges)}
-                              />
-                            </div>
+                              </button>
+                            </td>
                           );
                         })}
-                        
-                        {/* Add Session Button - Always available in background */}
-                        <button
-                          onClick={() => handleAddSession(dayIndex, time)}
-                          className="absolute inset-0 w-full h-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100/30 rounded transition-colors group z-0"
-                        >
-                          <Plus className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </button>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -2082,37 +2432,48 @@ export default function CalendarView({
           setEditingSession(null);
         }}
         onSave={handleSaveSession}
-        initialData={editingSession || (selectedSlot ? {
-          day: selectedSlot.day,
-          startTime: selectedSlot.time,
-          endTime: (() => {
-            // Calculate end time as 1 hour after start time
-            const startMinutes = timeToMinutes(selectedSlot.time);
-            const endMinutes = startMinutes + 60;
-            const endHours = Math.floor(endMinutes / 60);
-            const endMins = endMinutes % 60;
-            return `${String(endHours).padStart(2, '0')}:${String(endMins).padStart(2, '0')}`;
-          })(),
-          subject: '',
-          type: 'reading',
-          color: studyTypes[0].color,
-        } : undefined)}
+        initialData={
+          editingSession ||
+          (selectedSlot
+            ? {
+                day: selectedSlot.day,
+                startTime: selectedSlot.time,
+                endTime: (() => {
+                  const startMinutes = timeToMinutes(selectedSlot.time);
+                  const endMinutes = startMinutes + 60;
+                  const endHours = Math.floor(endMinutes / 60);
+                  const endMins = endMinutes % 60;
+                  return `${String(endHours).padStart(2, "0")}:${String(
+                    endMins
+                  ).padStart(2, "0")}`;
+                })(),
+                subject: "",
+                type: "reading",
+                color: studyTypes[0].color,
+              }
+            : undefined)
+        }
         studyTypes={studyTypes}
       />
 
-      {/* Import Target Dialog (Admin only) */}
-      <Dialog open={isImportTargetDialogOpen} onOpenChange={setIsImportTargetDialogOpen}>
-        <DialogContent>
+      {/* Import Target Dialog */}
+      <Dialog
+        open={isImportTargetDialogOpen}
+        onOpenChange={setIsImportTargetDialogOpen}
+      >
+        <DialogContent className="rounded-[28px] border border-border bg-card shadow-xl">
           <DialogHeader>
-            <DialogTitle>Import timetable</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-foreground">
+              Import timetable
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground">
               Where are you importing to?
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+          <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Button
-              className="bg-blue-600 hover:bg-blue-800"
+              className="h-11 rounded-2xl bg-blue-600 hover:bg-blue-700"
               onClick={() => {
                 setIsImportTargetDialogOpen(false);
                 setIsImportDialogOpen(true);
@@ -2122,17 +2483,19 @@ export default function CalendarView({
             </Button>
 
             <Button
-              className="bg-blue-600 hover:bg-blue-800"
+              className="h-11 rounded-2xl bg-blue-600 hover:bg-blue-700"
               onClick={() => {
                 setIsImportTargetDialogOpen(false);
                 try {
-                  localStorage.setItem('workspaceInitialTab', 'auto-generate');
-                  localStorage.setItem('workspaceAutoGenerateOpenUpload', 'true');
+                  localStorage.setItem("workspaceInitialTab", "auto-generate");
+                  localStorage.setItem("workspaceAutoGenerateOpenUpload", "true");
                 } catch {
                   // ignore
                 }
-                if (onNavigate) onNavigate('workspace');
-                toast.info('Select the workspace, then upload/import in Workspace Auto Generate.');
+                if (onNavigate) onNavigate("workspace");
+                toast.info(
+                  "Select the workspace, then upload/import in Workspace Auto Generate."
+                );
               }}
             >
               Workspace
@@ -2149,33 +2512,63 @@ export default function CalendarView({
       />
 
       {/* Confirm Dialog */}
-      <Dialog open={confirmDialog.isOpen} onOpenChange={() => setConfirmDialog({ isOpen: false, title: '', message: '', onConfirm: () => {} })}>
-        <DialogContent className="sm:max-w-md">
+      <Dialog
+        open={confirmDialog.isOpen}
+        onOpenChange={() =>
+          setConfirmDialog({
+            isOpen: false,
+            title: "",
+            message: "",
+            onConfirm: () => {},
+          })
+        }
+      >
+        <DialogContent className="sm:max-w-md rounded-[28px] border border-border bg-card shadow-xl">
           <DialogHeader>
-            <DialogTitle className="text-gray-900 dark:text-gray-100">{confirmDialog.title}</DialogTitle>
-            <DialogDescription className="text-gray-600 dark:text-gray-400">{confirmDialog.message}</DialogDescription>
+            <DialogTitle className="text-foreground">
+              {confirmDialog.title}
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              {confirmDialog.message}
+            </DialogDescription>
           </DialogHeader>
-          <div className="flex justify-end gap-3 mt-4">
+          <div className="mt-4 flex justify-end gap-3">
             <Button
               variant="outline"
-              onClick={() => setConfirmDialog({ isOpen: false, title: '', message: '', onConfirm: () => {} })}
-              className="dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
+              onClick={() =>
+                setConfirmDialog({
+                  isOpen: false,
+                  title: "",
+                  message: "",
+                  onConfirm: () => {},
+                })
+              }
+              className="rounded-2xl border-border bg-background hover:bg-muted"
             >
               Cancel
             </Button>
             <Button
-              variant={confirmDialog.confirmVariant || 'default'}
+              variant={confirmDialog.confirmVariant || "default"}
               onClick={() => {
                 confirmDialog.onConfirm();
-                setConfirmDialog({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+                setConfirmDialog({
+                  isOpen: false,
+                  title: "",
+                  message: "",
+                  onConfirm: () => {},
+                });
               }}
-              className={confirmDialog.confirmVariant === 'destructive' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}
+              className={
+                confirmDialog.confirmVariant === "destructive"
+                  ? "rounded-2xl bg-red-600 hover:bg-red-700"
+                  : "rounded-2xl bg-blue-600 hover:bg-blue-700"
+              }
             >
-              {confirmDialog.confirmText || 'Confirm'}
+              {confirmDialog.confirmText || "Confirm"}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
+  </div>
+);}

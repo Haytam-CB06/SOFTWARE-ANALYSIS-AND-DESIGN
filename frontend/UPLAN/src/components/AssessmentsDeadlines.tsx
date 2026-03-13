@@ -167,25 +167,25 @@ export default function AssessmentsDeadlines({ onNavigate }: AssessmentsDeadline
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen bg-white dark:bg-black">
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
         {/* Header (matches Create Timetable styling) */}
-        <div className="bg-blue-600 rounded-2xl p-8 text-white shadow-lg">
+        <div className="rounded-2xl bg-blue-600 p-5 text-white shadow-lg sm:p-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex items-center gap-3">
               <FileText className="w-10 h-10" />
               <div>
-                <h1 className="text-3xl font-bold">Assessments</h1>
+                <h1 className="text-2xl font-bold sm:text-3xl">Assessments</h1>
                 <p className="text-blue-100">
                   Track exams, quizzes, assignments, and projects — and keep your Dashboard deadlines accurate.
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-4 w-full md:w-auto">
+            <div className="flex w-full md:w-auto">
               <Button
                 variant="secondary"
-                className="bg-white/10 hover:bg-white/20 text-white border-white/20"
+                className="w-full border-white/20 bg-white/10 text-white hover:bg-white/20 md:w-auto"
                 onClick={() => onNavigate?.('auto-generate')}
               >
                 <ArrowLeft className="w-4 h-4 mr-2" /> Back
@@ -199,7 +199,7 @@ export default function AssessmentsDeadlines({ onNavigate }: AssessmentsDeadline
         </div>
 
         <Card className="border-2 border-blue-200 shadow-lg">
-          <CardHeader className="bg-blue-50 rounded-t-lg border-b border-blue-100">
+          <CardHeader className="rounded-t-lg border-b border-blue-200 bg-blue-50">
             <CardTitle className="flex items-center gap-2 text-gray-900">
               Assessments
             </CardTitle>
@@ -208,17 +208,19 @@ export default function AssessmentsDeadlines({ onNavigate }: AssessmentsDeadline
             </CardDescription>
           </CardHeader>
 
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 p-4 md:p-6">
             {assessments.length === 0 ? (
-              <div className="text-sm text-muted-foreground">No assessments added yet.</div>
+              <div className="rounded-lg border border-dashed bg-white px-4 py-3 text-sm text-muted-foreground">
+              No assessments added yet.
+            </div>
             ) : (
               <div className="space-y-2">
                 {assessments.map((a) => (
                   <div
                     key={a.id}
-                    className="rounded-lg border bg-white p-3 flex items-start justify-between gap-3"
+                  className="flex flex-col gap-3 rounded-lg border bg-white p-3 sm:flex-row sm:items-start sm:justify-between"
                   >
-                    <div className="flex items-start gap-3 min-w-0">
+                    <div className="flex min-w-0 items-start gap-3">
                       <Checkbox
                         className="mt-1"
                         checked={!!a.completed}
@@ -226,7 +228,7 @@ export default function AssessmentsDeadlines({ onNavigate }: AssessmentsDeadline
                       />
                       <div className="min-w-0">
                         <div className="font-medium truncate">{a.title}</div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="break-words text-xs text-muted-foreground">
                           {a.subject} • {String(a.type).toUpperCase()} • Due{' '}
                           {a.dueDate ? new Date(a.dueDate).toLocaleString() : ''}
                           {a.priority ? ` • ${String(a.priority).toUpperCase()}` : ''}
@@ -239,6 +241,7 @@ export default function AssessmentsDeadlines({ onNavigate }: AssessmentsDeadline
                       size="icon"
                       onClick={() => deleteAssessment(a.id)}
                       title="Delete"
+                      className="self-end sm:self-auto"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -247,10 +250,10 @@ export default function AssessmentsDeadlines({ onNavigate }: AssessmentsDeadline
               </div>
             )}
 
-            <div className="rounded-lg border bg-white p-4 space-y-3">
+            <div className="space-y-3 rounded-xl border bg-white p-4 shadow-sm">
               <div className="font-medium">Add assessment</div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Course</Label>
                   <Select
@@ -311,7 +314,7 @@ export default function AssessmentsDeadlines({ onNavigate }: AssessmentsDeadline
               </div>
 
               <div className="flex justify-end">
-                <Button variant="secondary" onClick={addAssessment}>
+                <Button variant="secondary" onClick={addAssessment} className="w-full sm:w-auto">
                   <Plus className="w-4 h-4 mr-2" /> Add
                 </Button>
               </div>

@@ -162,6 +162,8 @@ export default function Workspace({ onNavigate }: WorkspaceProps) {
     email: '',
     role: 'member' as Member['role']
   });
+  const [expandedWorkspaceId, setExpandedWorkspaceId] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
   const [createSubworkspaceParentId, setCreateSubworkspaceParentId] = useState<string | null>(null);
   const [subworkspacesByParent, setSubworkspacesByParent] = useState<Record<string, Workspace[]>>({});
   const [loadingSubsFor, setLoadingSubsFor] = useState<Record<string, boolean>>({});
@@ -238,7 +240,12 @@ export default function Workspace({ onNavigate }: WorkspaceProps) {
       // ignore
     }
   }, []);
-  
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 640);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
   // Get current logged-in user data from localStorage
   const getCurrentUser = (): Member => {
     const currentUserEmail = localStorage.getItem('currentUserEmail') || 'guest@example.com';
@@ -288,11 +295,7 @@ export default function Workspace({ onNavigate }: WorkspaceProps) {
   }, [currentWorkspaceId]);
 
     // 2) Load pending requests ONLY when workspace changes (not when workspaces changes)
-  useEffect(() => {
-      if (!currentWorkspaceId) return;
-      loadPendingRequests(currentWorkspaceId);
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentWorkspaceId]);
+
 
   // Migrate old roles to new roles
   const migrateRole = (role: string): Member['role'] => {
@@ -1275,20 +1278,20 @@ const handleEditWorkspace = async () => {
   const parentWorkspaces = workspaces.filter((w) => !w.parentId);
 
   return (
-    <div className="h-full flex flex-col bg-gray-50">
+    <div className="flex h-full min-w-0 flex-col bg-background">
       {!shouldHideChrome && (
         <>
       {/* Workspace Selector Bar */}
       <div className="bg-blue-600 shadow-md" data-tour="workspace-header-region">
-        <div className="max-w-6xl mx-auto px-6 py-3">
-          <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="mx-auto w-full max-w-6xl px-3 py-2 sm:px-4 lg:px-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
             {/* Enhanced Workspace Selector Button */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button 
                   variant="ghost" 
-                  className="text-white hover:bg-white/20 gap-2 px-4 py-2 h-auto border border-white/30 rounded-lg transition-all hover:border-white/50 hover:shadow-lg"
+                  className="h-auto w-full justify-start gap-2 rounded-lg border border-white/30 px-3 py-2.5 text-white transition-all hover:border-white/50 hover:bg-white/20 hover:shadow-lg sm:w-auto"
                 >
                   <div className="w-8 h-8 rounded-lg overflow-hidden bg-white/10 flex items-center justify-center">
                     {workspace.image_url ? (
@@ -1302,130 +1305,228 @@ const handleEditWorkspace = async () => {
                     )}
                   </div>
 
-                  <div className="flex flex-col items-start">
+                  <div className="min-w-0 flex flex-col items-start">
                     <span className="text-xs text-white/70 uppercase tracking-wide">Workspace</span>
-                    <span className="font-semibold text-sm">{workspace.name}</span>
+                    <span className="truncate text-sm font-semibold">{workspace.name}</span>
                   </div>
 
                   <ChevronDown className="h-4 w-4 ml-2 text-white/70" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-72">
-                <div className="px-3 py-2 border-b">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Switch Workspace</p>
-                  <p className="text-xs text-gray-400 mt-0.5">Select or create a workspace</p>
+              <DropdownMenuContent
+                align="start"
+                sideOffset={10}
+                className="
+                  w-[92vw] max-w-[380px] rounded-2xl p-0 shadow-2xl backdrop-blur-xl
+                  border border-gray-200 bg-white/95
+                  dark:border-white/10 dark:bg-[#0f1117]/95
+                  sm:w-80
+                "
+              >
+  {/* Header */}
+  <div className="border-b border-gray-100 px-4 py-3 dark:border-white/10">
+  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+    Switch Workspace
+  </p>
+  <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+    Select a workspace or explore its subworkspaces
+  </p>
+</div>
+
+  {/* List */}
+  <div className="max-h-[65vh] overflow-y-auto p-2">
+    {parentWorkspaces.map((ws) => {
+      const isCurrent = currentWorkspaceId === ws.id;
+      const kids = subworkspacesByParent[ws.id] || [];
+      const isLoadingKids = !!loadingSubsFor[ws.id];
+      const isExpanded = expandedWorkspaceId === ws.id;
+
+      return (
+        <div
+  key={ws.id}
+  className={`mb-2 overflow-hidden rounded-2xl border transition-all ${
+    isCurrent
+      ? "border-blue-200 bg-blue-50/80 shadow-sm dark:border-blue-500/30 dark:bg-blue-500/10"
+      : "border-gray-200 bg-white hover:border-blue-200 hover:shadow-sm dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-blue-400/30 dark:hover:bg-white/[0.05]"
+  }`}
+>
+          {/* Parent row */}
+          <div className="flex items-center gap-2 p-2">
+            {/* Expand / submenu trigger */}
+            <button
+              type="button"
+              onClick={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                await ensureSubworkspacesLoaded(ws.id);
+                setExpandedWorkspaceId((prev) => (prev === ws.id ? null : ws.id));
+              }}
+              onMouseEnter={() => {
+                if (!isMobile) ensureSubworkspacesLoaded(ws.id);
+              }}
+              className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-2 py-2 text-left transition hover:bg-gray-50 dark:hover:bg-white/[0.04]"
+            >
+              <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 shadow-sm">
+                {ws.image_url ? (
+                  <img
+                    src={ws.image_url}
+                    alt={ws.name}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <Users className="h-5 w-5 text-white" />
+                )}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
+                  {ws.name}
+                </p>
+
+                <div className="mt-0.5 flex items-center gap-2">
+                  <p className="truncate text-xs text-gray-500 dark:text-gray-400">
+                    {ws.members.length} {ws.members.length === 1 ? "member" : "members"}
+                  </p>
+
+                  {kids.length > 0 && !isLoadingKids && (
+                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600 dark:bg-white/10 dark:text-gray-300">
+                      {kids.length} subworkspace{kids.length > 1 ? "s" : ""}
+                    </span>
+                  )}
                 </div>
-                {parentWorkspaces.map((ws) => {
-                  const isCurrent = currentWorkspaceId === ws.id;
-                  const kids = subworkspacesByParent[ws.id] || [];
-                  const isLoadingKids = !!loadingSubsFor[ws.id];
+              </div>
 
-                  return (
-                    <DropdownMenuSub key={ws.id}>
-                      {/* Parent row */}
-                      <DropdownMenuSubTrigger
-                        onPointerEnter={() => ensureSubworkspacesLoaded(ws.id)} // hover loads kids
-                        className={`m-1 rounded-md ${
-                          isCurrent ? 'bg-blue-50 border border-blue-200' : 'border border-transparent'
+              <div className="flex items-center gap-2">
+                {isCurrent && (
+                  <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-blue-600 dark:text-blue-400" />
+                )}
+
+                <ChevronDown
+                  className={`h-4 w-4 flex-shrink-0 text-gray-400 transition-transform duration-200 dark:text-gray-500 ${
+                    isExpanded ? "rotate-180" : ""
+                  }`}
+                />
+              </div>
+            </button>
+
+            {/* Open parent workspace directly */}
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleSwitchWorkspace(ws.id);
+              }}
+              className="h-10 rounded-xl px-3 text-xs font-medium text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:text-blue-400 dark:hover:bg-blue-500/10 dark:hover:text-blue-300"
+            >
+              Open
+            </Button>
+          </div>
+
+          {/* Expanded children */}
+          <div
+            className={`grid transition-all duration-300 ${
+              isExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+            }`}
+          >
+            <div className="overflow-hidden">
+              <div className="border-t border-gray-100 bg-gray-50/80 px-2 py-2 dark:border-white/10 dark:bg-white/[0.03]">
+                <div className="mb-2 flex items-center justify-between px-2">
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-gray-500 dark:text-gray-400">
+                      Subworkspaces
+                    </p>
+                    <p className="text-[11px] text-gray-400 dark:text-gray-500">
+                      Under {ws.name}
+                    </p>
+                  </div>
+                </div>
+
+                {isLoadingKids ? (
+                  <div className="px-2 py-3 text-sm text-gray-500 dark:text-gray-400">
+                    Loading subworkspaces…
+                  </div>
+                ) : kids.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-gray-200 bg-white px-3 py-3 text-sm text-gray-500 dark:border-white/10 dark:bg-white/[0.03] dark:text-gray-400">
+                    No subworkspaces yet.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {kids.map((sw) => (
+                      <button
+                        key={sw.id}
+                        onClick={() => handleSwitchWorkspace(sw.id)}
+                        className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left transition ${
+                          currentWorkspaceId === sw.id
+                            ? "border-blue-200 bg-blue-50"
+                            : "border-gray-200 bg-white hover:border-blue-200 hover:bg-blue-50/40"
                         }`}
-                        onClick={() => handleSwitchWorkspace(ws.id)}
                       >
-                        <div className="flex items-center gap-3 flex-1 py-1">
-                          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
-                            {ws.image_url ? (
-                              <img src={ws.image_url} alt={ws.name} className="w-full h-full object-cover rounded-lg" />
-                            ) : (
-                              <Users className="h-5 w-5 text-white" />
-                            )}
-                          </div>
-
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate text-gray-900">{ws.name}</p>
-                            <p className="text-xs text-gray-500 truncate">
-                              {ws.members.length} {ws.members.length === 1 ? 'member' : 'members'}
-                            </p>
-                          </div>
-
-                          {isCurrent && <CheckCircle2 className="h-5 w-5 text-blue-600 flex-shrink-0" />}
+                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gray-900 shadow-sm">
+                          {sw.image_url ? (
+                            <img
+                              src={sw.image_url}
+                              alt={sw.name}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <Building2 className="h-5 w-5 text-white" />
+                          )}
                         </div>
-                      </DropdownMenuSubTrigger>
 
-                      {/* Submenu (children drop from THIS parent) */}
-                      <DropdownMenuSubContent className="w-72">
-                        <DropdownMenuItem onClick={() => handleSwitchWorkspace(ws.id)}>
-                          Open {ws.name}
-                        </DropdownMenuItem>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-gray-900">
+                            {sw.name}
+                          </p>
+                          <p className="truncate text-xs text-gray-500">
+                            {sw.members.length}{" "}
+                            {sw.members.length === 1 ? "member" : "members"}
+                          </p>
+                        </div>
 
-                        <DropdownMenuSeparator />
-                          <div className="px-3 py-2 border-b">
-                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Subworkspaces</p>
-                            <p className="text-xs text-gray-400 mt-0.5">Under “{ws.name}”</p>
-                          </div>
-                        {isLoadingKids ? (
-                          <div className="px-3 py-2 text-sm text-gray-500">Loading subworkspaces…</div>
-                        ) : kids.length === 0 ? (
-                          <div className="px-3 py-2 text-sm text-gray-500">No subworkspaces</div>
-                        ) : (
-                          kids.map((sw) => (
-                            <DropdownMenuItem key={sw.id} onClick={() => handleSwitchWorkspace(sw.id)}>
-                              <div className="flex items-center gap-3 flex-1 py-1">
-                                <div className="w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0 shadow-sm bg-gray-900">
-                                    {sw.image_url ? (
-                                      <img
-                                        src={sw.image_url}
-                                        alt={sw.name}
-                                        className="w-full h-full object-cover"
-                                      />
-                                    ) : (
-                                      <Building2 className="h-5 w-5 text-white" />
-                                    )}
-                                  </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium truncate text-gray-900">{sw.name}</p>
-                                  <p className="text-xs text-gray-500 truncate">
-                                    {sw.members.length} {sw.members.length === 1 ? 'member' : 'members'}
-                                  </p>
-                                </div>
-                                {currentWorkspaceId === sw.id && (
-                                  <CheckCircle2 className="h-5 w-5 text-blue-600 flex-shrink-0" />
-                                )}
-                              </div>
-                            </DropdownMenuItem>
-                          ))
+                        {currentWorkspaceId === sw.id && (
+                          <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-blue-600" />
                         )}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
-                        {isAdmin && (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() => {
-                                // make sure "create subworkspace" is tied to THIS parent
-                                    setCreateSubworkspaceParentId(ws.id);  // ✅ choose parent
-                                    setNewSubworkspaceName('');           // ✅ reset form
-                                    setNewSubworkspaceDescription('');
-                                    setIsCreateSubworkspaceOpen(true);
-                              }}
-                              className="bg-gray-50 hover:bg-gray-100"
-                            >
-                              <Plus className="h-4 w-4 mr-2" />
-                              Create Subworkspace
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                  );
-                })}
+                {isAdmin && (
+                  <Button
+                variant="outline"
+                onClick={() => {
+                  setCreateSubworkspaceParentId(ws.id);
+                  setNewSubworkspaceName("");
+                  setNewSubworkspaceDescription("");
+                  setIsCreateSubworkspaceOpen(true);
+                }}
+                className="mt-3 h-11 w-full rounded-xl border-dashed border-blue-300 bg-white text-blue-700 hover:bg-blue-50 dark:border-blue-500/30 dark:bg-white/[0.03] dark:text-blue-400 dark:hover:bg-blue-500/10"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Create Subworkspace
+              </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    })}
+  </div>
 
-
-                <DropdownMenuItem 
-                  onClick={() => setIsCreateWorkspaceOpen(true)}
-                  className="m-1 rounded-md bg-blue-50 hover:bg-blue-100 border border-blue-200"
-                >
-                  <Plus className="h-4 w-4 mr-2 text-blue-600" />
-                  <span className="text-blue-600 font-medium">Create New Workspace</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
+  {/* Footer action */}
+ <div className="sticky bottom-0 border-t border-gray-100 bg-white/95 p-2 backdrop-blur dark:border-white/10 dark:bg-[#0f1117]/95">
+  <DropdownMenuItem
+    onClick={() => setIsCreateWorkspaceOpen(true)}
+    className="flex h-12 cursor-pointer items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-sm font-semibold text-blue-700 outline-none hover:bg-blue-100 dark:border-blue-500/30 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/15"
+  >
+    <Plus className="mr-2 h-4 w-4" />
+    Create New Workspace
+  </DropdownMenuItem>
+</div>
+</DropdownMenuContent>
             </DropdownMenu>
             
             
@@ -1434,7 +1535,7 @@ const handleEditWorkspace = async () => {
           <Button
             onClick={() => setIsCreateWorkspaceOpen(true)}
             size="sm"
-            className="bg-white text-blue-600 hover:bg-white/90 font-medium shadow-sm"
+            className="w-full bg-white/95 font-medium text-blue-700 shadow-sm hover:bg-white sm:w-auto"
           >
             <Plus className="h-4 w-4 mr-2" />
             New Workspace
@@ -1445,9 +1546,9 @@ const handleEditWorkspace = async () => {
 
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="mx-auto w-full max-w-6xl px-3 py-3 sm:px-4 lg:px-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
             {/* Workspace Avatar with Upload Button */}
             <div className="relative group">
               <input
@@ -1483,17 +1584,17 @@ const handleEditWorkspace = async () => {
                 <Upload className="h-5 w-5 text-white" />
               </button>
             </div>
-            <div>
-              <h1 className="text-gray-900 mb-1">{workspace.name}</h1>
-              <p className="text-gray-500 text-sm">{workspace.description}</p>
-            </div>
+          <div className="min-w-0">
+            <h1 className="mb-1 truncate text-gray-900">{workspace.name}</h1>
+            <p className="text-sm text-gray-500 break-words">{workspace.description}</p>
           </div>
-          <div className="flex items-center gap-2">
+          </div>
+          <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:justify-end">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setIsShareDialogOpen(true)}
-              className="border-gray-300"
+              className="flex-1 border-gray-300 sm:flex-none"
             >
               <Link2 className="h-4 w-4 mr-2" />
               Share
@@ -1503,7 +1604,7 @@ const handleEditWorkspace = async () => {
               variant="outline"
               size="sm"
               onClick={openEditWorkspace}
-              className="border-gray-300"
+              className="flex-1 border-gray-300 sm:flex-none"
             >
               <Settings className="h-4 w-4 mr-2" />
               Settings
@@ -1539,57 +1640,57 @@ const handleEditWorkspace = async () => {
       )}
 
       {/* Tabs */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden ">
         <Tabs value={selectedTab} onValueChange={(v) => {
             setSelectedTab(v);
             if (v !== 'timetable') setWorkspaceChromeCollapsed(false);
           }} className="h-full flex flex-col">
           {!shouldHideChrome && (
           <div className="bg-white border-b border-gray-200" data-tour="workspace-header-tabs">
-            <div className="max-w-6xl mx-auto px-6">
-              <TabsList className="bg-transparent p- h-auto gap-3">
+            <div className="mx-auto w-full max-w-6xl px-3 sm:px-4 lg:px-6">
+              <TabsList className="h-auto w-full justify-start gap-2 overflow-x-auto bg-transparent py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <TabsTrigger 
                 value="members" 
-                className="gap-2 bg-transparent border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 data-[state=active]:bg-blue-50 dark:data-[state=active]:bg-blue-950/30 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:border-blue-300 dark:data-[state=active]:border-blue-700 transition-colors px-4 py-2 rounded-lg"
+                className="shrink-0 rounded-full border border-gray-300 bg-transparent px-3 py-2 text-xs sm:text-sm transition-colors hover:bg-gray-50 data-[state=active]:border-blue-300 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600 dark:border-gray-700 dark:hover:bg-gray-800 dark:data-[state=active]:border-blue-700 dark:data-[state=active]:bg-blue-950/30 dark:data-[state=active]:text-blue-400"
               >
                 
                 Members
               </TabsTrigger>
               <TabsTrigger 
                 value="timetable" 
-                className="gap-2 bg-transparent border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 data-[state=active]:bg-blue-50 dark:data-[state=active]:bg-blue-950/30 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:border-blue-300 dark:data-[state=active]:border-blue-700 transition-colors px-4 py-2 rounded-lg"
+                className="shrink-0 rounded-full border border-gray-300 bg-transparent px-3 py-2 text-xs sm:text-sm transition-colors hover:bg-gray-50 data-[state=active]:border-blue-300 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600 dark:border-gray-700 dark:hover:bg-gray-800 dark:data-[state=active]:border-blue-700 dark:data-[state=active]:bg-blue-950/30 dark:data-[state=active]:text-blue-400"
               >
                 
-                Timetable
+                Table
               </TabsTrigger>
               {isAdmin && (
                 <TabsTrigger
                   value="auto-generate"
-                  className="gap-2 bg-transparent border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 data-[state=active]:bg-blue-50 dark:data-[state=active]:bg-blue-950/30 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:border-blue-300 dark:data-[state=active]:border-blue-700 transition-colors px-4 py-2 rounded-lg"
+                  className="shrink-0 rounded-full border border-gray-300 bg-transparent px-3 py-2 text-xs sm:text-sm transition-colors hover:bg-gray-50 data-[state=active]:border-blue-300 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600 dark:border-gray-700 dark:hover:bg-gray-800 dark:data-[state=active]:border-blue-700 dark:data-[state=active]:bg-blue-950/30 dark:data-[state=active]:text-blue-400"
                 >
                   
-                  Generate
+                 Generate
                 </TabsTrigger>
               )}
               <TabsTrigger 
                 value="progress" 
-                className="gap-2 bg-transparent border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 data-[state=active]:bg-blue-50 dark:data-[state=active]:bg-blue-950/30 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:border-blue-300 dark:data-[state=active]:border-blue-700 transition-colors px-4 py-2 rounded-lg"
+                className="shrink-0 rounded-full border border-gray-300 bg-transparent px-3 py-2 text-xs sm:text-sm transition-colors hover:bg-gray-50 data-[state=active]:border-blue-300 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600 dark:border-gray-700 dark:hover:bg-gray-800 dark:data-[state=active]:border-blue-700 dark:data-[state=active]:bg-blue-950/30 dark:data-[state=active]:text-blue-400"
               >
                 
                 Progress
               </TabsTrigger>
               <TabsTrigger
               value="board" 
-              className="gap-2 bg-transparent border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 data-[state=active]:bg-blue-50 dark:data-[state=active]:bg-blue-950/30 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:border-blue-300 dark:data-[state=active]:border-blue-700 transition-colors px-4 py-2 rounded-lg"
+              className="shrink-0 rounded-full border border-gray-300 bg-transparent px-3 py-2 text-xs sm:text-sm transition-colors hover:bg-gray-50 data-[state=active]:border-blue-300 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600 dark:border-gray-700 dark:hover:bg-gray-800 dark:data-[state=active]:border-blue-700 dark:data-[state=active]:bg-blue-950/30 dark:data-[state=active]:text-blue-400"
               >
-              <LayoutDashboard className="h-4 w-4" />
+              
               Board
               </TabsTrigger>
               <TabsTrigger 
                 value="chat" 
-                className="gap-2 bg-transparent border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 data-[state=active]:bg-blue-50 dark:data-[state=active]:bg-blue-950/30 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:border-blue-300 dark:data-[state=active]:border-blue-700 transition-colors px-4 py-2 rounded-lg"
+                className="shrink-0 rounded-full border border-gray-300 bg-transparent px-3 py-2 text-xs sm:text-sm transition-colors hover:bg-gray-50 data-[state=active]:border-blue-300 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600 dark:border-gray-700 dark:hover:bg-gray-800 dark:data-[state=active]:border-blue-700 dark:data-[state=active]:bg-blue-950/30 dark:data-[state=active]:text-blue-400"
               >
-                <MessageSquare className="h-4 w-4" />
+                
                 Chat
               </TabsTrigger>
               </TabsList>
@@ -1599,12 +1700,12 @@ const handleEditWorkspace = async () => {
 
           <div className="flex-1 overflow-hidden">
             <TabsContent value="members" className="h-full mt-0 overflow-auto">
-              <div className="p-6">
-                <div className="max-w-6xl mx-auto space-y-6">
+              <div className="p-3 pb-24 sm:p-4 sm:pb-24 lg:p-6 lg:pb-6">
+                <div className="mx-auto w-full max-w-6xl space-y-6">
                   {/* Stats Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                     <Card>
-                      <CardContent className="pt-6">
+                      <CardContent className="pt-4 sm:pt-6">
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-sm text-gray-600">Total Members</p>
@@ -1641,18 +1742,18 @@ const handleEditWorkspace = async () => {
                   {/* Members Section */}
                   <Card>
                     <CardHeader>
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                         <div>
                           <CardTitle>Team Members</CardTitle>
                           <CardDescription>Manage who has access to this workspace</CardDescription>
                         </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:justify-end">
                         {isAdmin && (
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => setIsPendingRequestsOpen(true)}
-                            className="border-orange-300 text-orange-700 hover:bg-orange-50 relative"
+                            className="relative w-full border-orange-300 text-orange-700 hover:bg-orange-50 sm:w-auto"
                           >
                             <UserPlus className="h-4 w-4 mr-2" />
                             Pending Requests
@@ -1665,7 +1766,7 @@ const handleEditWorkspace = async () => {
                         )}
                         <Button 
                           onClick={() => setIsAddMemberOpen(true)}
-                          className="bg-blue-600 hover:bg-blue-700"
+                          className="w-full bg-blue-600 hover:bg-blue-700 sm:w-auto"
                         >
                           <Plus className="h-4 w-4 mr-2" />
                           Add Member
@@ -1701,9 +1802,9 @@ const handleEditWorkspace = async () => {
                             return (
                               <div
                                 key={member.id}
-                                className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow bg-white"
+                                className="rounded-xl border border-gray-200 bg-white p-4 transition-shadow hover:shadow-md sm:flex sm:items-center sm:justify-between sm:gap-4"
                               >
-                                <div className="flex items-center gap-4 flex-1">
+                                <div className="flex min-w-0 items-start gap-3 sm:gap-4">
                                   <div className="relative">
                                     <Avatar className="h-12 w-12 border-2 border-gray-200">
                                       <AvatarFallback className="bg-blue-600 text-white">
@@ -1712,7 +1813,7 @@ const handleEditWorkspace = async () => {
                                     </Avatar>
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                                       <p className="text-gray-900 truncate">
                                         {member.name}
                                         {isCurrentUser && (
@@ -1727,15 +1828,15 @@ const handleEditWorkspace = async () => {
                                   </div>
                                 </div>
 
-                                <div className="flex items-center gap-1">
+                                <div className="mt-3 flex flex-col gap-2 sm:mt-0 sm:flex-row sm:items-center sm:gap-2">
                                   {/* Role Badge/Selector */}
                                   <Select
                                     value={member.role}
                                     onValueChange={(value) => handleChangeRole(member.id, value as Member['role'])}
                                     disabled={isCurrentUser}
                                   >
-                                    <SelectTrigger className={`w-32 border ${roleConf.color}`}>
-                                      <div className="flex items-center gap-3">
+                                    <SelectTrigger className={`w-full sm:w-32 border ${roleConf.color}`}>
+                                      <div className="flex min-w-0 items-center gap-3">
                                         <RoleIcon className="h-4 w-4" />
                                         <span>{roleConf.label}</span>
                                       </div>
@@ -1745,7 +1846,7 @@ const handleEditWorkspace = async () => {
                                         const Icon = config.icon;
                                         return (
                                           <SelectItem key={value} value={value}>
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                                               <Icon className="h-4 w-4" />
                                               {config.label}
                                             </div>
@@ -1761,7 +1862,7 @@ const handleEditWorkspace = async () => {
                                       variant="ghost"
                                       size="sm"
                                       onClick={() => handleRemoveMember(member.id)}
-                                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      className="w-full text-red-600 hover:bg-red-50 hover:text-red-700 sm:w-auto"
                                     >
                                       <Trash2 className="h-4 w-4" />
                                     </Button>
@@ -1785,11 +1886,11 @@ const handleEditWorkspace = async () => {
                       <CardDescription>Understanding workspace roles</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                         {Object.entries(roleConfig).map(([key, config]) => {
                           const Icon = config.icon;
                           return (
-                            <div key={key} className={`p-4 border rounded-lg ${config.color}`}>
+                            <div key={key} className={`rounded-xl border p-5 ${config.color} self-start`}>
                               <div className="flex items-center gap-2 mb-2">
                                 <Icon className="h-5 w-5" />
                                 <span className="font-medium">{config.label}</span>
@@ -1814,8 +1915,8 @@ const handleEditWorkspace = async () => {
             </TabsContent>
 
             <TabsContent value="timetable" className="h-full mt-0 overflow-auto">
-              <div className="p-6">
-                <div className="max-w-6xl mx-auto">
+              <div className="p-3 pb-24 sm:p-4 sm:pb-24 lg:p-6 lg:pb-6">
+                <div className="mx-auto w-full max-w-6xl min-w-0">
                   <div className="space-y-3">
                       {!isAdmin && (
                         <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-900">
@@ -1845,8 +1946,8 @@ const handleEditWorkspace = async () => {
 
             {isAdmin && (
               <TabsContent value="auto-generate" className="h-full mt-0 overflow-auto">
-                <div className="p-6">
-                  <div className="max-w-6xl mx-auto space-y-3">
+                <div className="p-3 pb-24 sm:p-4 sm:pb-24 lg:p-6 lg:pb-6">
+                  <div className="mx-auto w-full max-w-6xl space-y-3">
                     <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
                       Workspace auto-generate is stored separately from your personal Auto Generate page.
                     </div>
@@ -1863,8 +1964,8 @@ const handleEditWorkspace = async () => {
             )}
 
             <TabsContent value="progress" className="h-full mt-0 overflow-auto">
-              <div className="p-6">
-                <div className="max-w-6xl mx-auto">
+              <div className="p-3 pb-24 sm:p-4 sm:pb-24 lg:p-6 lg:pb-6">
+                <div className="mx-auto w-full max-w-6xl min-w-0">
                   <TeamCollaboration
                     workspaceId={String(workspace.id)}
                     members={workspace.members}
@@ -1874,12 +1975,14 @@ const handleEditWorkspace = async () => {
               </div>
             </TabsContent>
 
-            <TabsContent value="board" className="h-full mt-0">
+            <TabsContent value="board" className="h-full mt-0 overflow-auto">
               <CollaborationBoard workspace={workspace} currentUser={currentUser}/>
             </TabsContent>
 
-            <TabsContent value="chat" className="h-full mt-0">
+            <TabsContent value="chat" className="h-full min-h-0 mt-0">
+              <div className="h-full min-h-0">
               <WorkspaceChat workspace={workspace} currentUser={currentUser} />
+              </div>
             </TabsContent>
           </div>
         </Tabs>
@@ -1896,7 +1999,7 @@ const handleEditWorkspace = async () => {
               }
             }}
           >
-            <DialogContent>
+            <DialogContent className="max-h-[90vh] w-[95vw] overflow-y-auto sm:max-w-lg">
               <DialogHeader>
                 <DialogTitle>Create Subworkspace</DialogTitle>
                 <DialogDescription>
@@ -1950,7 +2053,7 @@ const handleEditWorkspace = async () => {
           setNewMember({ name: '', email: '', role: 'member' });
         }
       }}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] w-[95vw] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Add Team Member</DialogTitle>
             <DialogDescription>
@@ -2022,7 +2125,7 @@ const handleEditWorkspace = async () => {
                     const Icon = config.icon;
                     return (
                       <SelectItem key={value} value={value}>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                           <Icon className="h-4 w-4" />
                           <div>
                             <div>{config.label}</div>
@@ -2052,7 +2155,7 @@ const handleEditWorkspace = async () => {
 
       {/* Edit Workspace Dialog */}
       <Dialog open={isEditWorkspaceOpen} onOpenChange={setIsEditWorkspaceOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="flex max-h-[90vh] w-[95vw] flex-col overflow-hidden sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit Workspace</DialogTitle>
             <DialogDescription>
@@ -2075,7 +2178,7 @@ const handleEditWorkspace = async () => {
                   <Users className="h-8 w-8 text-white" />
                 )}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <input
                     type="file"
                     id="workspace-avatar-settings-upload"
@@ -2132,7 +2235,7 @@ const handleEditWorkspace = async () => {
                 <Label className="text-sm font-medium">Timetable Permissions</Label>
                 <p className="text-xs text-gray-500 mt-1">Control who can edit shared timetables</p>
               </div>
-              <div className="flex items-center justify-between p-3 border rounded-lg bg-gray-50">
+              <div className="flex flex-col gap-3 rounded-lg border bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-900">Allow all members to edit timetables</p>
                   <p className="text-xs text-gray-500 mt-0.5">When enabled, all workspace members can edit any shared timetable</p>
@@ -2186,7 +2289,7 @@ const handleEditWorkspace = async () => {
                   {/* Share Link Display */}
                   <div className="p-3 border rounded-lg bg-blue-50 border-blue-200">
                     <Label className="text-xs text-blue-700 mb-2 block">Share Link</Label>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                       <Input 
                         value={`${window.location.origin}/workspaces/join?token=${workspace.sharing.linkId}`}
                         readOnly
@@ -2204,7 +2307,7 @@ const handleEditWorkspace = async () => {
                   </div>
 
                   {/* Link Actions */}
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row">
                     <Button
                       variant="outline"
                       size="sm"
@@ -2241,7 +2344,7 @@ const handleEditWorkspace = async () => {
 
       {/* Create Workspace Dialog */}
       <Dialog open={isCreateWorkspaceOpen} onOpenChange={setIsCreateWorkspaceOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] w-[95vw] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Create New Workspace</DialogTitle>
             <DialogDescription>
@@ -2286,7 +2389,7 @@ const handleEditWorkspace = async () => {
 
       {/* Delete Workspace Dialog */}
       <Dialog open={isDeleteWorkspaceOpen} onOpenChange={setIsDeleteWorkspaceOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] w-[95vw] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-600">
               <AlertTriangle className="h-5 w-5" />
@@ -2336,7 +2439,7 @@ const handleEditWorkspace = async () => {
 
       {/* Share Workspace Dialog */}
       <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-h-[90vh] w-[95vw] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Link2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -2376,7 +2479,7 @@ const handleEditWorkspace = async () => {
               <div className="space-y-4">
                 {/* Share Link Display */}
                 <div className="p-4 border-2 border-blue-200 dark:border-blue-800 rounded-lg bg-blue-50 dark:bg-blue-950/30">
-                  <div className="flex items-start justify-between mb-3">
+                  <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <Label className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-1 block">Active Share Link</Label>
                       <p className="text-xs text-blue-700 dark:text-blue-400">
@@ -2391,7 +2494,7 @@ const handleEditWorkspace = async () => {
                     </Badge>
                   </div>
                   
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                     <Input 
                       value={`${window.location.origin}/workspaces/join?token=${workspace.sharing.linkId}`}
                       readOnly
@@ -2449,7 +2552,7 @@ const handleEditWorkspace = async () => {
 
       {/* Pending Requests Dialog */}
       <Dialog open={isPendingRequestsOpen} onOpenChange={setIsPendingRequestsOpen}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+        <DialogContent className="flex max-h-[90vh] w-[95vw] flex-col overflow-hidden sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserPlus className="h-5 w-5 text-blue-600" />
@@ -2478,7 +2581,7 @@ const handleEditWorkspace = async () => {
                 {workspace.pendingRequests.map((request) => (
                   <Card key={request.id} className="hover:border-blue-200 transition-colors">
                     <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div className="flex items-start gap-3 flex-1">
                           <Avatar className="h-10 w-10 border-2 border-gray-200">
                             <AvatarFallback className="bg-blue-100 text-blue-700 font-semibold">
@@ -2515,7 +2618,7 @@ const handleEditWorkspace = async () => {
                           </div>
                         </div>
                         
-                        <div className="flex items-center gap-2 ml-4">
+                        <div className="flex w-full flex-col gap-2 lg:ml-4 lg:w-auto lg:flex-row">
                           <Button
                             size="sm"
                             variant="outline"
