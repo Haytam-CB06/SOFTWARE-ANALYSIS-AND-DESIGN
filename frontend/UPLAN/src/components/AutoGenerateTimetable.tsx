@@ -813,26 +813,26 @@ export default function AutoGenerateTimetable({ onNavigate, scope, workspaceId: 
   };
 
   return (
-    <div className={embedded ? "" : "min-h-screen bg-gradient-to-b from-blue-50 to-white"}>
+    <div className={embedded ? "" : "min-h-screen bg-white dark:bg-black"}>
       <div className={embedded ? "space-y-6" : "max-w-4xl mx-auto px-4 py-8 space-y-6"}>
         {/* Header (matches Create Timetable styling) */}
         {!embedded && (
-        <div className="bg-blue-600 rounded-2xl p-8 text-white shadow-lg">
+        <div className="rounded-2xl bg-blue-600 p-5 text-white shadow-lg sm:p-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex items-center gap-3">
               <Brain className="w-10 h-10" />
               <div>
-                <h1 className="text-3xl font-bold">Auto Generate Study Timetable</h1>
+                <h1 className="text-2xl font-bold sm:text-3xl">Auto Generate Study Timetable</h1>
                 <p className="text-blue-100">
                   Fill your free time automatically using your study window, classes, and busy time.
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-4 w-full md:w-auto">
+            <div className="flex w-full md:w-auto">
               <Button
                 variant="secondary"
-                className="bg-white/10 hover:bg-white/20 text-white border-white/20"
+                  className="w-full border-white/20 bg-white/10 text-white hover:bg-white/20 md:w-auto"
                 onClick={() => {
                   if (embedded) {
                     if (isWorkspaceContext) onWorkspaceDone?.();
@@ -877,7 +877,7 @@ export default function AutoGenerateTimetable({ onNavigate, scope, workspaceId: 
               Set when you're available to study (editable anytime — great for exam periods).
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <CardContent className="grid grid-cols-1 gap-4 p-4 md:grid-cols-2 md:p-6">
             <div className="space-y-2">
               <Label>Weekday start</Label>
               <Input type="time" value={weekdayStart} onChange={(e) => setWeekdayStart(e.target.value)} />
@@ -921,7 +921,7 @@ export default function AutoGenerateTimetable({ onNavigate, scope, workspaceId: 
               </p>
             </div>
 
-            <div className="flex items-center justify-between col-span-full">
+            <div className="col-span-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-1">
                 <Label>Include weekends</Label>
                 <p className="text-xs text-muted-foreground">If enabled, we also fill free time on Saturday and Sunday.</p>
@@ -931,7 +931,7 @@ export default function AutoGenerateTimetable({ onNavigate, scope, workspaceId: 
 
             {includeWeekends && (
               <>
-                <div className="flex items-center justify-between col-span-full">
+                <div className="col-span-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="space-y-1">
                     <Label>Use same weekend window</Label>
                     <p className="text-xs text-muted-foreground">Weekend hours equal weekday hours.</p>
@@ -968,7 +968,7 @@ export default function AutoGenerateTimetable({ onNavigate, scope, workspaceId: 
               class schedule + busy time to detect free time, then fills it with balanced study sessions.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 p-4 md:p-6">
             <div className="flex flex-wrap items-center gap-2">
               <Button variant={courseMode === 'fill' ? 'default' : 'outline'} onClick={() => setCourseMode('fill')}>
                 <Plus className="w-4 h-4 mr-2" /> Fill Current Timetable
@@ -984,7 +984,7 @@ export default function AutoGenerateTimetable({ onNavigate, scope, workspaceId: 
             </div>
 
             {courseMode === 'upload' && (
-              <div ref={uploadSectionRef} className="rounded-lg border bg-white p-4 space-y-3">
+              <div ref={uploadSectionRef} className="space-y-3 rounded-xl border bg-white p-4 shadow-sm">
                 <div className="space-y-1">
                   <Label>Upload timetable</Label>
                   <p className="text-xs text-muted-foreground">
@@ -1005,8 +1005,8 @@ export default function AutoGenerateTimetable({ onNavigate, scope, workspaceId: 
 
             {/* Existing course rows */}
             {courses.length === 0 ? (
-              <div className="text-sm text-muted-foreground">
-                No class timetable saved yet. Use <span className="font-medium">Fill Current Timetable</span> or <span className="font-medium">Upload</span> to add it.
+              <div className="rounded-lg border border-dashed bg-white px-4 py-3 text-sm text-muted-foreground">
+                No class timetable saved yet. Use <span className="font-medium text-foreground">Fill Current Timetable</span> or <span className="font-medium text-foreground">Upload</span> to add it.
               </div>
             ) : (
               <div className="space-y-2">
@@ -1015,14 +1015,14 @@ export default function AutoGenerateTimetable({ onNavigate, scope, workspaceId: 
                   return (
                     <div key={c.id} className="rounded-lg border bg-white">
                       {!isEditing ? (
-                        <div className="p-3 flex items-center justify-between gap-3">
+                        <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
                           <div className="min-w-0">
                             <div className="font-medium truncate">{c.title}</div>
                             <div className="text-xs text-muted-foreground">
                               {fmtDays(c.days)} • {c.startTime}–{c.endTime} • {c.priority.toUpperCase()}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1 self-end sm:self-auto">
                             <Button
                               variant="ghost"
                               size="icon"
@@ -1132,8 +1132,8 @@ export default function AutoGenerateTimetable({ onNavigate, scope, workspaceId: 
 
             {/* Add new course row (Fill mode) */}
             {courseMode === 'fill' && (
-              <div className="rounded-lg border bg-white p-4 space-y-3">
-                <div className="flex items-center justify-between">
+              <div className="space-y-3 rounded-xl border bg-white p-4 shadow-sm">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <div className="font-medium">Add course row</div>
                     <div className="text-xs text-muted-foreground">Same course can appear multiple times with different days or times.</div>
@@ -1214,8 +1214,8 @@ export default function AutoGenerateTimetable({ onNavigate, scope, workspaceId: 
               Add extra busy blocks (work, commute, errands). Auto-generate will never place study sessions inside these periods.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
+          <CardContent className="space-y-4 p-4 md:p-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-1">
                 <Label>Treat existing calendar sessions as busy</Label>
                 <p className="text-xs text-muted-foreground">
@@ -1225,7 +1225,7 @@ export default function AutoGenerateTimetable({ onNavigate, scope, workspaceId: 
               <Switch checked={treatExistingWeekAsBusy} onCheckedChange={setTreatExistingWeekAsBusy} />
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-1">
                 <Label>Replace existing study sessions</Label>
                 <p className="text-xs text-muted-foreground">If enabled, we remove previously generated study sessions before adding new ones.</p>
@@ -1240,14 +1240,14 @@ export default function AutoGenerateTimetable({ onNavigate, scope, workspaceId: 
                   return (
                     <div key={b.id} className="rounded-lg border bg-white">
                       {!isEditing ? (
-                        <div className="p-3 flex items-center justify-between gap-3">
+                        <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
                           <div className="min-w-0">
                             <div className="font-medium truncate">{b.title}</div>
                             <div className="text-xs text-muted-foreground">
                               {days.find((d) => d.id === b.day)?.label} • {b.startTime}–{b.endTime}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1 self-end sm:self-auto">
                             <Button variant="ghost" size="icon" onClick={() => setEditingBusyId(b.id)}>
                               <Pencil className="w-4 h-4" />
                             </Button>
@@ -1309,7 +1309,7 @@ export default function AutoGenerateTimetable({ onNavigate, scope, workspaceId: 
                 <Plus className="w-4 h-4 mr-2" /> Add busy block
               </Button>
             ) : (
-              <div className="rounded-lg border bg-white p-4 space-y-3">
+              <div className="space-y-3 rounded-xl border bg-white p-4 shadow-sm">
                 <div className="font-medium">Add busy block</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="space-y-2">
@@ -1361,29 +1361,18 @@ export default function AutoGenerateTimetable({ onNavigate, scope, workspaceId: 
         </Card>
 
         {/* Footer action (Generate at the bottom) */}
-        <div className="sticky bottom-0 pt-2 pb-4 bg-gradient-to-t from-white via-white/95 to-transparent">
           <div className="flex justify-end gap-2">
-            <Button
-              variant="outline"
-              data-tour="auto-shuffle"
-              onClick={() => handleGenerate({ shuffle: true })}
-              disabled={isGenerating}
-              className="shadow-lg"
-            >
-              <Shuffle className="w-4 h-4 mr-2" /> Shuffle
-            </Button>
-
+            
             <Button
               data-tour="auto-generate"
               onClick={() => handleGenerate({ shuffle: false })}
               disabled={isGenerating}
-              className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg"
+              className="w-full bg-blue-600 text-white shadow-lg hover:bg-blue-700 sm:w-auto"
             >
               <Sparkles className="w-4 h-4 mr-2" /> {isGenerating ? 'Generating…' : 'Generate'}
             </Button>
           </div>
         </div>
       </div>
-    </div>
   );
 }

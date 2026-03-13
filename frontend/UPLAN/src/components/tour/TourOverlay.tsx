@@ -503,14 +503,7 @@ export default function TourOverlay({ onNavigate, autoStart, onFinishOnboarding 
   if (!active) {
     const node = (
       <div className="fixed bottom-4 right-4" style={{ zIndex: 2147483647 }}>
-        <Button
-          variant="secondary"
-          onClick={() => open(resolvedSteps, 0)}
-          className="shadow-lg"
-          aria-label="Start onboarding tour"
-        >
-          Start tour
-        </Button>
+        
       </div>
     );
 

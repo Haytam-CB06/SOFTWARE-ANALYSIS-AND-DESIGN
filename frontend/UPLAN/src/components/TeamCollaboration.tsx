@@ -296,12 +296,12 @@ export default function TeamCollaboration({ workspaceId, members, currentUser }:
   };
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto w-full max-w-6xl space-y-6">
       {/* Team Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm text-gray-600">Shared Schedules</p>
                 <p className="text-2xl mt-1">{teamStats.totalSchedules}</p>
@@ -312,7 +312,7 @@ export default function TeamCollaboration({ workspaceId, members, currentUser }:
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm text-gray-600">Active Members</p>
                 <p className="text-2xl mt-1">{teamStats.activeMembers}</p>
@@ -323,7 +323,7 @@ export default function TeamCollaboration({ workspaceId, members, currentUser }:
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm text-gray-600">Avg Completion</p>
                 <p className="text-2xl mt-1">{teamStats.avgCompletionRate}%</p>
@@ -334,7 +334,7 @@ export default function TeamCollaboration({ workspaceId, members, currentUser }:
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm text-gray-600">Recent Updates</p>
                 <p className="text-2xl mt-1">{teamStats.totalActivities}</p>
@@ -349,7 +349,7 @@ export default function TeamCollaboration({ workspaceId, members, currentUser }:
         {/* Shared Schedules */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <Calendar className="h-5 w-5 text-blue-600" />
@@ -359,7 +359,7 @@ export default function TeamCollaboration({ workspaceId, members, currentUser }:
               </div>
               <Button
                 onClick={() => setIsShareDialogOpen(true)}
-                className="bg-blue-600 hover:bg-blue-700"
+                className="w-full bg-blue-600 hover:bg-blue-700 sm:w-auto"
               >
                 <Share2 className="h-4 w-4 mr-2" />
                 Share Schedule
@@ -378,9 +378,9 @@ export default function TeamCollaboration({ workspaceId, members, currentUser }:
                 {sharedSchedules.map((schedule) => (
                   <div
                     key={schedule.id}
-                    className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow bg-white"
+                    className="rounded-xl border border-gray-200 bg-white p-4 transition-shadow hover:shadow-md"
                   >
-                    <div className="flex items-start justify-between">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                           <h3 className="font-medium text-gray-900">{schedule.name}</h3>
@@ -393,7 +393,7 @@ export default function TeamCollaboration({ workspaceId, members, currentUser }:
                             </Badge>
                           )}
                         </div>
-                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                        <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
                           <div className="flex items-center gap-1">
                             <Users className="h-3 w-3" />
                             <span>Shared by {schedule.ownerName}</span>
@@ -404,7 +404,7 @@ export default function TeamCollaboration({ workspaceId, members, currentUser }:
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
                         <Button
                           variant="outline"
                           size="sm"
@@ -449,15 +449,15 @@ export default function TeamCollaboration({ workspaceId, members, currentUser }:
               <div className="space-y-4">
                 {memberProgress.map((progress) => (
                   <div key={progress.memberId} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex min-w-0 items-center gap-2">
                         <Avatar className="h-8 w-8">
                           <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-500 text-white text-xs">
                             {getInitials(progress.memberName)}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="text-sm font-medium text-gray-900">{progress.memberName}</p>
+                          <p className="truncate text-sm font-medium text-gray-900">{progress.memberName}</p>
                           <p className="text-xs text-gray-500">
                             {progress.completedSessions}/{progress.totalSessions} completed
                           </p>
@@ -466,7 +466,7 @@ export default function TeamCollaboration({ workspaceId, members, currentUser }:
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
                         <Badge
                           variant="secondary"
                           className={
@@ -509,11 +509,11 @@ export default function TeamCollaboration({ workspaceId, members, currentUser }:
                 {teamActivities.slice(0, 10).map((activity) => (
                   <div
                     key={activity.id}
-                    className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="flex items-start gap-3 rounded-lg p-3 transition-colors hover:bg-gray-50"
                   >
                     <div className="mt-1">{getActivityIcon(activity.type)}</div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-900">
+                      <p className="break-words text-sm text-gray-900">
                         <span className="font-medium">{activity.memberName}</span>{' '}
                         {activity.description}
                       </p>
@@ -531,7 +531,7 @@ export default function TeamCollaboration({ workspaceId, members, currentUser }:
 
       {/* Share Schedule Dialog */}
       <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] w-[95vw] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Share Schedule with Team</DialogTitle>
             <DialogDescription>
@@ -555,7 +555,7 @@ export default function TeamCollaboration({ workspaceId, members, currentUser }:
                   ) : (
                     availableTimetables.map((timetable) => (
                       <SelectItem key={timetable.id} value={timetable.id}>
-                        <div className="flex items-center gap-2">
+                        <div className="flex min-w-0 items-center gap-2">
                           <Calendar className="h-4 w-4" />
                           <div>
                             <div>{timetable.name}</div>
@@ -578,7 +578,7 @@ export default function TeamCollaboration({ workspaceId, members, currentUser }:
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">
-                    <div className="flex items-center gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
                       <Users className="h-4 w-4" />
                       <div>
                         <div>All Members</div>
@@ -587,7 +587,7 @@ export default function TeamCollaboration({ workspaceId, members, currentUser }:
                     </div>
                   </SelectItem>
                   <SelectItem value="admins">
-                    <div className="flex items-center gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
                       <Shield className="h-4 w-4" />
                       <div>
                         <div>Admins Only</div>

@@ -1,4 +1,4 @@
-import { Calendar, Trash2, Eye, CheckCircle, Clock, BookOpen, Plus, Download, FileSpreadsheet, ChevronDown, Play } from 'lucide-react';
+import { Calendar, Trash2, Eye, CheckCircle, Clock, BookOpen, Plus, Download, FileSpreadsheet, ChevronDown, Play, MoreHorizontal, Copy } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -423,34 +423,48 @@ export default function ViewTimetables({ timetables, onDelete, onView, onSetActi
   };
 
   return (
-    <div className="p-6">
-      <div className="max-w-6xl mx-auto space-y-6">
+  <div className="flex h-full min-h-0 flex-col bg-background">
+    <div className="mx-auto w-full max-w-md px-4 pb-24 pt-4 sm:max-w-2xl sm:px-6">
       <AlertDialog open={startDialogOpen} onOpenChange={setStartDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Overwrite your current timetable?</AlertDialogTitle>
-            <AlertDialogDescription>
-              You already have sessions in <strong>My Timetable</strong>. You can overwrite them or merge this saved
-              timetable into your current schedule.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="sm:justify-between">
-            <AlertDialogCancel onClick={() => setPendingStart(null)}>Cancel</AlertDialogCancel>
-            <div className="flex gap-2">
+        <AlertDialogContent className="w-[92vw] max-w-sm overflow-hidden rounded-3xl border border-border bg-card p-0 text-foreground shadow-xl">
+          <div className="p-5">
+            <AlertDialogHeader className="space-y-2 text-left">
+             <AlertDialogTitle className="text-lg font-semibold text-foreground">
+                Use this timetable?
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-sm leading-6 text-muted-foreground">
+                You already have sessions in <strong>My Timetable</strong>. You can merge this timetable into your
+                current schedule or overwrite everything.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2 border-t border-border bg-muted/40 p-4">
+            <Button
+              variant="outline"
+              className="h-11 rounded-2xl"
+              onClick={() => setPendingStart(false) || setStartDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+
+            <div className="grid grid-cols-2 gap-2">
               <Button
                 variant="outline"
+                className="h-11 rounded-2xl"
                 onClick={() => {
                   if (!pendingStart) return;
                   setStartDialogOpen(false);
                   const t = pendingStart;
-                  setPendingStart(null);
+                  setPendingStart(false);
                   startTimetableMerge(t);
                 }}
               >
                 Merge
               </Button>
+
               <Button
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                className="h-11 rounded-2xl bg-blue-600 text-white hover:bg-blue-700"
                 onClick={() => {
                   if (!pendingStart) return;
                   setStartDialogOpen(false);
@@ -462,152 +476,213 @@ export default function ViewTimetables({ timetables, onDelete, onView, onSetActi
                 Overwrite
               </Button>
             </div>
-          </AlertDialogFooter>
+          </div>
         </AlertDialogContent>
       </AlertDialog>
-      {/* Header */}
-      <div className="bg-blue-600 rounded-2xl p-5 text-white shadow-lg">
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-9 h-9 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
-            <BookOpen className="h-5 w-5" />
+
+      {/* Phone-style header */}
+      <div className="mb-4 rounded-[28px] bg-gradient-to-br from-blue-600 via-blue-600 to-indigo-700 p-5 text-white shadow-xl">
+        <div className="flex items-center justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
+              <BookOpen className="h-5 w-5" />
+            </div>
+
+            <div className="min-w-0">
+              <h1 className="truncate text-xl font-semibold tracking-tight">Saved Timetables</h1>
+              <p className="mt-1 text-sm text-blue-100">
+                Your study plans, ready to launch
+              </p>
+            </div>
           </div>
-          <h1 className="text-white text-xl">Saved Timetables</h1>
         </div>
-        <p className="text-blue-100 text-sm">
-          View and manage all your saved study timetables
-        </p>
-        <div className="mt-3 flex items-center gap-2">
-          <Badge variant="secondary" className="bg-white/20 text-white border-0 text-xs">
-            {timetables.length} {timetables.length === 1 ? 'Timetable' : 'Timetables'}
-          </Badge>
-          <Badge variant="secondary" className="bg-white/20 text-white border-0 text-xs">
-            {timetables.filter(t => t.isActive).length} Active
-          </Badge>
+
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="rounded-2xl bg-white/10 p-3 backdrop-blur">
+            <p className="text-xs text-blue-100">Total</p>
+            <p className="mt-1 text-lg font-semibold">
+              {timetables.length}
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-white/10 p-3 backdrop-blur">
+            <p className="text-xs text-blue-100">Active</p>
+            <p className="mt-1 text-lg font-semibold">
+              {timetables.filter((t) => t.isActive).length}
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Timetables List */}
       {timetables.length === 0 ? (
-        <Card className="border-0 shadow-md">
-          <CardContent className="p-12 text-center">
-            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Calendar className="h-10 w-10 text-gray-400" />
+        <Card className="overflow-hidden rounded-[28px] border border-border bg-card shadow-sm">
+          <CardContent className="px-6 py-12 text-center">
+            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-muted">
+              <Calendar className="h-10 w-10 text-muted-foreground" />
             </div>
-            <h3 className="text-gray-900 mb-2">No Saved Timetables</h3>
-            <p className="text-gray-600 mb-4">
-              You haven't created any timetables yet. Create your first one to get started!
+
+            <h3 className="text-lg font-semibold text-foreground">No Saved Timetables</h3>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              You haven&apos;t created any timetables yet. Start with your first study plan.
             </p>
+
             {onNavigate && (
               <Button
-                onClick={() => onNavigate('create-timetable')}
-                className="bg-blue-600 hover:bg-blue-700"
+                onClick={() => onNavigate("create-timetable")}
+                className="mt-5 h-11 rounded-2xl bg-blue-600 px-5 hover:bg-blue-700"
               >
-                <Plus className="h-4 w-4 mr-2" />
-                Create Your First Timetable
+                <Plus className="mr-2 h-4 w-4" />
+                Create Timetable
               </Button>
             )}
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 gap-6">
+        <div className="space-y-4">
           {timetables.map((timetable) => {
-            const totalHours = timetable.studyHoursPerDay;
-            const createdDate = new Date(timetable.createdAt).toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
+            const createdDate = new Date(timetable.createdAt).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
             });
 
+            const sessionCount = (timetable.calendarSessions || timetable.schedule || []).length;
+            const subjectCount = timetable.subjects?.length || 0;
+
             return (
-              <Card key={timetable.id} className={`\n                border-0 shadow-md transition-all hover:shadow-lg\n                ${timetable.isActive ? 'ring-2 ring-blue-500' : ''}\n              `}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <CardTitle className="flex items-center gap-2 text-base">
-                          <Calendar className="h-4 w-4 text-blue-600" />
-                          Study Timetable
-                        </CardTitle>
-                        {timetable.isActive && (
-                          <Badge className="bg-green-500 text-white border-0 text-xs px-2 py-0">
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                            Active
-                          </Badge>
-                        )}
+              <Card
+                key={timetable.id}
+                className={`overflow-hidden rounded-[28px] border border-border bg-card shadow-sm transition-all ${
+                  timetable.isActive ? "ring-1 ring-blue-500/40" : ""
+                }`}
+              >
+                <CardContent className="p-4">
+                  {/* Top row */}
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
+                        timetable.isActive
+                        ? "bg-blue-600 text-white"
+                        : "bg-muted text-foreground"
+                      }`}
+                    >
+                      <Calendar className="h-5 w-5" />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <h2 className="truncate text-base font-semibold text-foreground">
+                            Study Timetable
+                          </h2>
+                          <p className="mt-1 text-xs text-muted-foreground">Created {createdDate}</p>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {timetable.isActive && (
+                            <div className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700">
+                              <CheckCircle className="h-3.5 w-3.5" />
+                              Active
+                            </div>
+                          )}
+
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-9 w-9 rounded-full text-muted-foreground hover:bg-slate-100"
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+
+                            <DropdownMenuContent align="end"   className="w-44 rounded-2xl border border-border bg-popover text-popover-foreground">
+                              <DropdownMenuItem onClick={() => onView(timetable)}>
+                                <Eye className="mr-2 h-4 w-4" />
+                                View
+                              </DropdownMenuItem>
+
+                              <DropdownMenuItem onClick={() => handleExport(timetable, "csv")}>
+                                <Download className="mr-2 h-4 w-4" />
+                                Export CSV
+                              </DropdownMenuItem>
+
+                              <DropdownMenuItem onClick={() => handleExport(timetable, "json")}>
+                                <Download className="mr-2 h-4 w-4" />
+                                Export JSON
+                              </DropdownMenuItem>
+
+                              <DropdownMenuItem onClick={() => handleExport(timetable, "pdf")}>
+                                <Download className="mr-2 h-4 w-4" />
+                                Export PDF
+                              </DropdownMenuItem>
+
+                              {onDuplicate && (
+                                <DropdownMenuItem onClick={() => onDuplicate(timetable.id)}>
+                                  <Copy className="mr-2 h-4 w-4" />
+                                  Duplicate
+                                </DropdownMenuItem>
+                              )}
+
+                              <DropdownMenuItem
+                                className="text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400"
+                                onClick={() => handleDelete(timetable.id)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </div>
-                      <CardDescription className="text-xs">Created on {createdDate}</CardDescription>
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-3 pt-0">
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary" className="text-xs">{(timetable.calendarSessions || timetable.schedule || []).length} sessions</Badge>
-                    {timetable.subjects && <Badge variant="secondary" className="text-xs">{timetable.subjects.length} subjects</Badge>}
-                    {timetable.studyHoursPerDay && <Badge variant="secondary" className="text-xs">{timetable.studyHoursPerDay}h/day</Badge>}
-                    {timetable.breakInterval && <Badge variant="secondary" className="text-xs">{timetable.breakInterval} min/session</Badge>}
+
+                  {/* Stats */}
+                  <div className="mt-4 grid grid-cols-3 gap-2">
+                    <div className="rounded-2xl bg-muted/60 p-3 text-center">
+                      <p className="text-[11px] text-muted-foreground">Sessions</p>
+                      <p className="mt-1 text-sm font-semibold text-foreground">{sessionCount}</p>
+                    </div>
+
+                    <div className="rounded-2xl bg-muted/60 p-3 text-center">
+                      <p className="text-[11px] text-muted-foreground">Subjects</p>
+                      <p className="mt-1 text-sm font-semibold text-foreground">{subjectCount}</p>
+                    </div>
+
+                    <div className="rounded-2xl bg-muted/60 p-3 text-center">
+                      <p className="text-[11px] text-muted-foreground">Hours/day</p>
+                      <p className="mt-1 text-sm font-semibold text-foreground">
+                        {timetable.studyHoursPerDay ? `${timetable.studyHoursPerDay}h` : "--"}
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-2 pt-2">
+                  {/* Optional detail row */}
+                  {timetable.breakInterval && (
+                    <div className="mt-3 inline-flex items-center rounded-full bg-muted px-3 py-1.5 text-xs text-muted-foreground">
+                      Break every {timetable.breakInterval} min
+                    </div>
+                  )}
+
+                  {/* Main actions */}
+                  <div className="mt-4 grid grid-cols-2 gap-2">
                     <Button
-                      size="sm"
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
                       onClick={() => handleStartTimetable(timetable)}
+                      className="h-11 rounded-2xl bg-blue-600 text-white hover:bg-blue-700"
                     >
-                      <Play className="h-3.5 w-3.5 mr-1.5" />
-                      Start
+                      <Play className="mr-2 h-4 w-4" />
+                      Start timetable
                     </Button>
 
                     <Button
-                      size="sm"
                       variant="outline"
-                      className="border-gray-300"
                       onClick={() => onView(timetable)}
+                      className="h-11 rounded-2xl border-slate-200 bg-white"
                     >
-                      <Eye className="h-3.5 w-3.5 mr-1.5" />
-                      View
-                    </Button>
-
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button size="sm" variant="outline" className="border-gray-300">
-                          <Download className="h-3.5 w-3.5 mr-1.5" />
-                          Export
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleExport(timetable, 'csv')}>CSV</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleExport(timetable, 'json')}>JSON</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleExport(timetable, 'pdf')}>PDF</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button size="sm" variant="outline" className="border-gray-300">
-                          <ChevronDown className="h-3.5 w-3.5 mr-1.5" />
-                          Actions
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => {
-                            if (!onDuplicate) return;
-                            onDuplicate(timetable.id);
-                          }}
-                        >
-                          Duplicate
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="border-red-300 text-red-600 hover:bg-red-50"
-                      onClick={() => handleDelete(timetable.id)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-                      Delete
+                      <Eye className="mr-2 h-4 w-4" />
+                      Preview
                     </Button>
                   </div>
                 </CardContent>
@@ -616,7 +691,6 @@ export default function ViewTimetables({ timetables, onDelete, onView, onSetActi
           })}
         </div>
       )}
-      </div>
     </div>
-  );
-}
+  </div>
+);}

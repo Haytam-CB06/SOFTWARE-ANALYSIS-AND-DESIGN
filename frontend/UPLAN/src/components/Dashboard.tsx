@@ -580,7 +580,7 @@ useEffect(() => {
   const weeklyTargetHours = overallWeekGoal
     ? Number(overallWeekGoal.target_hours) || 0
     : weekGoals.reduce((sum, g) => sum + (Number(g.target_hours) || 0), 0);
-  const weeklyGoalProgressPct = weeklyTargetHours > 0 ? Math.min(100, Math.round((weeklyCompletedHours / weeklyTargetHours) * 100)) : 0;
+  const weeklyGoalProgressPct = weeklyTargetHours > 0 ? Math.min(100, Math.round((weeklyCompletedHours / weeklyTargetHours) * 100)) : 0 ;
 
   // Tasks
   const todayTasks = tasks.filter(t => {
@@ -805,11 +805,10 @@ useEffect(() => {
   };
 
   return (
-    <div className="max-w-[1600px] mx-auto min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30">
-      {/* Header - No longer sticky, scrolls with content */}
+    <div className="mx-auto min-h-screen w-full max-w-7xl bg-gradient-to-br from-gray-50 to-blue-50/30">      {/* Header - No longer sticky, scrolls with content */}
       <div className="bg-white border-b border-gray-200 shadow-sm">
         <div className="p-4 sm:p-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h1 className="text-gray-900 mb-1 font-bold">Welcome back, {userName}!</h1>
               <p className="text-gray-600 text-sm">
@@ -834,7 +833,7 @@ useEffect(() => {
                   </Badge>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Button
                     size="sm"
                     data-tour="dashboard-start-session"
@@ -878,12 +877,12 @@ useEffect(() => {
 
           {/* Tab Navigation */}
           {!minimalMode && (
-            <div className="flex gap-2 overflow-x-auto">
+            <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <Button
                 onClick={() => setActiveTab('today')}
                 variant={activeTab === 'today' ? 'default' : 'outline'}
                 size="sm"
-                className={activeTab === 'today' ? 'bg-blue-600 text-white hover:bg-blue-800 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-900' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}
+                className={`shrink-0 ${activeTab === 'today' ? 'bg-blue-600 text-white hover:bg-blue-800 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-900' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
               >
                 <Home className="h-4 w-4 mr-2" />
                 Today
@@ -892,12 +891,12 @@ useEffect(() => {
                 onClick={() => onNavigate('my-timetable')}
                 variant="outline"
                 size="sm"
-                className="hover:bg-gray-100 dark:hover:bg-gray-800 dark:border-gray-600 dark:text-gray-300"
+                className={`shrink-0 ${activeTab === 'my-timetable' ? 'bg-blue-600 text-white hover:bg-blue-800 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-900' : 'hover:bg-gray-100 dark:hover:bg-gray-800'}`}
               >
                 <Calendar className="h-4 w-4 mr-2" />
                 Calendar
               </Button>
-              <div className="ml-auto flex gap-2">
+              <div className="flex gap-2 sm:ml-auto">
                 <Button
                   onClick={() => setShowInsights(!showInsights)}
                   variant="outline"
@@ -914,10 +913,12 @@ useEffect(() => {
       </div>
 
       {/* Main Content */}
-      <div className="flex">
+      <div className="flex min-w-0">
         {/* Main Area */}
-        <div 
-          className={`flex-1 p-4 sm:p-6 transition-all duration-300 ${showInsights ? 'mr-0 lg:mr-96' : ''}`}
+        <div
+          className={`min-w-0 flex-1 p-3 pb-24 sm:p-4 sm:pb-24 lg:p-6 lg:pb-6 transition-all duration-300 ${
+            showInsights ? 'xl:mr-96' : ''
+          }`}
         >
           {/* Minimal Mode View */}
           {minimalMode && (
@@ -1022,7 +1023,7 @@ useEffect(() => {
                       {todayExpanded && (
                         <CardContent>
                           {/* Progress Summary */}
-                          <div className="grid grid-cols-3 gap-4 mb-6 p-4 bg-white/10 rounded-lg backdrop-blur">
+                          <div className="mb-6 grid grid-cols-1 gap-3 rounded-lg bg-white/10 p-4 backdrop-blur sm:grid-cols-3">
                             <div>
                               <p className="text-white/80 text-sm">Total Hours</p>
                               <p className="text-2xl font-bold">{Math.round(todayStudyHours * 10) / 10}h</p>
@@ -1059,7 +1060,7 @@ useEffect(() => {
                                       (isCompleted || isMissed || isSkipped) ? 'opacity-60' : 'shadow-md'
                                     }`}
                                   >
-                                    <div className="flex items-start justify-between mb-2">
+                                    <div className="mb-2 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                       <div className="flex-1">
                                         <div className="flex items-center gap-2 mb-1">
                                           <h4 className="font-medium text-gray-900">
@@ -1080,7 +1081,7 @@ useEffect(() => {
                                           </span>
                                         </div>
                                       </div>
-                                      <div className="flex items-center gap-2">
+                                      <div className="flex flex-wrap items-center gap-2">
                                       <Badge className="bg-purple-100 text-purple-700 text-xs">
                                         {session.type}
                                       </Badge>
@@ -1141,7 +1142,7 @@ useEffect(() => {
                     {/* Study Progress Overview */}
                     <Card className="border-0 shadow-lg">
                       <CardHeader>
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <CardTitle className="flex items-center gap-2 text-gray-900">
                             <BarChart3 className="h-5 w-5 text-blue-600" />
                             Study Progress Overview
@@ -1173,7 +1174,7 @@ useEffect(() => {
                               <div className="flex items-center justify-between gap-3">
                                 <div>
                                   <div className="text-xs text-gray-600">Completed </div>
-                                  <div className="text-xl font-bold text-blue-700">{weekProgressLoading ? '…' : `${weeklyCompletedHours.toFixed(1)}h`}</div>
+                                  <div className="text-xl font-bold text-blue-700">{weekProgressLoading ? '…' : `${weeklyCompletedHours.toFixed(1)}h `}</div>
                                 </div>
                                 <div className="text-right">
                                   <div className="text-xs text-gray-600">Weekly goal</div>
@@ -1182,8 +1183,8 @@ useEffect(() => {
                                   </div>
                                 </div>
                               </div>
-                              <div className="mt-3">
-                                <Progress value={weeklyGoalProgressPct} />
+                              <div className="mt-4">
+                                <Progress   value={weeklyGoalProgressPct}  />
                                 <div className="mt-2 flex items-center justify-between text-xs text-blue-600">
                                   <span>{weeklyTargetHours > 0 ? `${weeklyGoalProgressPct}%` : 'Set a weekly goal in Goals & Achievements'}</span>
                                   <Button
@@ -1303,7 +1304,7 @@ useEffect(() => {
                                         : 'bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700'
                                     }`}
                                   >
-                                    <div className="flex items-start justify-between gap-2">
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                       <div className="flex-1">
                                         <h4 className={`text-sm font-medium text-gray-900 dark:text-gray-100 ${task.completed ? 'line-through opacity-50' : ''}`}>
                                           {task.title}
@@ -1421,14 +1422,14 @@ useEffect(() => {
 
         {/* Insights Side Panel - Slides from right */}
         <div
-          className={`fixed top-0 right-0 h-full w-96 bg-white shadow-2xl border-l border-gray-200 z-50 transform transition-transform duration-300 overflow-y-auto ${
-            showInsights ? 'translate-x-0' : 'translate-x-full'
-          }`}
-        >
-          <div className="p-6 space-y-6">
+          className={`fixed inset-y-0 right-0 z-50 w-full max-w-full overflow-y-auto border-l border-gray-200 bg-white shadow-2xl transform transition-transform duration-300 sm:max-w-md ${
+              showInsights ? 'translate-x-0' : 'translate-x-full'
+            }`}
+          >
+          <div className="space-y-6 p-4 sm:p-6">
             {/* Header */}
-            <div className="flex items-center justify-between pb-4 border-b border-gray-200">
-              <div className="flex items-center gap-2">
+            <div className="flex items-start justify-between gap-3 border-b border-gray-200 pb-4">
+              <div className="flex flex-wrap items-center gap-2">
                 <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
                   <Lightbulb className="h-5 w-5 text-purple-600" />
                 </div>
@@ -1469,7 +1470,7 @@ useEffect(() => {
             {/* Quick Stats */}
             <div className="space-y-4 pt-4 border-t border-gray-200">
               <h3 className="text-sm font-medium text-gray-700">Quick Stats</h3>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="bg-blue-50 p-4 rounded-lg">
                   <p className="text-xs text-blue-600 mb-1">Today's Hours</p>
                   <p className="text-2xl font-bold text-blue-700">
@@ -1616,7 +1617,7 @@ function AddTaskDialog({ open, onOpenChange, onAdd }: AddTaskDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="max-h-[90vh] w-[95vw] overflow-y-auto sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Add New Task</DialogTitle>
           <DialogDescription>
@@ -1667,7 +1668,7 @@ function AddTaskDialog({ open, onOpenChange, onAdd }: AddTaskDialogProps) {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="type">Type</Label>
               <Select
@@ -1705,7 +1706,7 @@ function AddTaskDialog({ open, onOpenChange, onAdd }: AddTaskDialogProps) {
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-4">
+          <div className="flex flex-col gap-2 pt-4 sm:flex-row sm:justify-end">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
@@ -1853,7 +1854,7 @@ function MonthlyOverview({ calendarSessions }: MonthlyOverviewProps) {
         </ResponsiveContainer>
       </div>
       
-      <div className="flex justify-center">
+      <div className="flex justify-center px-2">
         <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
           <Button
             size="sm"
@@ -1875,4 +1876,4 @@ function MonthlyOverview({ calendarSessions }: MonthlyOverviewProps) {
       </div>
     </div>
   );
-}
+} 

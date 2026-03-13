@@ -715,25 +715,25 @@ useEffect(() => {
   const weeklyGoal = summary?.goals?.find((g) => !g.subject_id) || null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen bg-white dark:bg-black">
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
         {/* Header */}
-        <div className="bg-blue-600 rounded-2xl p-8 text-white shadow-lg">
+        <div className="rounded-2xl bg-blue-600 p-5 text-white shadow-lg sm:p-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex items-center gap-3">
               <Award className="w-10 h-10" />
               <div>
-                <h1 className="text-3xl font-bold">Goals &amp; Achievements</h1>
+                <h1 className="text-2xl font-bold sm:text-3xl">Goals &amp; Achievements</h1>
                 <p className="text-blue-100">
                   Set targets, track progress, and celebrate consistency.
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-4 w-full md:w-auto">
+            <div className="flex w-full md:w-auto">
               <Button
                 variant="secondary"
-                className="bg-white/10 hover:bg-white/20 text-white border-white/20"
+                className="w-full border-white/20 bg-white/10 text-white hover:bg-white/20 md:w-auto"
                 onClick={() => onNavigate?.('dashboard')}
               >
                 <ArrowLeft className="w-4 h-4 mr-2" /> Back
@@ -747,8 +747,8 @@ useEffect(() => {
         </div>
 
         {/* Quick overview cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card data-tour="goals-this-week" className="border-0 shadow-lg">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <Card data-tour="goals this week" className="border shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-gray-900">
                 <Calendar className="h-5 w-5 text-purple-600" />
@@ -756,7 +756,7 @@ useEffect(() => {
               </CardTitle>
               <CardDescription>What’s scheduled (from My Timetable)</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent className="space-y-2 p-4 md:p-6">
               <div className="text-2xl font-bold text-purple-700">{totalWeekSessions}</div>
               <div className="text-sm text-muted-foreground">sessions</div>
               <div className="pt-2">
@@ -770,7 +770,7 @@ useEffect(() => {
             </CardContent>
           </Card>
 
-          <Card data-tour="goals-upcoming-deadlines" className="border-0 shadow-lg">
+          <Card data-tour="goals-upcoming-deadlines" className="border shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-gray-900">
                 <TrendingUp className="h-5 w-5 text-purple-600" />
@@ -778,16 +778,16 @@ useEffect(() => {
               </CardTitle>
               <CardDescription>From Assessments</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-3 p-4 md:p-6">
               {loading ? (
-                <div className="text-sm text-muted-foreground">Loading…</div>
+                <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">Loading…</div>
               ) : upcomingDeadlines.length === 0 ? (
-                <div className="text-sm text-muted-foreground">No upcoming deadlines</div>
+                <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">No upcoming deadlines</div>
               ) : (
                 <div className="space-y-2">
                   {upcomingDeadlines.map((d) => (
-                    <div key={d.id} className="rounded-lg border bg-white p-3">
-                      <div className="font-medium truncate">{d.title}</div>
+                    <div key={d.id} className="rounded-lg border bg-white p-3 shadow-sm">
+                      <div className="font-medium break-words [overflow-wrap:anywhere]">{d.title}</div>
                       <div className="text-xs text-muted-foreground">
                         {d.subject} • Due {new Date(d.dueDate).toLocaleString()}
                       </div>
@@ -805,7 +805,7 @@ useEffect(() => {
             </CardContent>
           </Card>
 
-          <Card data-tour="goals-progress-streak" className="border-0 shadow-lg">
+          <Card data-tour="goals-progress-streak" className="border shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-gray-900">
                 <Activity className="h-5 w-5 text-purple-600" />
@@ -813,7 +813,7 @@ useEffect(() => {
               </CardTitle>
               <CardDescription>From your completed sessions </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 p-4 md:p-6">
               <div className="flex items-end justify-between gap-3">
                 <div>
                   <div className="text-2xl font-bold text-purple-700">{completedHours.toFixed(1)}h</div>
@@ -829,7 +829,7 @@ useEffect(() => {
 
               <Progress value={progressPct} className="bg-purple-100" indicatorColor="bg-purple-600" />
 
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-1 text-sm text-purple-700">
                   <Flame className="h-4 w-4 text-purple-600" /> {summary?.streak_days ?? 0}-day streak
                 </div>
@@ -849,12 +849,12 @@ useEffect(() => {
                   ))}
                 </div>
               ) : (
-                <div className="text-xs text-muted-foreground">
+                <div className="rounded-lg border border-dashed px-4 py-3 text-xs text-muted-foreground">
                   Tip: use “Log Session” below to start building achievements.
                 </div>
               )}
 
-              <div data-tour="goals-weekly-goals" className="grid grid-cols-2 gap-2">
+              <div data-tour="goals-weekly-goals" className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <Button variant="outline" onClick={() => setGoalDialogOpen(true)}>
                   <Plus className="h-4 w-4 mr-2" /> Set goals
                 </Button>
@@ -865,7 +865,7 @@ useEffect(() => {
 
               {/* Set goals dialog */}
               <Dialog open={goalDialogOpen} onOpenChange={setGoalDialogOpen}>
-                <DialogContent>
+                <DialogContent className="max-h-[90vh] w-[calc(100vw-1rem)] max-w-lg overflow-y-auto rounded-xl sm:w-full">
                   <DialogHeader>
                     <DialogTitle>Set goals for this week</DialogTitle>
                     <DialogDescription>
@@ -926,8 +926,8 @@ useEffect(() => {
                         <div className="text-sm font-medium">Current goals</div>
                         <div className="space-y-2">
                           {summary.goals.map((g) => (
-                            <div key={g.id} className="rounded-lg border p-3">
-                              <div className="flex items-center justify-between">
+                            <div key={g.id} className="rounded-lg border bg-white p-3 shadow-sm">
+                              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                 <div className="font-medium text-sm">
                                   {g.subject_title || 'Overall'}
                                 </div>
@@ -949,7 +949,7 @@ useEffect(() => {
 
               {/* Log completed session dialog */}
               <Dialog open={logDialogOpen} onOpenChange={setLogDialogOpen}>
-                <DialogContent>
+                <DialogContent className="max-h-[90vh] w-[calc(100vw-1rem)] max-w-lg overflow-y-auto rounded-xl sm:w-full">
                   <DialogHeader>
                     <DialogTitle>Log a completed study session</DialogTitle>
                     <DialogDescription>
@@ -972,7 +972,7 @@ useEffect(() => {
                         You can only log sessions that exist on your current “My Timetable” for that day. Unlogged sessions become missed after midnight.
                       </p>
                       {timetableHint ? (
-                        <p className="text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded-md p-2">
+                        <p className="rounded-md border border-blue-200 bg-blue-50 p-2 text-xs text-blue-700">
                           {timetableHint}
                         </p>
                       ) : null}
@@ -1016,7 +1016,7 @@ useEffect(() => {
         </div>
 
         {/* Today sessions (skip / missed / complete) */}
-        <Card data-tour="goals-today-session" className="border-0 shadow-lg">
+        <Card data-tour="goals-today-session" className="border shadow-lg">
           <CardHeader>
             <div className="flex items-center justify-between gap-3">
               <CardTitle className="flex items-center gap-2 text-gray-900">
@@ -1043,19 +1043,19 @@ useEffect(() => {
               Backend-tracked slots from your timetable. Skipped cannot be marked completed.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-3 p-4 md:p-6">
             <div className="text-xs text-muted-foreground">
               Week totals: {weekCounts.completed} completed • {weekCounts.skipped} skipped • {weekCounts.missed} missed • {weekCounts.planned} planned
             </div>
 
             {!todayExpanded ? (
-              <div className="text-sm text-muted-foreground">
+              <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
                 Hidden. Click “Expand” to view and manage today’s sessions.
               </div>
             ) : weekSessionsLoading ? (
-              <div className="text-sm text-muted-foreground">Loading…</div>
+              <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">Loading…</div>
             ) : todaySessions.length === 0 ? (
-              <div className="text-sm text-muted-foreground">
+              <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
                 No timetable sessions found for today.
               </div>
             ) : (
@@ -1073,12 +1073,12 @@ useEffect(() => {
                   const canComplete = status === 'missed' && (cur === 'planned' || cur === 'missed');
 
                   return (
-                    <div key={String(s.id)} className="flex items-center justify-between gap-3 rounded-lg border bg-white p-3">
+                    <div key={String(s.id)} className="flex flex-col gap-3 rounded-lg border bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="min-w-0">
                         <div className="font-medium truncate">{st}–{en} • {subj}</div>
                         <div className="text-xs text-muted-foreground">Status: {status}</div>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="flex flex-wrap items-center gap-2 sm:flex-shrink-0">
                         <Badge variant="secondary">{status}</Badge>
                         {canComplete ? (
                           <Button size="sm" onClick={() => patchSessionStatus(String(s.id), 'completed')}>
