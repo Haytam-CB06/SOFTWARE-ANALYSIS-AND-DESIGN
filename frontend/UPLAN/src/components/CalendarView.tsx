@@ -2102,7 +2102,7 @@ const [mobileSelectedDay, setMobileSelectedDay] = useState(
       {/* Calendar */}
       <div className="min-w-full md:w-full">
         <div className="mx-auto w-full max-w-7xl px-3 py-3 sm:px-6">
-          <div className="relative overflow-hidden rounded-[28px] border border-border/60 bg-card shadow-[0_12px_40px_rgba(0,0,0,0.06)]">
+          <div className="relative rounded-[28px] border border-border/60 bg-card shadow-[0_12px_40px_rgba(0,0,0,0.06)]">
             <div
               data-tour="my-timetable-preview"
               aria-hidden
@@ -2110,23 +2110,21 @@ const [mobileSelectedDay, setMobileSelectedDay] = useState(
               style={{ opacity: 0, pointerEvents: "none" }}
             />
 
-            <div
-              ref={calendarExportRef}
-              className="overflow-visible bg-white"
-            >
-              <div className="min-w-[900px]">
-                <table className="w-max min-w-full md:w-full table-fixed border-collapse">
+                  <div className="w-full overflow-x-auto overflow-y-hidden rounded-[28px] [webkit-overflow-scrolling:touch]">
+                    <div
+                      ref={calendarExportRef}
+                      className="min-w-[980px] bg-white dark:bg-background"
+                    >
+                  <table className="w-full table-fixed border-collapse">
                   <colgroup>
-                  <col style={{ width: "56px" }} />
-                  {Array.from({ length: 7 }).map((_, i) => (
-                    <col
-                      key={i}
-                      style={{
-                        width: window.innerWidth >= 768 ? "calc((100% - 56px) / 7)" : "120px",
-                      }}
-                    />
-                  ))}
-                </colgroup>
+                    <col style={{ width: "60px" }} />
+                    {Array.from({ length: 7 }).map((_, i) => (
+                      <col
+                        key={i}
+                        className="w-[140px] md:w-auto"
+                      />
+                    ))}
+                  </colgroup>
 
                   <thead className="sticky top-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
                     <tr>
