@@ -91,9 +91,12 @@ export default function SessionDialog({
   };
 
   const handleTypeChange = (value: string) => {
+    // Find the selected type and get its color
+    const selectedType = studyTypes.find(t => t.value === value);
     setFormData({
       ...formData,
       type: value,
+      color: selectedType?.color || formData.color,
     });
   };
 
@@ -196,8 +199,7 @@ export default function SessionDialog({
                     <div className="flex items-center gap-2">
                       <div
                         className="w-3 h-3 rounded"
-                        // Preview: course color (stable) rather than type color
-                        style={{ backgroundColor: courseColorForSubject(formData.subject, '#3B82F6') }}
+                        style={{ backgroundColor: type.color }}
                       />
                       {type.label}
                     </div>

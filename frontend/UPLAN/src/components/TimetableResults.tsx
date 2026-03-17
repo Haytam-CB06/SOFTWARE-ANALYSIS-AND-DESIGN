@@ -1174,14 +1174,7 @@ export default function TimetableResults({ timetableData, onSave, onEdit, onBack
           <Plus className="h-4 w-4 mr-2" />
           Create New Timetable
         </Button>
-        <Button 
-          variant="outline" 
-          onClick={handleEditCourseSettings}
-          className="border-gray-200 text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-        >
-          <Settings className="h-4 w-4 mr-2" />
-          Edit Settings
-        </Button>
+        
       </div>
 
       {/* University Schedule Integration Info */}

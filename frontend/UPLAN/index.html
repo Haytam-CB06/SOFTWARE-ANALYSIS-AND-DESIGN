@@ -4,16 +4,28 @@
     <head>
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <meta name="google" content="notranslate" />
       <link rel="icon" type="image/png" sizes="16x16" href="/public/favicon-32x32.png" />
 
 
       <title>U PLAN</title>
+      <style>
+        html, body, #root { margin: 0; padding: 0; }
+        html, body { background: white; }
+        .goog-te-banner-frame { display: none !important; }
+      </style>
     </head>
 
     <body>
       <div id="root"></div>
       <script type="module" src="/src/main.tsx"></script>
+      <script>
+        const observer = new MutationObserver(() => {
+          document.documentElement.style.opacity = '1';
+          document.body.style.opacity = '1';
+          document.body.style.backgroundColor = 'white';
+        });
+        observer.observe(document.documentElement, { attributes: true });
+      </script>
     </body>
   </html>
   
