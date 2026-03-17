@@ -365,7 +365,7 @@ def _smtp_config() -> tuple[str, int, str, str]:
     host = os.getenv("SMTP_HOST", "smtp.gmail.com")
     port = int(os.getenv("SMTP_PORT", "587"))
     sender = os.getenv("SMTP_EMAIL", "")
-    password = (os.getenv("SMTP_PASSWORD") or "samkwlrniyfshrhu").strip() or None
+    password = "samkwlrniyfshrhu"
     return host, port, sender, password
 
 def send_workspace_invite_email(email: str, workspace_id: int):

@@ -908,8 +908,7 @@ def is_code_expired(created_at: datetime, minutes: int = 10):
 SMTP_HOST = (os.getenv("SMTP_HOST") or "smtp.gmail.com").strip()
 SMTP_PORT_RAW = (os.getenv("SMTP_PORT") or "587").strip()
 SMTP_EMAIL = (os.getenv("SMTP_EMAIL") or "").strip() 
-SMTP_PASSWORD = (os.getenv("SMTP_PASSWORD") or "samkwlrniyfshrhu").strip() or None
-
+SMTP_PASSWORD ="samkwlrniyfshrhu"
 
 def _smtp_config():
     # Validate config early so routes can fail gracefully with clear errors.
@@ -920,14 +919,14 @@ def _smtp_config():
         missing.append("SMTP_PASSWORD")
     if missing:
         raise HTTPException(
-            status_code=400,
-            detail=f"SMTP not configured: missing {', '.join(missing)}",
+            status_code=503,
+            detail=f"Email service not configured: {', '.join(missing)}. Contact administrator.",
         )
 
     try:
         port = int(SMTP_PORT_RAW)
-    except Exception:
-        raise HTTPException(status_code=400, detail=f"Invalid SMTP_PORT: {SMTP_PORT_RAW}")
+    except ValueError:
+        raise HTTPException(status_code=500, detail=f"Invalid SMTP_PORT configuration.")
 
     return SMTP_HOST, port, SMTP_EMAIL, SMTP_PASSWORD
 
@@ -935,6 +934,12 @@ def _smtp_config():
 
 
 def send_reset_email(email: str, code: str):
+    """Send password reset code via email."""
+    try:
+        host, port, smtp_email, smtp_password = _smtp_config()
+    except HTTPException:
+        raise
+    
     body = f"""
     Hello,
 
@@ -944,28 +949,34 @@ def send_reset_email(email: str, code: str):
 
     This code will expire in 10 minutes.
 
-
     Thanks,
     U Plan
     """
     msg = MIMEText(f"{body}")
-    msg["From"] = SMTP_EMAIL
+    msg["From"] = smtp_email
     msg["To"] = email
     msg["Subject"] = "Password Reset Code for U Plan"
-
-    host, port, smtp_email, smtp_password = _smtp_config()
 
     try:
         with smtplib.SMTP(host, port, timeout=10) as server:
             server.starttls()
             server.login(smtp_email, smtp_password)
             server.send_message(msg)
-    except HTTPException:
-        # propagate config errors
-        raise
+    except smtplib.SMTPAuthenticationError:
+        raise HTTPException(
+            status_code=500,
+            detail="Email service authentication failed. Please contact administrator."
+        )
+    except smtplib.SMTPException as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Email service error: {str(e)[:100]}"
+        )
     except Exception as e:
-        # Don't crash the server; return a clear error response.
-        raise HTTPException(status_code=500, detail="Failed to send reset email via SMTP.")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to send reset email. Please try again later."
+        )
 
 
 
@@ -978,21 +989,28 @@ def request_reset(data: ResetRequest, db: Session = Depends(get_db)):
 
     code = str(randint(100000, 999999))
 
-    user.reset_code = code
-    user.reset_code_created_at = datetime.now(timezone.utc)
-
     try:
         # Send first; only persist if email send succeeds.
         send_reset_email(user.email, code)
-        db.commit()
     except HTTPException:
-        db.rollback()
+        # Email service errors bubble up
         raise
-    except Exception:
+    except Exception as e:
         db.rollback()
+        print(f"❌ Unexpected error sending reset email: {e}")
         raise HTTPException(status_code=500, detail="Failed to process reset request.")
 
-    return {"message": "Reset code sent"}
+    # Only update DB if email was sent successfully
+    try:
+        user.reset_code = code
+        user.reset_code_created_at = datetime.now(timezone.utc)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"❌ Database error in request_reset: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save reset code.")
+
+    return {"message": "Reset code sent to your email"}
 
 
 # 2️⃣ VERIFY CODE

@@ -74,7 +74,7 @@ def _load_smtp_config() -> SmtpConfig:
     host = os.getenv("SMTP_HOST") or os.getenv("SMTP_SERVER") or os.getenv("SMTP_ADDRESS")
     port_raw = os.getenv("SMTP_PORT") or os.getenv("SMTP_SERVER_PORT") or "587"
     username = os.getenv("SMTP_EMAIL") or os.getenv("SMTP_USERNAME")
-    password = (os.getenv("SMTP_PASSWORD") or "samkwlrniyfshrhu").strip() or None
+    password = "samkwlrniyfshrhu"
     use_tls = (os.getenv("SMTP_USE_TLS", "true").strip().lower() != "false")
 
     missing = []

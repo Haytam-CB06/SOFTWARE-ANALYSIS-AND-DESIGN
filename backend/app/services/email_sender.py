@@ -64,14 +64,14 @@ def load_smtp_settings() -> SMTPSettings:
 
     # Preferred names
     user = (os.getenv("SMTP_USER") or "").strip() or None
-    password = (os.getenv("SMTP_PASS") or "samkwlrniyfshrhu").strip() or None
+    password ="samkwlrniyfshrhu"
     sender = (os.getenv("SMTP_FROM") or "").strip() or None
 
     # Back-compat names
     if not user:
         user = (os.getenv("SMTP_EMAIL") or "").strip() or None
     if not password:
-        password = (os.getenv("SMTP_PASSWORD") or "samkwlrniyfshrhu").strip() or None
+        password = "samkwlrniyfshrhu"
     if not sender:
         sender = user
 
