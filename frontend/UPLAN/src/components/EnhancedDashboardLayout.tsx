@@ -757,17 +757,17 @@ return (
     <div className="flex min-h-[calc(100vh-3.5rem)] md:min-h-[calc(100vh-4rem)]">
       {/* Desktop Sidebar */}
       <aside
-          className={`hidden lg:fixed lg:left-0 lg:top-16 lg:bottom-0 lg:flex lg:flex-col overflow-visible border-r border-border bg-card z-40 ${
+          className={`hidden lg:fixed lg:left-0 lg:top-14 lg:bottom-0 lg:flex lg:flex-col overflow-visible border-r border-border bg-card z-40 ${
             sidebarCollapsed ? 'lg:w-20' : 'lg:w-64'
           } transition-all duration-300`}
         >
-        <div className="relative flex-1 h-full overflow-y-auto p-3">
-          <div className="absolute right-2 top-3 z-50 hidden lg:block">
+        <div className="relative flex-1 h-full overflow-y-auto p-5">
+          <div className="absolute right-5 top-3 z-50 hidden lg:block">
             <Button
               onClick={toggleSidebarCollapse}
               variant="outline"
               size="icon"
-              className="h-8 w-8 rounded-md border-border bg-background shadow-sm hover:bg-accent"
+              className="h-10 w-10 rounded-md border-border bg-background shadow-sm hover:bg-accent"
               title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               {sidebarCollapsed ? (
@@ -909,7 +909,7 @@ return (
             sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'
           }`}
         >
-        <div className="w-full min-w-0 px-3 pb-24 pt-3 lg:px-6 lg:pb-6 lg:pt-6">
+        <div className="w-full min-w-0 px-3 pb-10 pt-3 lg:px-6 lg:pb-6 lg:pt-6">
           {children}
         </div>
       </main>
