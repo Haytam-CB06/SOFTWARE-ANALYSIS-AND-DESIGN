@@ -79,6 +79,8 @@ def export_ics(payload: ExportRequest):
     if payload.week_start:
         try:
             base = datetime.fromisoformat(payload.week_start)
+            # Normalize to Monday (in case the provided date is not a Monday)
+            base = _monday_of_week(base)
         except Exception:
             raise HTTPException(status_code=400, detail="week_start must be in YYYY-MM-DD format")
     else:
@@ -207,9 +209,11 @@ def export_google_calendar(
     if payload.week_start:
         try:
             base_date = datetime.fromisoformat(payload.week_start).date()
+            # Normalize to Monday (in case the provided date is not a Monday)
+            base_naive = _monday_of_week(datetime(base_date.year, base_date.month, base_date.day))
+            base = datetime(base_naive.year, base_naive.month, base_naive.day, 0, 0, 0, tzinfo=tzinfo)
         except Exception:
             raise HTTPException(status_code=400, detail="week_start must be in YYYY-MM-DD format")
-        base = datetime(base_date.year, base_date.month, base_date.day, 0, 0, 0, tzinfo=tzinfo)
     else:
         base_naive = _monday_of_week(now.replace(tzinfo=None))
         base = datetime(base_naive.year, base_naive.month, base_naive.day, 0, 0, 0, tzinfo=tzinfo)

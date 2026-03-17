@@ -1662,7 +1662,7 @@ const handleEditWorkspace = async () => {
                 className="shrink-0 rounded-full border border-gray-300 bg-transparent px-3 py-2 text-xs sm:text-sm transition-colors hover:bg-gray-50 data-[state=active]:border-blue-300 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600 dark:border-gray-700 dark:hover:bg-gray-800 dark:data-[state=active]:border-blue-700 dark:data-[state=active]:bg-blue-950/30 dark:data-[state=active]:text-blue-400"
               >
                 
-                Table
+                Schedule
               </TabsTrigger>
               {isAdmin && (
                 <TabsTrigger
@@ -1685,7 +1685,7 @@ const handleEditWorkspace = async () => {
               className="shrink-0 rounded-full border border-gray-300 bg-transparent px-3 py-2 text-xs sm:text-sm transition-colors hover:bg-gray-50 data-[state=active]:border-blue-300 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600 dark:border-gray-700 dark:hover:bg-gray-800 dark:data-[state=active]:border-blue-700 dark:data-[state=active]:bg-blue-950/30 dark:data-[state=active]:text-blue-400"
               >
               
-              Board
+              Collab
               </TabsTrigger>
               <TabsTrigger 
                 value="chat" 

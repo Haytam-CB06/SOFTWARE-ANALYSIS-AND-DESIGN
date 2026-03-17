@@ -18,6 +18,7 @@ import ImportDialog from './ImportDialog';
 import googleCalendarIcon from 'figma:asset/9cdb2bc588344ebf952e674647c637e389c6663e.png';
 import { MoreHorizontal } from "lucide-react";
 // Timetable sessions use the Goals/Achievements numeric accent (purple) for uniqueness.
+
 const TIMETABLE_SESSION_COLOR = '#6366F1';
 
 interface Session {
