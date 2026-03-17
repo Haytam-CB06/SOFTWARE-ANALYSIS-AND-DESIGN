@@ -19,12 +19,62 @@
       <div id="root"></div>
       <script type="module" src="/src/main.tsx"></script>
       <script>
+        // Prevent Google Translate from breaking React
+        // Store original getComputedStyle to prevent translation of style attributes
+        const originalGetComputedStyle = window.getComputedStyle;
+        
+        // Monitor for Google Translate initialization
+        let translationActive = false;
+        const originalMutationHandler = window.MutationObserver.prototype.observe;
+        
+        // Keep the app visible during any translation attempts
+        const keepVisible = () => {
+          const html = document.documentElement;
+          const body = document.body;
+          const root = document.getElementById('root');
+          
+          if (html) html.style.opacity = '1';
+          if (body) {
+            body.style.opacity = '1';
+            body.style.backgroundColor = 'white';
+            body.style.display = 'block';
+            body.style.visibility = 'visible';
+          }
+          if (root) {
+            root.style.opacity = '1';
+            root.style.display = 'block';
+            root.style.visibility = 'visible';
+          }
+        };
+        
+        // Run visibility check frequently
+        setInterval(keepVisible, 100);
+        
+        // Also check on every DOM change
         const observer = new MutationObserver(() => {
-          document.documentElement.style.opacity = '1';
-          document.body.style.opacity = '1';
-          document.body.style.backgroundColor = 'white';
+          keepVisible();
         });
-        observer.observe(document.documentElement, { attributes: true });
+        
+        observer.observe(document.documentElement, {
+          attributes: true,
+          subtree: true,
+          attributeFilter: ['style', 'class'],
+          childList: false
+        });
+        
+        // Handle translation script injection
+        window.googleTranslateElementInit = function() {
+          keepVisible();
+        };
+        
+        // Prevent page from becoming invisible
+        const originalSetAttribute = Element.prototype.setAttribute;
+        Element.prototype.setAttribute = function(name, value) {
+          if (name === 'style' && (value.includes('display:none') || value.includes('opacity:0'))) {
+            return; // Don't hide the page
+          }
+          return originalSetAttribute.call(this, name, value);
+        };
       </script>
     </body>
   </html>
