@@ -1,0 +1,1604 @@
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-size: 16px;
+  --background: #ffffff;
+  --foreground: oklch(0.145 0 0);
+  --card: #ffffff;
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: #030213;
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.95 0.0058 264.53);
+  --secondary-foreground: #030213;
+  --muted: #ececf0;
+  --muted-foreground: #717182;
+  --accent: #e9ebef;
+  --accent-foreground: #030213;
+  --destructive: #d4183d;
+  --destructive-foreground: #ffffff;
+  --border: rgba(0, 0, 0, 0.1);
+  --input: transparent;
+  --input-background: #f3f3f5;
+  --switch-background: #cbced4;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: #030213;
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+/* Muted theme - softer colors for less eye strain */
+[data-theme="muted"] {
+  --background: #f5f5f0;
+  --foreground: #3a3a35;
+  --card: #fafaf7;
+  --card-foreground: #3a3a35;
+  --primary: #6b7280;
+  --primary-foreground: #ffffff;
+  --secondary: #e5e5e0;
+  --secondary-foreground: #3a3a35;
+  --muted: #e8e8e3;
+  --muted-foreground: #71716c;
+  --accent: #d9d9d4;
+  --accent-foreground: #3a3a35;
+  --border: rgba(0, 0, 0, 0.08);
+}
+
+/* Focus theme - minimal distractions, high contrast */
+[data-theme="focus"] {
+  --background: #1a1a1a;
+  --foreground: #ffffff;
+  --card: #2a2a2a;
+  --card-foreground: #ffffff;
+  --primary: #ffffff;
+  --primary-foreground: #000000;
+  --secondary: #3a3a3a;
+  --secondary-foreground: #ffffff;
+  --muted: #2a2a2a;
+  --muted-foreground: #a0a0a0;
+  --accent: #3a3a3a;
+  --accent-foreground: #ffffff;
+  --border: rgba(255, 255, 255, 0.1);
+}
+
+.dark {
+  /* ============================================
+     DARK BLUE THEMED DARK MODE
+     Professional blue color scheme for dark mode
+     
+     Design Philosophy:
+     - Rich dark blue backgrounds instead of black/gray
+     - Blue-tinted cards and surfaces
+     - Comfortable contrast with blue theme
+     - Professional corporate aesthetic
+     ============================================ */
+  
+  /* Deep blue background - professional and modern */
+  --background: #0a1628;
+  --foreground: #e1e7f0;
+  
+  /* Cards with blue tint */
+  --card: #112240;
+  --card-foreground: #e1e7f0;
+  
+  /* Popovers */
+  --popover: #112240;
+  --popover-foreground: #e1e7f0;
+  
+  /* Primary colors */
+  --primary: #60a5fa;
+  --primary-foreground: #0a1628;
+  
+  /* Secondary with blue tint */
+  --secondary: #1e3a5f;
+  --secondary-foreground: #e1e7f0;
+  
+  /* Muted areas with blue tint */
+  --muted: #1a2b47;
+  --muted-foreground: #94a3b8;
+  
+  /* Accent areas */
+  --accent: #1e3a5f;
+  --accent-foreground: #e1e7f0;
+  
+  /* Destructive actions */
+  --destructive: #f87171;
+  --destructive-foreground: #0a1628;
+  
+  /* Borders - blue-tinted */
+  --border: #1e3a8a;
+  --input: #1e3a8a;
+  --input-background: #112240;
+  --switch-background: #1e40af;
+  --ring: #60a5fa;
+  
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  
+  /* Charts with vibrant colors */
+  --chart-1: #60a5fa;
+  --chart-2: #34d399;
+  --chart-3: #fbbf24;
+  --chart-4: #a78bfa;
+  --chart-5: #fb923c;
+  
+  /* Sidebar with blue theme */
+  --sidebar: #112240;
+  --sidebar-foreground: #e1e7f0;
+  --sidebar-primary: #60a5fa;
+  --sidebar-primary-foreground: #0a1628;
+  --sidebar-accent: #1e3a5f;
+  --sidebar-accent-foreground: #e1e7f0;
+  --sidebar-border: #1e3a8a;
+  --sidebar-ring: #60a5fa;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  
+  /* ============================================
+     COMPREHENSIVE WHITE BACKGROUND REPLACEMENT
+     ============================================ */
+  
+  /* Replace ALL bg-white with dark card color */
+  .dark .bg-white,
+  .dark [class*="bg-white "],
+  .dark [class^="bg-white "] {
+    background-color: var(--card) !important;
+  }
+  
+  /* Ensure all rounded white elements stay dark */
+  .dark .bg-white.rounded,
+  .dark .bg-white.rounded-sm,
+  .dark .bg-white.rounded-md,
+  .dark .bg-white.rounded-lg,
+  .dark .bg-white.rounded-xl,
+  .dark .bg-white.rounded-2xl,
+  .dark .bg-white.rounded-3xl,
+  .dark .bg-white.rounded-full {
+    background-color: var(--card) !important;
+  }
+  
+  /* Cards and containers */
+  .dark .bg-white.border,
+  .dark .bg-white.shadow,
+  .dark .bg-white.shadow-sm,
+  .dark .bg-white.shadow-md,
+  .dark .bg-white.shadow-lg {
+    background-color: var(--card) !important;
+  }
+  
+  /* Specific component overrides */
+  .dark nav.bg-white,
+  .dark div.bg-white,
+  .dark section.bg-white,
+  .dark article.bg-white {
+    background-color: var(--card) !important;
+  }
+  
+  /* Override even with dark: prefix classes */
+  .dark .bg-white.dark\\:bg-gray-900 {
+    background-color: var(--card) !important;
+  }
+  
+  /* Button backgrounds */
+  .dark button.bg-white,
+  .dark .bg-white.text-blue-700 {
+    background-color: var(--accent) !important;
+    color: var(--primary) !important;
+  }
+  
+  .dark .bg-white.hover\\:bg-blue-50:hover {
+    background-color: var(--muted) !important;
+  }
+  
+  .dark .bg-gray-50 {
+    background-color: var(--accent) !important;
+  }
+  
+  .dark .bg-gray-100 {
+    background-color: var(--muted) !important;
+  }
+  
+  .dark .bg-gray-200 {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+  }
+  
+  /* Specific overrides for common patterns */
+  .dark [class*="bg-white rounded"],
+  .dark [class*="rounded bg-white"] {
+    background-color: var(--card) !important;
+  }
+  
+  /* Dark mode text colors - comfortable hierarchy */
+  .dark .text-gray-900 {
+    color: var(--foreground) !important;
+  }
+  
+  .dark .text-gray-800 {
+    color: var(--foreground) !important;
+  }
+  
+  .dark .text-gray-700 {
+    color: #d1d5db !important;
+  }
+  
+  .dark .text-gray-600 {
+    color: #9ca3af !important;
+  }
+  
+  .dark .text-gray-500 {
+    color: #858c99 !important;
+  }
+  
+  .dark .text-gray-400 {
+    color: #6b7280 !important;
+  }
+  
+  .dark .text-gray-300 {
+    color: #9ca3af !important;
+  }
+  
+  .dark .text-black {
+    color: var(--foreground) !important;
+  }
+  
+  /* Ensure proper text visibility on dark cards */
+  .dark .bg-white .text-gray-900,
+  .dark .bg-white .text-gray-800,
+  .dark .bg-white .text-gray-700,
+  .dark .bg-white .text-black {
+    color: var(--foreground) !important;
+  }
+  
+  .dark .bg-white .text-gray-600,
+  .dark .bg-white .text-gray-500 {
+    color: var(--muted-foreground) !important;
+  }
+  
+  /* Dark mode borders - subtle but visible */
+  .dark .border-gray-100 {
+    border-color: var(--border) !important;
+  }
+  
+  .dark .border-gray-200 {
+    border-color: var(--border) !important;
+  }
+  
+  .dark .border-gray-300 {
+    border-color: rgba(255, 255, 255, 0.1) !important;
+  }
+  
+  /* Dark mode hover states */
+  .dark .hover\\:bg-gray-50:hover {
+    background-color: var(--accent) !important;
+  }
+  
+  .dark .hover\\:bg-gray-100:hover {
+    background-color: var(--muted) !important;
+  }
+  
+  .dark .hover\\:bg-gray-200:hover {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+  }
+  
+  .dark .hover\\:bg-white:hover {
+    background-color: var(--accent) !important;
+  }
+  
+  /* Dark mode for colored backgrounds - comfortable opacity */
+  .dark .bg-blue-50 {
+    background-color: rgba(107, 154, 238, 0.1) !important;
+  }
+  
+  .dark .bg-blue-100 {
+    background-color: rgba(107, 154, 238, 0.15) !important;
+  }
+  
+  .dark .bg-indigo-50 {
+    background-color: rgba(139, 92, 246, 0.1) !important;
+  }
+  
+  .dark .bg-indigo-100 {
+    background-color: rgba(139, 92, 246, 0.15) !important;
+  }
+  
+  .dark .bg-purple-50 {
+    background-color: rgba(168, 85, 247, 0.1) !important;
+  }
+  
+  .dark .bg-purple-100 {
+    background-color: rgba(168, 85, 247, 0.15) !important;
+  }
+  
+  .dark .bg-green-50 {
+    background-color: rgba(52, 211, 153, 0.1) !important;
+  }
+  
+  .dark .bg-green-100 {
+    background-color: rgba(52, 211, 153, 0.15) !important;
+  }
+  
+  .dark .bg-yellow-50 {
+    background-color: rgba(251, 191, 36, 0.1) !important;
+  }
+  
+  .dark .bg-yellow-100 {
+    background-color: rgba(251, 191, 36, 0.15) !important;
+  }
+  
+  .dark .bg-red-50 {
+    background-color: rgba(248, 113, 113, 0.1) !important;
+  }
+  
+  .dark .bg-red-100 {
+    background-color: rgba(248, 113, 113, 0.15) !important;
+  }
+  
+  .dark .bg-pink-50 {
+    background-color: rgba(236, 72, 153, 0.1) !important;
+  }
+  
+  .dark .bg-pink-100 {
+    background-color: rgba(236, 72, 153, 0.15) !important;
+  }
+  
+  .dark .bg-emerald-50 {
+    background-color: rgba(52, 211, 153, 0.1) !important;
+  }
+  
+  /* Dark mode text colors for colored text */
+  .dark .text-blue-700 {
+    color: #7ba5f1 !important;
+  }
+  
+  .dark .text-blue-700 {
+    color: #8db1f3 !important;
+  }
+  
+  .dark .text-blue-800 {
+    color: #a0bef6 !important;
+  }
+  
+  .dark .text-blue-900 {
+    color: #b5ccf8 !important;
+  }
+  
+  .dark .text-indigo-600 {
+    color: #b197fc !important;
+  }
+  
+  .dark .text-indigo-700 {
+    color: #bda4fd !important;
+  }
+  
+  .dark .text-purple-600 {
+    color: #be8bf9 !important;
+  }
+  
+  .dark .text-purple-700 {
+    color: #c9a0fb !important;
+  }
+  
+  .dark .text-purple-800 {
+    color: #d5b5fc !important;
+  }
+  
+  .dark .text-purple-900 {
+    color: #c9a0fb !important;
+  }
+  
+  .dark .text-purple-100 {
+    color: #c9a0fb !important;
+  }
+  
+  .dark .text-blue-100 {
+    color: #a0bef6 !important;
+  }
+  
+  .dark .text-indigo-100 {
+    color: #bda4fd !important;
+  }
+  
+  .dark .text-green-100 {
+    color: #73ec9a !important;
+  }
+  
+  .dark .text-red-100 {
+    color: #fca5a5 !important;
+  }
+  
+  .dark .text-yellow-100 {
+    color: #fde047 !important;
+  }
+  
+  .dark .text-pink-100 {
+    color: #f9a8d4 !important;
+  }
+  
+  .dark .text-green-600 {
+    color: #5ee88c !important;
+  }
+  
+  .dark .text-green-700 {
+    color: #73ec9a !important;
+  }
+  
+  .dark .text-red-600 {
+    color: #fb8b8b !important;
+  }
+  
+  .dark .text-red-700 {
+    color: #fca5a5 !important;
+  }
+  
+  .dark .text-yellow-600 {
+    color: #fde047 !important;
+  }
+  
+  .dark .text-yellow-400 {
+    color: #fde047 !important;
+  }
+  
+  .dark .text-orange-600 {
+    color: #fb923c !important;
+  }
+  
+  .dark .text-orange-400 {
+    color: #fb923c !important;
+  }
+  
+  .dark .text-purple-400 {
+    color: #c9a0fb !important;
+  }
+  
+  /* Dark mode hover text colors */
+  .dark .hover\\:text-gray-700:hover {
+    color: #d1d5db !important;
+  }
+  
+  .dark .hover\\:text-gray-900:hover {
+    color: var(--foreground) !important;
+  }
+  
+  .dark .hover\\:text-blue-700:hover {
+    color: #8db1f3 !important;
+  }
+  
+  .dark .hover\\:text-red-700:hover {
+    color: #fca5a5 !important;
+  }
+  
+  /* Dark mode for gradients - darker, more muted but still colorful */
+  .dark .from-blue-600 {
+    --tw-gradient-from: #4a6db8 !important;
+  }
+  
+  .dark .to-indigo-600 {
+    --tw-gradient-to: #6b5bb0 !important;
+  }
+  
+  .dark .from-purple-600 {
+    --tw-gradient-from: #7d3fb8 !important;
+  }
+  
+  .dark .via-blue-600 {
+    --tw-gradient-via: #4a6db8 !important;
+  }
+  
+  .dark .to-pink-600 {
+    --tw-gradient-to: #b13570 !important;
+  }
+  
+  .dark .from-purple-500 {
+    --tw-gradient-from: #7d3fb8 !important;
+  }
+  
+  .dark .to-pink-500 {
+    --tw-gradient-to: #b13570 !important;
+  }
+  
+  .dark .from-orange-500 {
+    --tw-gradient-from: #c85d10 !important;
+  }
+  
+  .dark .to-red-500 {
+    --tw-gradient-to: #c03030 !important;
+  }
+  
+  .dark .from-green-600 {
+    --tw-gradient-from: #28a675 !important;
+  }
+  
+  .dark .to-emerald-600 {
+    --tw-gradient-to: #0d925e !important;
+  }
+  
+  /* Additional dark gradients for common backgrounds */
+  .dark .from-gray-50 {
+    --tw-gradient-from: #1a1f2e !important;
+  }
+  
+  .dark .to-blue-50\/30 {
+    --tw-gradient-to: #1a1f2e !important;
+  }
+  
+  .dark .bg-gradient-to-br.from-gray-50 {
+    background-image: linear-gradient(to bottom right, #1a1f2e, #1a1f2e) !important;
+  }
+  
+  /* Light gradient backgrounds - use dark alternatives */
+  .dark .from-blue-50 {
+    --tw-gradient-from: #1a1f2e !important;
+  }
+  
+  .dark .to-indigo-50 {
+    --tw-gradient-to: #1a1f2e !important;
+  }
+  
+  .dark .from-purple-50 {
+    --tw-gradient-from: #1a1f2e !important;
+  }
+  
+  .dark .to-purple-50 {
+    --tw-gradient-to: #252b3b !important;
+  }
+  
+  .dark .from-indigo-50 {
+    --tw-gradient-from: #1a1f2e !important;
+  }
+  
+  .dark .to-indigo-50 {
+    --tw-gradient-to: #1a1f2e !important;
+  }
+  
+  .dark .from-green-50 {
+    --tw-gradient-from: #1a1f2e !important;
+  }
+  
+  .dark .to-emerald-50 {
+    --tw-gradient-to: #1a1f2e !important;
+  }
+  
+  /* Gradient backgrounds that include white or very light colors */
+  .dark .via-white {
+    --tw-gradient-via: #0f1419 !important;
+  }
+  
+  /* Specific dark mode overrides for common gradient patterns */
+  .dark .bg-gradient-to-br.from-indigo-50.via-white.to-purple-50 {
+    background-image: linear-gradient(to bottom right, #1a1f2e, #0f1419, #1a1f2e) !important;
+  }
+  
+  .dark .bg-gradient-to-br.from-gray-50.to-blue-50\/30 {
+    background-image: linear-gradient(to bottom right, #0f1419, #1a1f2e) !important;
+  }
+  
+  .dark .bg-gradient-to-r.from-purple-50.to-blue-50 {
+    background-image: linear-gradient(to right, #1a1f2e, #1a1f2e) !important;
+  }
+  
+  .dark .bg-gradient-to-r.from-indigo-100.via-purple-100.to-pink-100 {
+    background-image: linear-gradient(to right, #2a3142, #2a3142, #2a3142) !important;
+  }
+  
+  .dark .bg-gradient-to-br.from-indigo-50.to-purple-50 {
+    background-image: linear-gradient(to bottom right, #1a1f2e, #1a1f2e) !important;
+  }
+  
+  /* Calendar table specific colors */
+  .dark .from-indigo-100 {
+    --tw-gradient-from: #2a3142 !important;
+  }
+  
+  .dark .via-purple-100 {
+    --tw-gradient-via: #2a3142 !important;
+  }
+  
+  .dark .to-pink-100 {
+    --tw-gradient-to: #2a3142 !important;
+  }
+  
+  /* Ring colors for focus states */
+  .dark .ring-blue-500 {
+    --tw-ring-color: #6b9aee !important;
+  }
+  
+  .dark .ring-purple-500 {
+    --tw-ring-color: #a78bfa !important;
+  }
+  
+  /* Border colors for colored borders */
+  .dark .border-blue-200 {
+    border-color: rgba(107, 154, 238, 0.3) !important;
+  }
+  
+  .dark .border-blue-500 {
+    border-color: #6b9aee !important;
+  }
+  
+  .dark .border-purple-200 {
+    border-color: rgba(139, 92, 246, 0.3) !important;
+  }
+  
+  .dark .border-purple-500 {
+    border-color: #a78bfa !important;
+  }
+  
+  .dark .border-green-200 {
+    border-color: rgba(52, 211, 153, 0.3) !important;
+  }
+  
+  /* Shadow adjustments for dark mode */
+  .dark {
+    --tw-shadow-color: rgba(0, 0, 0, 0.5);
+  }
+  
+  /* ============================================
+     COMPLETE WHITE ELIMINATION IN DARK MODE
+     ============================================ */
+  
+  /* Replace ALL white text with comfortable light gray colors - NO PURE WHITE */
+  .dark .text-white {
+    color: #d1d5db !important;
+  }
+  
+  /* Background white opacity replacements with dark theme colors */
+  .dark .bg-white\\/10 {
+    background-color: rgba(42, 49, 66, 0.5) !important;
+  }
+  
+  .dark .bg-white\\/20 {
+    background-color: rgba(42, 49, 66, 0.7) !important;
+  }
+  
+  .dark .bg-white\\/30 {
+    background-color: rgba(42, 49, 66, 0.85) !important;
+  }
+  
+  .dark .bg-white\\/40 {
+    background-color: rgba(42, 49, 66, 1) !important;
+  }
+  
+  .dark .bg-white\\/50 {
+    background-color: rgba(37, 43, 59, 1) !important;
+  }
+  
+  /* Hover states for white backgrounds */
+  .dark .hover\\:bg-white\\/10:hover {
+    background-color: rgba(42, 49, 66, 0.6) !important;
+  }
+  
+  .dark .hover\\:bg-white\\/20:hover {
+    background-color: rgba(42, 49, 66, 0.75) !important;
+  }
+  
+  .dark .hover\\:bg-white\\/30:hover {
+    background-color: rgba(42, 49, 66, 0.9) !important;
+  }
+  
+  /* Text white opacity variants - use comfortable grays */
+  .dark .text-white\\/60 {
+    color: rgba(209, 213, 219, 0.6) !important;
+  }
+  
+  .dark .text-white\\/70 {
+    color: rgba(209, 213, 219, 0.7) !important;
+  }
+  
+  .dark .text-white\\/80 {
+    color: rgba(209, 213, 219, 0.8) !important;
+  }
+  
+  .dark .text-white\\/90 {
+    color: rgba(209, 213, 219, 0.9) !important;
+  }
+  
+  /* Border white replacements - use subtle grays */
+  .dark .border-white {
+    border-color: rgba(45, 53, 72, 1) !important;
+  }
+  
+  .dark .border-white\\/10 {
+    border-color: rgba(45, 53, 72, 0.4) !important;
+  }
+  
+  .dark .border-white\\/20 {
+    border-color: rgba(45, 53, 72, 0.6) !important;
+  }
+  
+  .dark .border-white\\/30 {
+    border-color: rgba(45, 53, 72, 0.8) !important;
+  }
+  
+  .dark .hover\\:border-white:hover {
+    border-color: rgba(45, 53, 72, 1) !important;
+  }
+  
+  /* Transparent backgrounds */
+  .dark .bg-white\\/0,
+  .dark .hover\\:bg-white\\/0:hover {
+    background-color: transparent !important;
+  }
+  
+  /* Ring and outline colors */
+  .dark .ring-white {
+    --tw-ring-color: rgba(107, 154, 238, 0.5) !important;
+  }
+  
+  .dark .ring-offset-white {
+    --tw-ring-offset-color: var(--background) !important;
+  }
+  
+  /* Ring offset for better visibility */
+  .dark .ring-offset-2 {
+    --tw-ring-offset-width: 2px;
+    --tw-ring-offset-color: var(--background);
+  }
+  
+  /* Hover background white - redirect to dark colors */
+  .dark .hover\\:bg-white:hover:not(.hover\\:bg-white\\/10):not(.hover\\:bg-white\\/20) {
+    background-color: var(--accent) !important;
+  }
+  
+  /* Divide (border between elements) colors */
+  .dark .divide-white > * + * {
+    border-color: rgba(45, 53, 72, 0.5) !important;
+  }
+  
+  /* Placeholder colors */
+  .dark .placeholder-white::placeholder {
+    color: rgba(156, 163, 175, 0.6) !important;
+  }
+  
+  /* Caret color */
+  .dark .caret-white {
+    caret-color: #d1d5db !important;
+  }
+  
+  /* Accent color */
+  .dark .accent-white {
+    accent-color: #d1d5db !important;
+  }
+  
+  /* Shadow with white - replace with dark shadow */
+  .dark .shadow-white {
+    --tw-shadow-color: rgba(0, 0, 0, 0.4) !important;
+  }
+  
+  /* Outline white */
+  .dark .outline-white {
+    outline-color: rgba(45, 53, 72, 1) !important;
+  }
+  
+  /* Decoration (underline) white */
+  .dark .decoration-white {
+    text-decoration-color: rgba(156, 163, 175, 0.7) !important;
+  }
+  
+  /* Fill and stroke for SVGs */
+  .dark .fill-white {
+    fill: #d1d5db !important;
+  }
+  
+  .dark .stroke-white {
+    stroke: #d1d5db !important;
+  }
+  
+  /* Scrollbar colors (WebKit browsers) */
+  .dark ::-webkit-scrollbar-track {
+    background-color: var(--background) !important;
+  }
+  
+  .dark ::-webkit-scrollbar-thumb {
+    background-color: var(--muted) !important;
+    border-radius: 4px;
+  }
+  
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--accent) !important;
+  }
+  
+  /* Selection color - comfortable highlight */
+  .dark ::selection {
+    background-color: rgba(107, 154, 238, 0.25) !important;
+    color: var(--foreground) !important;
+  }
+  
+  /* Ensure no white in focus rings */
+  .dark *:focus-visible {
+    outline-color: var(--ring) !important;
+  }
+  
+  /* Override any remaining white in gradients */
+  .dark .bg-gradient-to-r.from-blue-50,
+  .dark .bg-gradient-to-r.from-indigo-50,
+  .dark .bg-gradient-to-r.from-purple-50,
+  .dark .bg-gradient-to-r.from-green-50 {
+    background-image: none !important;
+    background-color: var(--accent) !important;
+  }
+  
+  /* Background gradients that use "via-white" should be muted */
+  .dark .via-white {
+    --tw-gradient-via: var(--background) !important;
+  }
+  
+  /* For gradient headers and colorful sections, keep text readable but not harsh white */
+  .dark .bg-gradient-to-r .text-white,
+  .dark .bg-gradient-to-br .text-white,
+  .dark .bg-gradient-to-l .text-white {
+    color: #d1d5db !important;
+  }
+  
+  /* Additional bg-white context overrides */
+  .dark .bg-white.border {
+    background-color: var(--card) !important;
+    border-color: var(--border) !important;
+  }
+  
+  .dark .bg-white.shadow-sm,
+  .dark .bg-white.shadow-md,
+  .dark .bg-white.shadow-lg {
+    background-color: var(--card) !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2) !important;
+  }
+  
+  /* Progress bars in dark mode */
+  .dark .bg-white.h-3,
+  .dark .bg-white.h-2,
+  .dark .bg-white.h-1 {
+    background-color: rgba(156, 163, 175, 0.2) !important;
+  }
+  
+  /* Header backgrounds with backdrop blur */
+  .dark .bg-white\/90.backdrop-blur-sm {
+    background-color: rgba(26, 31, 46, 0.95) !important;
+  }
+  
+  /* Calendar and table backgrounds */
+  .dark .bg-white.border-b {
+    background-color: var(--card) !important;
+  }
+  
+  /* Hover states for calendar cells */
+  .dark .bg-white.hover\\:bg-gray-50:hover {
+    background-color: var(--card) !important;
+  }
+  
+  .dark .hover\\:bg-gray-50:hover {
+    background-color: var(--accent) !important;
+  }
+  
+  /* Active/today cells */
+  .dark .bg-blue-50\/30 {
+    background-color: rgba(90, 134, 212, 0.1) !important;
+  }
+  
+  .dark .hover\\:bg-blue-100\/50:hover {
+    background-color: rgba(90, 134, 212, 0.15) !important;
+  }
+  
+  /* Input and select backgrounds */
+  .dark input.bg-white,
+  .dark select.bg-white,
+  .dark textarea.bg-white {
+    background-color: var(--input-background) !important;
+    color: var(--foreground) !important;
+  }
+  
+  /* Specific component text colors */
+  .dark .text-gray-800 {
+    color: var(--foreground) !important;
+  }
+  
+  .dark .text-gray-700 {
+    color: #d1d5db !important;
+  }
+  
+  .dark .text-gray-600 {
+    color: #9ca3af !important;
+  }
+  
+  .dark .text-gray-500 {
+    color: #858c99 !important;
+  }
+  
+  /* Badge backgrounds */
+  .dark .bg-purple-50 {
+    background-color: rgba(125, 63, 184, 0.15) !important;
+  }
+  
+  .dark .text-purple-600 {
+    color: #b370f8 !important;
+  }
+  
+  .dark .border-purple-600 {
+    border-color: #7d3fb8 !important;
+  }
+  
+  .dark .bg-green-50 {
+    background-color: rgba(40, 166, 117, 0.15) !important;
+  }
+  
+  .dark .text-green-600 {
+    color: #34d399 !important;
+  }
+  
+  .dark .border-green-600 {
+    border-color: #28a675 !important;
+  }
+  
+  .dark .bg-amber-50 {
+    background-color: rgba(251, 191, 36, 0.15) !important;
+  }
+  
+  .dark .text-amber-600 {
+    color: #fbbf24 !important;
+  }
+  
+  .dark .border-amber-600 {
+    border-color: #d97706 !important;
+  }
+  
+  /* Button variant colors */
+  .dark .border-blue-300 {
+    border-color: rgba(90, 134, 212, 0.4) !important;
+  }
+  
+  .dark .hover\\:bg-blue-50:hover {
+    background-color: rgba(90, 134, 212, 0.1) !important;
+  }
+  
+  /* Border colors for tables and cards */
+  .dark .border-gray-300 {
+    border-color: var(--border) !important;
+  }
+  
+  .dark .border-gray-200 {
+    border-color: var(--border) !important;
+  }
+  
+  /* Text colors in gradients and headers */
+  .dark .text-indigo-800 {
+    color: #bda4fd !important;
+  }
+  
+  .dark .text-pink-700 {
+    color: #f9a8d4 !important;
+  }
+  
+  .dark .text-pink-800 {
+    color: #fbcfe8 !important;
+  }
+  
+  /* Ensure all backgrounds work well */
+  .dark .bg-gray-50 {
+    background-color: var(--accent) !important;
+  }
+  
+  .dark .bg-gray-100 {
+    background-color: var(--muted) !important;
+  }
+  
+  .dark .bg-gray-200 {
+    background-color: #2d3548 !important;
+  }
+  
+  /* Dashboard and Calendar specific fixes */
+  .dark table {
+    border-color: var(--border);
+  }
+  
+  .dark th {
+    color: var(--foreground);
+  }
+  
+  .dark td {
+    color: var(--foreground);
+  }
+  
+  /* Ensure buttons on gradients stay visible */
+  .dark .bg-gradient-to-r button,
+  .dark .bg-gradient-to-br button {
+    color: inherit;
+  }
+  
+  /* Progress component */
+  .dark .bg-white.rounded-full {
+    background-color: rgba(156, 163, 175, 0.2) !important;
+  }
+  
+  /* Hover states for buttons and interactive elements */
+  .dark .hover\\:from-purple-700:hover {
+    --tw-gradient-from: #6d2fa0 !important;
+  }
+  
+  .dark .hover\\:to-pink-700:hover {
+    --tw-gradient-to: #9a2860 !important;
+  }
+  
+  .dark .hover\\:from-blue-700:hover {
+    --tw-gradient-from: #3d5a9e !important;
+  }
+  
+  .dark .hover\\:to-indigo-700:hover {
+    --tw-gradient-to: #5a4a98 !important;
+  }
+  
+  .dark .hover\\:from-green-700:hover {
+    --tw-gradient-from: #1f8761 !important;
+  }
+  
+  .dark .hover\\:to-emerald-700:hover {
+    --tw-gradient-to: #0a7a4e !important;
+  }
+  
+  .dark .hover\\:from-orange-700:hover {
+    --tw-gradient-from: #a84d0c !important;
+  }
+  
+  .dark .hover\\:to-red-700:hover {
+    --tw-gradient-to: #a02626 !important;
+  }
+  
+  /* Darker hover variants for ultra-dark mode */
+  .dark .hover\\:from-purple-800:hover {
+    --tw-gradient-from: #5a2680 !important;
+  }
+  
+  .dark .hover\\:to-pink-800:hover {
+    --tw-gradient-to: #7d1f4f !important;
+  }
+  
+  /* Badge and pill components */
+  .dark .bg-green-500 {
+    background-color: #34d399 !important;
+  }
+  
+  .dark .bg-red-500 {
+    background-color: #ef4444 !important;
+  }
+  
+  .dark .bg-purple-600 {
+    background-color: #7d3fb8 !important;
+  }
+  
+  .dark .bg-blue-700 {
+    background-color: #4a6db8 !important;
+  }
+  
+  .dark .hover\\:bg-red-600:hover {
+    background-color: #dc2626 !important;
+  }
+  
+  .dark .hover\\:bg-green-600:hover {
+    background-color: #28a675 !important;
+  }
+  
+  /* Text color for badges */
+  .dark .text-purple-700 {
+    color: #b370f8 !important;
+  }
+  
+  /* Ring colors for active states */
+  .dark .ring-2.ring-white {
+    --tw-ring-color: rgba(107, 154, 238, 0.5) !important;
+  }
+  
+  /* Additional gradient text colors */
+  .dark .text-gray-900 {
+    color: var(--foreground) !important;
+  }
+  
+  /* Opacity adjustments for inactive/completed items */
+  .dark .opacity-60 {
+    opacity: 0.5;
+  }
+  
+  /* Checkbox and form element backgrounds */
+  .dark input[type="checkbox"] {
+    background-color: var(--input-background);
+    border-color: var(--border);
+  }
+  
+  .dark input[type="checkbox"]:checked {
+    background-color: var(--primary);
+    border-color: var(--primary);
+  }
+  
+  /* Scrollable areas */
+  .dark .overflow-y-auto::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  .dark .overflow-y-auto::-webkit-scrollbar-track {
+    background: var(--background);
+  }
+  
+  .dark .overflow-y-auto::-webkit-scrollbar-thumb {
+    background: var(--muted);
+    border-radius: 4px;
+  }
+  
+  .dark .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+    background: var(--accent);
+  }
+  
+  /* Ensure all card-like elements have proper dark backgrounds */
+  .dark .rounded-lg.border {
+    background-color: var(--card);
+    border-color: var(--border);
+  }
+  
+  /* Shadow adjustments for better visibility in dark mode */
+  .dark .shadow-sm {
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
+  }
+  
+  .dark .shadow-md {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  }
+  
+  .dark .shadow-lg {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+  }
+  
+  /* Calendar-specific hover states */
+  .dark .hover\\:shadow-md:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.4);
+  }
+  
+  /* Ensure select elements are visible */
+  .dark select {
+    background-color: var(--input-background);
+    color: var(--foreground);
+    border-color: var(--border);
+  }
+  
+  .dark select option {
+    background-color: var(--card);
+    color: var(--foreground);
+  }
+  
+  /* Fix any remaining light text on dark backgrounds */
+  .dark .bg-gradient-to-br.from-purple-500.to-pink-500,
+  .dark .bg-gradient-to-br.from-orange-500.to-red-500 {
+    color: #d1d5db;
+  }
+  
+  /* Backdrop filters should use dark backgrounds */
+  .dark .backdrop-blur {
+    background-color: rgba(26, 31, 46, 0.8);
+  }
+  
+  .dark .backdrop-blur-sm {
+    background-color: rgba(26, 31, 46, 0.9);
+  }
+  
+  /* Combined utility classes for badges and pills */
+  .dark .bg-blue-700.text-white,
+  .dark .bg-purple-600.text-white,
+  .dark .bg-green-600.text-white,
+  .dark .bg-red-600.text-white {
+    color: #d1d5db !important;
+  }
+  
+  /* Card headers with gradient backgrounds */
+  .dark .from-blue-50.to-indigo-50 {
+    --tw-gradient-from: #1a1f2e !important;
+    --tw-gradient-to: #1a1f2e !important;
+  }
+  
+  /* Ensure proper contrast for all interactive elements */
+  .dark button:hover {
+    transition: all 0.2s ease;
+  }
+  
+  .dark a:hover {
+    transition: all 0.2s ease;
+  }
+  
+  /* Fix any dialog/modal backgrounds */
+  .dark [role="dialog"] {
+    background-color: var(--card);
+    color: var(--foreground);
+  }
+  
+  /* Alert/notification backgrounds */
+  .dark .bg-yellow-50 {
+    background-color: rgba(251, 191, 36, 0.1) !important;
+  }
+  
+  .dark .bg-yellow-900\/20 {
+    background-color: rgba(202, 138, 4, 0.2) !important;
+  }
+  
+  .dark .bg-orange-50 {
+    background-color: rgba(251, 146, 60, 0.15) !important;
+  }
+  
+  .dark .bg-orange-900\/20 {
+    background-color: rgba(194, 65, 12, 0.2) !important;
+  }
+  
+  .dark .bg-purple-900\/20 {
+    background-color: rgba(107, 33, 168, 0.2) !important;
+  }
+  
+  .dark .text-yellow-800 {
+    color: #fde047 !important;
+  }
+  
+  .dark .border-yellow-200 {
+    border-color: rgba(251, 191, 36, 0.3) !important;
+  }
+  
+  /* Info/success/warning/error state colors */
+  .dark .bg-info-50 {
+    background-color: rgba(90, 134, 212, 0.1) !important;
+  }
+  
+  .dark .bg-success-50 {
+    background-color: rgba(52, 211, 153, 0.1) !important;
+  }
+  
+  .dark .bg-warning-50 {
+    background-color: rgba(251, 191, 36, 0.1) !important;
+  }
+  
+  .dark .bg-error-50 {
+    background-color: rgba(248, 113, 113, 0.1) !important;
+  }
+  
+  /* Ensure dropdown menus have proper backgrounds */
+  .dark [role="menu"],
+  .dark [role="listbox"] {
+    background-color: var(--popover);
+    border-color: var(--border);
+  }
+  
+  /* Tab components */
+  .dark [role="tablist"] {
+    background-color: transparent;
+  }
+  
+  .dark [role="tab"][data-state="active"] {
+    background-color: var(--accent);
+    color: var(--foreground);
+  }
+  
+  /* Ensure proper visibility for disabled states */
+  .dark button:disabled,
+  .dark input:disabled,
+  .dark select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  /* Fix any tooltip backgrounds */
+  .dark [role="tooltip"] {
+    background-color: #1a1f2e;
+    color: #d1d5db;
+  }
+  
+  /* Main layout backgrounds - convert all light gradients */
+  .dark .min-h-screen.bg-gradient-to-br.from-blue-50.via-white.to-indigo-50 {
+    background-image: linear-gradient(to bottom right, #0f1419, #0f1419, #1a1f2e) !important;
+  }
+  
+  /* Navigation bars */
+  .dark nav.bg-white {
+    background-color: var(--card) !important;
+  }
+  
+  /* Sticky headers */
+  .dark .sticky.bg-white {
+    background-color: var(--card) !important;
+  }
+  
+  /* Sidebar backgrounds */
+  .dark .bg-white.border-r {
+    background-color: var(--card) !important;
+  }
+  
+  /* Main content areas */
+  .dark main {
+    background-color: transparent;
+  }
+  
+  /* Ensure all nested backgrounds work properly */
+  .dark .bg-gradient-to-br {
+    color: inherit;
+  }
+  
+  /* Final catch-all for any remaining white backgrounds */
+  .dark *[class*="bg-white"] {
+    background-color: var(--card);
+  }
+  
+  /* Ensure text remains readable */
+  .dark *[class*="bg-gradient"] {
+    color: #d1d5db;
+  }
+}
+
+/**
+ * Base typography. This is not applied to elements which have an ancestor with a Tailwind text class.
+ */
+@layer base {
+  :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
+    h1 {
+      font-size: var(--text-2xl);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    h2 {
+      font-size: var(--text-xl);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    h3 {
+      font-size: var(--text-lg);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    h4 {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    p {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-normal);
+      line-height: 1.5;
+    }
+
+    label {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    button {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    input {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-normal);
+      line-height: 1.5;
+    }
+  }
+}
+
+html {
+  font-size: var(--font-size);
+}
+
+/* ============================================
+   SMOOTH CUSTOM SCROLLBARS
+   ============================================ */
+
+/* Light mode scrollbars */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.4);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.6);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* Dark mode scrollbars */
+.dark ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.2);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.4);
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* Firefox scrollbar styling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.4) transparent;
+}
+
+.dark * {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.2) transparent;
+}
+
+/* ============================================
+   MOBILE RESPONSIVE FIXES
+   ============================================ */
+
+/* Prevent horizontal overflow on mobile */
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+  position: relative;
+}
+
+/* Ensure proper viewport behavior */
+body {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* Fix for mobile Safari address bar */
+@supports (-webkit-touch-callout: none) {
+  body {
+    min-height: -webkit-fill-available;
+  }
+}
+
+/* Mobile-specific container fixes */
+@media (max-width: 768px) {
+  /* Prevent elements from causing horizontal scroll */
+  * {
+    max-width: 100%;
+  }
+  
+  /* Fix full-width containers on mobile */
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  /* Ensure modals and overlays fit properly */
+  [role="dialog"],
+  [role="alertdialog"] {
+    max-width: calc(100vw - 2rem);
+    max-height: calc(100vh - 2rem);
+  }
+  
+  /* Fix dropdown menus on mobile */
+  [data-radix-popper-content-wrapper] {
+    max-width: calc(100vw - 2rem) !important;
+  }
+  
+  /* Prevent text from breaking layout */
+  h1, h2, h3, h4, h5, h6, p, span, div {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+  
+  /* Fix tables on mobile */
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Improve touch targets */
+  button, a, input, select, textarea {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Fix sidebar overlay z-index */
+  aside[class*="fixed"] {
+    max-width: 100vw;
+  }
+}
+
+/* Very small screens */
+@media (max-width: 380px) {
+  html {
+    font-size: 14px;
+  }
+  
+  /* Smaller padding for very small screens */
+  .container {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+}
+
+/* Landscape mobile fixes */
+@media (max-width: 926px) and (orientation: landscape) {
+  /* Reduce heights in landscape */
+  [role="dialog"] {
+    max-height: calc(100vh - 1rem);
+  }
+}

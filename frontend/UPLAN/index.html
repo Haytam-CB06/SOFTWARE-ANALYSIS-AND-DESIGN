@@ -1,0 +1,109 @@
+
+  <!DOCTYPE html>
+  <html lang="en" translate="no">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="icon" type="image/png" sizes="16x16" href="/public/favicon-32x32.png" />
+
+
+      <title>U PLAN</title>
+      <style>
+        html, body, #root { margin: 0; padding: 0; }
+        html, body { background: white !important; }
+        #root { background: white !important; display: block !important; visibility: visible !important; opacity: 1 !important; }
+        .goog-te-banner-frame { display: none !important; }
+        [translate="yes"] { translate: "no" !important; }
+      </style>
+    </head>
+
+    <body translate="no">
+      <div id="root" translate="no"></div>
+      <script type="module" src="/src/main.tsx"></script>
+      <script>
+        // Aggressive protection against Google Translate breaking React
+        
+        // 1. Mark root to never be translated
+        const root = document.getElementById('root');
+        if (root) {
+          root.setAttribute('translate', 'no');
+          root.style.visibility = 'visible';
+          root.style.opacity = '1';
+          root.style.display = 'block';
+          root.style.backgroundColor = 'white';
+        }
+        
+        // 2. Prevent hidden visibility
+        const keepVisible = () => {
+          document.documentElement.style.visibility = 'visible';
+          document.documentElement.style.opacity = '1';
+          document.documentElement.style.display = 'block';
+          document.body.style.visibility = 'visible';
+          document.body.style.opacity = '1';
+          document.body.style.display = 'block';
+          document.body.style.backgroundColor = 'white';
+          if (root) {
+            root.style.visibility = 'visible';
+            root.style.opacity = '1';
+            root.style.display = 'block';
+          }
+        };
+        
+        // 3. Check visibility frequently
+        const visibilityCheck = setInterval(keepVisible, 50);
+        
+        // 4. Also monitor DOM mutations
+        const observer = new MutationObserver((mutations) => {
+          keepVisible();
+          // If Google Translate added elements, restore them
+          mutations.forEach(mutation => {
+            if (mutation.type === 'attributes') {
+              const target = mutation.target;
+              if (target === document.documentElement || target === document.body || target === root) {
+                // Reset critical styles
+                if (target === document.documentElement) {
+                  target.style.opacity = '1';
+                  target.style.display = 'block';
+                  target.style.visibility = 'visible';
+                }
+              }
+            }
+          });
+        });
+        
+        observer.observe(document.documentElement, {
+          attributes: true,
+          subtree: true,
+          attributeFilter: ['style', 'class', 'data-translated']
+        });
+        
+        // 5. Prevent translation wrapper from hiding content
+        window.googleTranslateElementInit = function() {
+          keepVisible();
+        };
+        
+        // 6. Stop translation from setting display:none
+        const originalSetAttribute = Element.prototype.setAttribute;
+        Element.prototype.setAttribute = function(name, value) {
+          if (this.id === 'root' || this === document.body || this === document.documentElement) {
+            if (name === 'style') {
+              // Remove harmful display styles
+              const cleanValue = value
+                .replace(/display\s*:\s*none\s*(!important)?/gi, '')
+                .replace(/opacity\s*:\s*0\s*(!important)?/gi, '')
+                .replace(/visibility\s*:\s*hidden\s*(!important)?/gi, '');
+              return originalSetAttribute.call(this, name, cleanValue);
+            }
+          }
+          return originalSetAttribute.call(this, name, value);
+        };
+        
+        // 7. Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+          clearInterval(visibilityCheck);
+          observer.disconnect();
+        });
+      </script>
+    </body>
+  </html>
+  
