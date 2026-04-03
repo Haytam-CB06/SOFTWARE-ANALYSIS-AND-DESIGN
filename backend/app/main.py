@@ -240,27 +240,13 @@ def _table_has_column(conn, table: str, col: str) -> bool:
 
 # ---------- Google helpers ----------
 def get_flow(state: Optional[str] = None) -> Flow:
-    client_id = os.getenv("GOOGLE_CLIENT")
-    client_secret = os.getenv("GOOGLE_SECRET")
-
-    if not client_id or not client_secret:
+    if not CLIENT_SECRETS_FILE.exists():
         raise HTTPException(
             status_code=500,
-            detail="Missing GOOGLE_CLIENT or GOOGLE_SECRET"
+            detail=f"Google client secrets not found at: {CLIENT_SECRETS_FILE}"
         )
-
-    client_config = {
-        "web": {
-            "client_id": client_id,
-            "client_secret": client_secret,
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-            "redirect_uris": [REDIRECT_URI],
-        }
-    }
-
-    return Flow.from_client_config(
-        client_config,
+    return Flow.from_client_secrets_file(
+        str(CLIENT_SECRETS_FILE),
         scopes=SCOPES,
         redirect_uri=REDIRECT_URI,
         state=state,
