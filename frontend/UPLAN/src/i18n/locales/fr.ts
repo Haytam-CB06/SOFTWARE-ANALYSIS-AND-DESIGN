@@ -997,7 +997,7 @@ const fr = {
       passwordLower: 'Le mot de passe doit contenir au moins une minuscule !',
       passwordNumber: 'Le mot de passe doit contenir au moins un chiffre !',
       passwordSpecial: 'Le mot de passe doit contenir au moins un caractère spécial !',
-      sendSignupCodeFailed: "Nom d'utilisateur ou email est déjà utilisé, choisissez d'autre options",
+      sendSignupCodeFailed: "email est déjà utilisé, choisissez d'autre options",
       emailNotFound: 'Aucun compte trouvé avec cet e-mail.',
       requestResetFailed: 'Échec de la demande de réinitialisation.',
       invalidResetCode: 'Code de vérification invalide. Veuillez réessayer.',
