@@ -383,12 +383,17 @@ def get_or_create_google_user(db: Session, user_info: dict):
 
 @app.get("/debug-env")
 def debug_env():
+    base_url = os.getenv(
+        "BACKEND_BASE_URL",
+        "https://software-analysis-and-design.onrender.com"
+    ).rstrip("/")
+
     return {
-        "client_id": os.getenv("GOOGLE_CLIENT_ID"),
-        "client_secret": bool(os.getenv("GOOGLE_CLIENT_SECRET")),
-
+        "google_client": os.getenv("GOOGLE_CLIENT"),
+        "has_google_secret": bool(os.getenv("GOOGLE_SECRET")),
+        "backend_base_url": os.getenv("BACKEND_BASE_URL"),
+        "computed_callback": f"{base_url}/callback",
     }
-
 for key in ["DATABASE_URL", "GOOGLE_CLIENT", "GOOGLE_SECRET", "SMTP_PASSWORD", "SMTP_EMAIL","ADMIN_EMAILS"]:
     print(f"{key} = {os.getenv(key)}")
 
@@ -1358,21 +1363,15 @@ U Plan
     
 @auth_router.post("/request-signup-code")
 def request_signup_code(payload: SignupVerificationRequest, db: Session = Depends(get_db)):
-    existing_user = db.query(User).filter(User.email == payload.email).first()
+    email = payload.email.strip().lower()
+
+    existing_user = db.query(User).filter(User.email == email).first()
     if existing_user:
-        raise HTTPException(status_code=409, detail="Email/username already registered")
+        raise HTTPException(status_code=409, detail="Email already registered")
 
     code = str(randint(100000, 999999))
 
-    try:
-        send_signup_verification_email(payload.email, code)
-    except HTTPException:
-        raise
-    except Exception as e:
-        print("Signup email send error:", e)
-        raise HTTPException(status_code=500, detail="Failed to send verification email.")
-
-    record = db.query(EmailVerification).filter(EmailVerification.email == payload.email).first()
+    record = db.query(EmailVerification).filter(EmailVerification.email == email).first()
 
     if record:
         record.code = code
@@ -1380,33 +1379,211 @@ def request_signup_code(payload: SignupVerificationRequest, db: Session = Depend
         record.verified = False
     else:
         record = EmailVerification(
-            email=payload.email,
+            email=email,
             code=code,
             code_created_at=datetime.now(timezone.utc),
             verified=False,
         )
         db.add(record)
 
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to save verification code")
+
+    try:
+        send_signup_verification_email(email, code)
+    except HTTPException:
+        raise
+    except Exception as e:
+        print("Signup email send error:", repr(e))
+        raise HTTPException(status_code=500, detail="Failed to send verification email.")
 
     return {"message": "Verification code sent to your email"}
+
+
 @auth_router.post("/verify-signup-code")
 def verify_signup_code(payload: SignupVerificationConfirm, db: Session = Depends(get_db)):
-    record = db.query(EmailVerification).filter(EmailVerification.email == payload.email).first()
+    email = payload.email.strip().lower()
+    code = payload.code.strip()
+
+    record = db.query(EmailVerification).filter(EmailVerification.email == email).first()
 
     if not record:
         raise HTTPException(status_code=404, detail="No verification request found for this email")
 
+    if not record.code or not record.code_created_at:
+        raise HTTPException(status_code=400, detail="No active verification code found")
+
     if is_code_expired(record.code_created_at):
         raise HTTPException(status_code=400, detail="Verification code expired, request a new one")
 
-    if record.code != payload.code:
+    if record.code != code:
         raise HTTPException(status_code=400, detail="Invalid verification code")
 
     record.verified = True
-    db.commit()
+
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to verify email")
 
     return {"message": "Email verified successfully"}
+
+
+@auth_router.post("/signup")
+def signup(payload: SignUpIn, db: Session = Depends(get_db)):
+    email = payload.email.strip().lower()
+
+    verification = db.query(EmailVerification).filter(
+        EmailVerification.email == email
+    ).first()
+
+    if not verification:
+        raise HTTPException(
+            status_code=400,
+            detail="Please verify your email before signing up"
+        )
+
+    if not verification.verified:
+        raise HTTPException(
+            status_code=400,
+            detail="Email not verified"
+        )
+
+    if not verification.code_created_at or is_code_expired(verification.code_created_at):
+        raise HTTPException(
+            status_code=400,
+            detail="Verification expired. Please request a new code"
+        )
+
+    _ensure_password_hash_column()
+
+    try:
+        # duplicate email check
+        existing_email = db.execute(
+            text("SELECT id FROM users WHERE email = :email LIMIT 1"),
+            {"email": email},
+        ).fetchone()
+
+        if existing_email:
+            raise HTTPException(
+                status_code=409,
+                detail="Email already registered"
+            )
+
+        # duplicate username check, only if username is provided and column exists
+        cols = set(_get_user_table_columns(db.connection()))
+        if "username" in cols and getattr(payload, "username", None):
+            existing_username = db.execute(
+                text("SELECT id FROM users WHERE username = :username LIMIT 1"),
+                {"username": payload.username},
+            ).fetchone()
+
+            if existing_username:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Username already registered"
+                )
+
+        user_id = str(uuid4())
+
+        data: Dict[str, Any] = {
+            "id": user_id,
+            "email": email,
+            "password_hash": hash_password(payload.password),
+        }
+
+        if "full_name" in cols and getattr(payload, "full_name", None):
+            data["full_name"] = payload.full_name
+
+        if "username" in cols and getattr(payload, "username", None):
+            data["username"] = payload.username
+
+        if "date_of_birth" in cols and getattr(payload, "date_of_birth", None):
+            data["date_of_birth"] = payload.date_of_birth
+
+        if "gender" in cols and getattr(payload, "gender", None):
+            data["gender"] = payload.gender
+
+        if "timezone" in cols and getattr(payload, "timezone", None):
+            data["timezone"] = payload.timezone
+
+        if "auth_provider" in cols:
+            data["auth_provider"] = "local"
+
+        columns = ", ".join(data.keys())
+        placeholders = ", ".join([f":{k}" for k in data.keys()])
+
+        db.execute(
+            text(f"INSERT INTO users ({columns}) VALUES ({placeholders})"),
+            data,
+        )
+
+        joined_workspace = False
+
+        if getattr(payload, "invite_token", None):
+            try:
+                invite = verify_invite_token(payload.invite_token)
+            except Exception:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid or expired invite token"
+                )
+
+            workspace_id = invite["workspace_id"]
+            invited_email = invite["email"].strip().lower()
+
+            if invited_email != email:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Invite token does not match email"
+                )
+
+            exists = db.execute(
+                text("""
+                    SELECT 1
+                    FROM workspace_members
+                    WHERE workspace_id = :w AND user_id = :u
+                    LIMIT 1
+                """),
+                {"w": workspace_id, "u": user_id},
+            ).fetchone()
+
+            if not exists:
+                db.execute(
+                    text("""
+                        INSERT INTO workspace_members (workspace_id, user_id, role)
+                        VALUES (:w, :u, 'member')
+                    """),
+                    {"w": workspace_id, "u": user_id},
+                )
+                joined_workspace = True
+
+        # consume verification record after successful signup
+        verification.code = None
+        verification.code_created_at = None
+        verification.verified = False
+
+        db.commit()
+
+        return {
+            "message": "Signup successful",
+            "user_id": user_id,
+            "email": email,
+            "full_name": getattr(payload, "full_name", None),
+            "joined_workspace": joined_workspace,
+        }
+
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        print("Signup error:", repr(e))
+        raise HTTPException(status_code=500, detail="Failed to complete signup")
 app.include_router(auth_router)
 # ------------------------------
 # Validation-only endpoints (for your Sprint-1 tasks)
