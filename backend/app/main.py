@@ -452,7 +452,7 @@ def oauth_start(request: Request, user_id: str):
     flow = get_flow()
     auth_url, state = flow.authorization_url(
         access_type="offline",
-        include_granted_scopes="true",
+        
         prompt="consent",
     )
     # Store info in session for the callback
