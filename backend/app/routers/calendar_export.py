@@ -236,7 +236,7 @@ def export_google_calendar(
             "end": {"dateTime": end_dt.isoformat(), "timeZone": tz_str},
         }
 
-        service.events().insert(calendarId="primary", body=event).execute()
+        service.events().insert(calendarId=link.calendar_id, body=event).execute()
         inserted += 1
 
     link.last_export_at = datetime.utcnow()
