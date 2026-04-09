@@ -396,7 +396,7 @@ def debug_env():
 @oauth_router.get("/login")
 async def google_login(request: Request):
     base = os.getenv("BACKEND_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
-    redirect_uri = "http://127.0.0.1:8000/auth/google/callback"
+    redirect_uri = f"{base}/auth/google/callback"
     return await oauth.google.authorize_redirect(request, redirect_uri)
 import traceback
 
