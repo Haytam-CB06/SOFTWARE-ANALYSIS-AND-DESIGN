@@ -187,7 +187,7 @@ SCOPES: List[str] = [s for s in (
     x.strip() for x in _scopes_raw.replace(",", " ").split()) if s]
 
 REDIRECT_URI = os.getenv("OAUTH_REDIRECT_URI",
-                         "http://127.0.0.1:8000/auth/callback")
+                         "https://software-analysis-and-design.onrender.com/auth/callback")
 
 CLIENT_SECRETS_FILE = resolve_existing_path(
     os.getenv("GOOGLE_CLIENT_SECRETS_FILE"),
@@ -385,7 +385,7 @@ def get_or_create_google_user(db: Session, user_info: dict):
 
 @app.get("/debug-env")
 def debug_env():
-    base_url = os.getenv("BACKEND_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
+    base_url = os.getenv("BACKEND_BASE_URL", "https://software-analysis-and-design.onrender.com").rstrip("/")
     return {
         "google_client": os.getenv("GOOGLE_CLIENT"),
         "has_google_secret": bool(os.getenv("GOOGLE_SECRET")),
@@ -395,7 +395,7 @@ def debug_env():
 
 @oauth_router.get("/login")
 async def google_login(request: Request):
-    base = os.getenv("BACKEND_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
+    base = os.getenv("BACKEND_BASE_URL", "https://software-analysis-and-design.onrender.com").rstrip("/")
     redirect_uri = f"{base}/auth/google/callback"
     return await oauth.google.authorize_redirect(request, redirect_uri)
 import traceback
