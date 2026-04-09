@@ -187,7 +187,7 @@ SCOPES: List[str] = [s for s in (
     x.strip() for x in _scopes_raw.replace(",", " ").split()) if s]
 
 REDIRECT_URI = os.getenv("OAUTH_REDIRECT_URI",
-                         "https://software-analysis-and-design.onrender.com/auth/callback")
+                         "http://127.0.0.1:8000/auth/callback")
 
 CLIENT_SECRETS_FILE = resolve_existing_path(
     os.getenv("GOOGLE_CLIENT_SECRETS_FILE"),
@@ -360,8 +360,10 @@ oauth.register(
     client_kwargs={"scope": "openid email profile"},
 )
 
+from uuid import uuid4
+
 def get_or_create_google_user(db: Session, user_info: dict):
-    email = user_info["email"]
+    email = user_info["email"].strip().lower()
     full_name = user_info.get("name")
 
     user = db.query(User).filter(User.email == email).first()
@@ -373,7 +375,7 @@ def get_or_create_google_user(db: Session, user_info: dict):
         full_name=full_name,
         timezone="UTC",
         date_of_birth=None,
-        password_hash=None,
+        password_hash=hash_password(str(uuid4())),
         auth_provider="google",
     )
 
@@ -383,65 +385,58 @@ def get_or_create_google_user(db: Session, user_info: dict):
 
 @app.get("/debug-env")
 def debug_env():
-    base_url = os.getenv(
-        "BACKEND_BASE_URL",
-        "https://software-analysis-and-design.onrender.com"
-    ).rstrip("/")
-
+    base_url = os.getenv("BACKEND_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
     return {
         "google_client": os.getenv("GOOGLE_CLIENT"),
         "has_google_secret": bool(os.getenv("GOOGLE_SECRET")),
-        "backend_base_url": os.getenv("BACKEND_BASE_URL"),
-        "computed_callback": f"{base_url}/callback",
+        "backend_base_url": base_url,
+        "computed_callback": f"{base_url}/auth/google/callback",
     }
-for key in ["DATABASE_URL", "GOOGLE_CLIENT", "GOOGLE_SECRET", "SMTP_PASSWORD", "SMTP_EMAIL","ADMIN_EMAILS"]:
-    print(f"{key} = {os.getenv(key)}")
 
 @oauth_router.get("/login")
 async def google_login(request: Request):
-    redirect_uri = f"{os.getenv('BACKEND_BASE_URL', 'https://software-analysis-and-design.onrender.com')}/callback"
+    base = os.getenv("BACKEND_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
+    redirect_uri = "http://127.0.0.1:8000/auth/google/callback"
     return await oauth.google.authorize_redirect(request, redirect_uri)
+import traceback
 
-@oauth_router.get("/callback")
-async def google_callback(
-    request: Request,
-    db: Session = Depends(get_db)
-):
-    token = await oauth.google.authorize_access_token(request)
-
-    resp = await oauth.google.get(
-        "https://openidconnect.googleapis.com/v1/userinfo",
-        token=token
-    )
-
-    user_info = resp.json()
-
-    user = get_or_create_google_user(db, user_info)
-    db.commit()  # ensure user exists in DB
-
-    # Record login history so Global Admin "Last sign-in" reflects Google logins too.
-    # (Best-effort; never block login.)
+@oauth_router.get("/auth/google/callback")
+async def google_callback(request: Request, db: Session = Depends(get_db)):
     try:
-        from app.models.user import LoginHistory
-        ip = None
-        if request and getattr(request, "client", None):
-            ip = getattr(request.client, "host", None)
-        db.add(LoginHistory(user_id=user.id, ip_address=ip))
+        token = await oauth.google.authorize_access_token(request)
+        print("TOKEN OK")
+
+        resp = await oauth.google.get(
+            "https://openidconnect.googleapis.com/v1/userinfo",
+            token=token
+        )
+        print("USERINFO STATUS:", resp.status_code)
+
+        user_info = resp.json()
+        print("GOOGLE USER INFO:", user_info)
+
+        user = get_or_create_google_user(db, user_info)
+        print("USER CREATED/FOUND:", user.email if user else None)
+
         db.commit()
-    except Exception:
-        try:
-            db.rollback()
-        except Exception:
-            pass
+        print("DB COMMIT OK")
 
-    # Redirect back to the frontend and pass minimal info via query params.
-    # Frontend will store currentUserId/currentUserEmail/currentUserName in localStorage.
-    frontend = os.getenv("FRONTEND_ORIGIN", "https://uplan-frontend-bccb.onrender.com")
-    q_email = urllib.parse.quote(user.email or "")
-    q_name = urllib.parse.quote(user.full_name or "")
-    q_uid = str(user.id)
-    return RedirectResponse(f"{frontend}/?oauth=google&user_id={q_uid}&email={q_email}&name={q_name}")
+        frontend = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000/").rstrip("/")
+        q_email = urllib.parse.quote(user.email or "")
+        q_name = urllib.parse.quote(user.full_name or "")
+        q_uid = str(user.id)
 
+        print("REDIRECTING TO FRONTEND")
+
+        return RedirectResponse(
+            f"{frontend}/?oauth=google&user_id={q_uid}&email={q_email}&name={q_name}"
+        )
+
+    except Exception as e:
+        db.rollback()
+        print("GOOGLE CALLBACK ERROR:", repr(e))
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ---------------------------------------------------------------------
 # INCLUDE ROUTER (DO NOT FORGET)
@@ -505,7 +500,7 @@ def oauth_callback(request: Request, db: Session = Depends(get_db)):
         request.session.pop("google_oauth_user_id", None)
 
         # Send the user back to the frontend (same tab)
-        frontend = os.getenv("FRONTEND_ORIGIN", "https://uplan-frontend-bccb.onrender.com")
+        frontend = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
         # Return user to the timetable page so they can click Export again.
         return RedirectResponse(f"{frontend}/?page=my-timetable&google=linked")
     except HTTPException:
