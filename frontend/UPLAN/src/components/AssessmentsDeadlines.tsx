@@ -16,11 +16,13 @@ import { Checkbox } from './ui/checkbox';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import ConfirmDeleteDialog from './ConfirmDeleteDialog';
 
 type AssessmentType = 'assignment' | 'exam' | 'quiz' | 'project';
 
 interface AssessmentsDeadlinesProps {
   onNavigate?: (page: string) => void;
+  onBack?: () => void;
 }
 
 interface CourseRow {
@@ -39,13 +41,14 @@ interface BackendAssessment {
   priority?: string | null;
 }
 
-export default function AssessmentsDeadlines({ onNavigate }: AssessmentsDeadlinesProps) {
+export default function AssessmentsDeadlines({ onNavigate, onBack }: AssessmentsDeadlinesProps) {
   const { t } = useTranslation();
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
   const userId = localStorage.getItem('currentUserId') || '';
 
   const [courses, setCourses] = useState<CourseRow[]>([]);
   const [assessments, setAssessments] = useState<BackendAssessment[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<BackendAssessment | null>(null);
   const [assessmentDraft, setAssessmentDraft] = useState({
     subject: '',
     type: 'exam' as AssessmentType,
@@ -182,6 +185,16 @@ export default function AssessmentsDeadlines({ onNavigate }: AssessmentsDeadline
     }
   };
 
+  const requestDeleteAssessment = (assessment: BackendAssessment) => {
+    setDeleteTarget(assessment);
+  };
+
+  const confirmDeleteAssessment = async () => {
+    if (!deleteTarget) return;
+    await deleteAssessment(deleteTarget.id);
+    setDeleteTarget(null);
+  };
+
   const formatDueDate = (value: string) => {
     if (!value) return '';
     try {
@@ -199,7 +212,10 @@ export default function AssessmentsDeadlines({ onNavigate }: AssessmentsDeadline
             <Button
               variant="secondary"
               className="w-full rounded-2xl border border-slate-200 bg-white text-slate-900 hover:bg-slate-50 dark:border-white/10 dark:bg-[#0b0b0b] dark:text-white dark:hover:bg-[#111] sm:w-auto"
-              onClick={() => onNavigate?.('dashboard')}
+              onClick={() => {
+                if (onBack) onBack();
+                else onNavigate?.('dashboard');
+              }}
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
               {t('common.back')}
@@ -300,7 +316,7 @@ export default function AssessmentsDeadlines({ onNavigate }: AssessmentsDeadline
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => deleteAssessment(a.id)}
+                        onClick={() => requestDeleteAssessment(a)}
                         title={t('common.delete')}
                         className="self-end rounded-xl text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 sm:self-auto"
                       >
@@ -397,6 +413,14 @@ export default function AssessmentsDeadlines({ onNavigate }: AssessmentsDeadline
           </CardContent>
         </Card>
       </div>
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete assessment"
+        description={`This permanently deletes "${deleteTarget?.title || deleteTarget?.subject || 'this assessment'}".`}
+        confirmLabel={t('common.delete')}
+        onConfirm={confirmDeleteAssessment}
+      />
     </div>
   );
 }

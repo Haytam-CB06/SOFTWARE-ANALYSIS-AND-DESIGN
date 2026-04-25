@@ -1,0 +1,1257 @@
+
+from __future__ import annotations
+
+import base64
+import csv
+import io
+import os
+import re
+import uuid
+from typing import Any, Dict, List, Optional, Tuple
+
+from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile
+from openpyxl import load_workbook
+from PIL import Image, ImageEnhance, ImageOps
+from pydantic import BaseModel, field_validator
+from sqlalchemy.orm import Session
+
+from app.db import get_db
+from app.models.class_meeting import ClassMeeting
+from app.models.subject import Subject
+from app.models.user import User
+
+try:
+    import pytesseract  # type: ignore
+except Exception:  # pragma: no cover
+    pytesseract = None
+
+try:
+    from huggingface_hub import InferenceClient  # type: ignore
+except Exception:  # pragma: no cover
+    InferenceClient = None
+
+
+router = APIRouter(prefix="/timetable", tags=["Timetable Import"])
+
+
+# ---------------------------------------------------------------------
+# IMPORTANT DAY CONVENTIONS
+# ---------------------------------------------------------------------
+# External / frontend / preview convention:
+#   0 = Monday, 1 = Tuesday, ..., 6 = Sunday
+#
+# Database convention in ClassMeeting.day_of_week:
+#   0 = Sunday, 1 = Monday, ..., 6 = Saturday
+#
+# The rest of your planner code already converts DB <-> frontend for class
+# schedule / auto-generate, so this router should KEEP the external API on
+# frontend convention and only convert at save/read boundaries.
+# ---------------------------------------------------------------------
+
+TIME_HHMM_RE = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
+TIME_TOKEN_RE = re.compile(r"^\d{1,2}(?::|\.)\d{2}(?:\s*(?:am|pm))?$", re.I)
+TIME_RANGE_RE = re.compile(
+    r"(?P<s>\b\d{1,2}(?::|\.)\d{2}\s*(?:am|pm)?\b)\s*[-–—]\s*(?P<e>\b\d{1,2}(?::|\.)\d{2}\s*(?:am|pm)?\b)",
+    re.I,
+)
+COURSE_CODE_RE = re.compile(r"^[A-Z]{2,6}\d{2,4}[A-Z]?$")
+SECTION_RE = re.compile(r"^(CR|ROOM|RM|LAB|SEC|SECTION|BLK|BUILDING)[A-Z0-9_-]*$", re.I)
+
+DAY_MAP = {
+    "mon": 0, "monday": 0,
+    "tue": 1, "tues": 1, "tuesday": 1,
+    "wed": 2, "wednesday": 2,
+    "thu": 3, "thur": 3, "thurs": 3, "thursday": 3,
+    "fri": 4, "friday": 4,
+    "sat": 5, "saturday": 5,
+    "sun": 6, "sunday": 6,
+}
+DAY_LABELS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+
+# ---------------------------------------------------------------------
+# Models
+# ---------------------------------------------------------------------
+
+class TimetableExtractItem(BaseModel):
+    day_of_week: Optional[int] = None  # frontend convention 0=Mon..6=Sun
+    day_label: Optional[str] = None
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    rrule: Optional[str] = None
+    subject_title: Optional[str] = None
+    subject_code: Optional[str] = None
+    raw_line: Optional[str] = None
+    confidence: Optional[float] = None
+
+
+class TimetableImportItem(BaseModel):
+    day_of_week: int  # frontend convention
+    start_time: str
+    end_time: str
+    subject_title: str
+    subject_code: Optional[str] = None
+    rrule: Optional[str] = None
+
+    @field_validator("day_of_week")
+    @classmethod
+    def _validate_day(cls, v: int) -> int:
+        if v < 0 or v > 6:
+            raise ValueError("day_of_week must be between 0 and 6 (0=Mon .. 6=Sun)")
+        return v
+
+    @field_validator("start_time", "end_time")
+    @classmethod
+    def _validate_time(cls, v: str) -> str:
+        if not TIME_HHMM_RE.match(v):
+            raise ValueError("Time must be in HH:MM format")
+        return v
+
+    @field_validator("subject_title")
+    @classmethod
+    def _validate_subject_title(cls, v: str) -> str:
+        vv = (v or "").strip()
+        if not vv:
+            raise ValueError("subject_title is required")
+        return vv
+
+
+class TimetableImportPreviewResponse(BaseModel):
+    items: List[TimetableImportItem]
+    warnings: List[str] = []
+    errors: List[str] = []
+
+
+class TimetableImportRequest(BaseModel):
+    user_id: str
+    items: List[TimetableExtractItem | TimetableImportItem]
+    create_missing_subjects: bool = True
+    replace_existing: bool = False
+
+
+class TimetableImportResponse(BaseModel):
+    created_subjects: int
+    reused_subjects: int
+    created_meetings: int
+    skipped_items: int
+    warnings: List[str] = []
+
+
+class TimetableExtractResponse(BaseModel):
+    text: str
+    items: List[TimetableExtractItem]
+    parser: Optional[str] = None
+
+
+class TimetableCsvTextRequest(BaseModel):
+    csv: str
+
+
+class TimetableExtractBase64In(BaseModel):
+    image_base64: str
+
+
+class TimetableImportAndGenerateRequest(TimetableImportRequest):
+    window: Optional[Dict[str, Any]] = None
+    busy_blocks: List[Dict[str, Any]] = []
+    treat_class_schedule_as_busy: bool = True
+    use_stored_busy_blocks: bool = True
+    seed: Optional[int] = None
+    shuffle: bool = False
+    breakMinutes: int = 10
+
+
+# ---------------------------------------------------------------------
+# Generic helpers
+# ---------------------------------------------------------------------
+
+def _guard_user(user_id: str, x_user_id: Optional[str], db: Session) -> User:
+    if not x_user_id:
+        raise HTTPException(status_code=401, detail="Missing X-User-Id header")
+    if str(x_user_id) != str(user_id):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+
+def _frontend_day_to_backend(day: int) -> int:
+    # frontend 0=Mon..6=Sun -> backend 0=Sun..6=Sat
+    return (day + 1) % 7
+
+
+def _backend_day_to_frontend(day: int) -> int:
+    # backend 0=Sun..6=Sat -> frontend 0=Mon..6=Sun
+    return (day - 1) % 7
+
+
+def _norm_time(t: str) -> str:
+    s = str(t or "").strip().lower().replace(".", ":")
+    s = re.sub(r"\s+", "", s)
+
+    m = re.match(r"^(\d{1,2}):(\d{2})(am|pm)?$", s)
+    if not m:
+        raise ValueError(f"Invalid time format: {t}")
+
+    hh = int(m.group(1))
+    mm = int(m.group(2))
+    ampm = m.group(3)
+
+    if mm < 0 or mm > 59:
+        raise ValueError(f"Invalid minutes in time: {t}")
+
+    if ampm:
+        if hh < 1 or hh > 12:
+            raise ValueError(f"Invalid 12-hour time: {t}")
+        if ampm == "am":
+            hh = 0 if hh == 12 else hh
+        else:
+            hh = 12 if hh == 12 else hh + 12
+    else:
+        if hh < 0 or hh > 23:
+            raise ValueError(f"Invalid 24-hour time: {t}")
+
+    return f"{hh:02d}:{mm:02d}"
+
+
+def _parse_time_obj(value: str):
+    from datetime import time
+    h, m = value.split(":")
+    return time(hour=int(h), minute=int(m))
+
+
+def _day_to_int(val: str | int | None) -> Optional[int]:
+    if val is None:
+        return None
+    if isinstance(val, int):
+        return val if 0 <= val <= 6 else None
+
+    s = str(val).strip()
+    if not s:
+        return None
+
+    if s.isdigit():
+        d = int(s)
+        return d if 0 <= d <= 6 else None
+
+    key = re.sub(r"[^a-z]", "", s.lower())
+    if key in DAY_MAP:
+        return DAY_MAP[key]
+    if len(key) >= 3 and key[:3] in DAY_MAP:
+        return DAY_MAP[key[:3]]
+    return None
+
+
+def _looks_like_section_or_room(value: Optional[str]) -> bool:
+    if not value:
+        return False
+    raw = re.sub(r"[^A-Za-z0-9_-]", "", value).upper()
+    return bool(SECTION_RE.match(raw))
+
+
+def _is_meaningful_subject_title(value: Optional[str]) -> bool:
+    if not value:
+        return False
+
+    s = re.sub(r"\s+", " ", str(value).strip())
+    if not s:
+        return False
+
+    if _looks_like_section_or_room(s):
+        return False
+
+    if len(s) < 3:
+        return False
+
+    if re.fullmatch(r"[\d\W_]+", s):
+        return False
+
+    token = re.sub(r"[^A-Za-z0-9]", "", s).upper()
+
+    weak_words = {
+        "room", "lab", "section", "sec", "rm", "cr",
+        "time", "day", "course", "subject", "lecture",
+        "tutorial", "class", "building", "hall",
+    }
+    if s.lower() in weak_words:
+        return False
+
+    if len(s.split()) == 1 and not COURSE_CODE_RE.match(token):
+        # allow words like Physics, Algebra, Networks
+        if not re.fullmatch(r"[A-Za-z]{4,}", s):
+            return False
+
+    return True
+
+
+def _clean_subject_value(title: Optional[str], code: Optional[str]) -> Tuple[Optional[str], Optional[str]]:
+    title = (title or "").strip() or None
+    code = (code or "").strip() or None
+
+    if title and _looks_like_section_or_room(title):
+        title = None
+    if code and _looks_like_section_or_room(code):
+        code = None
+
+    if not title and code and COURSE_CODE_RE.match(re.sub(r"[^A-Za-z0-9]", "", code).upper()):
+        title = code
+
+    return title, code
+
+
+def _infer_day(line: str) -> Tuple[Optional[int], Optional[str]]:
+    lower = re.sub(r"[^a-z]", " ", line.lower())
+    tokens = [t for t in lower.split() if t]
+    for tok in tokens:
+        if tok in DAY_MAP:
+            return DAY_MAP[tok], tok
+    return None, None
+
+
+def _infer_subject(line: str, time_span: Optional[Tuple[str, str]]) -> Tuple[Optional[str], Optional[str]]:
+    cleaned = line
+    if time_span:
+        cleaned = cleaned.replace(time_span[0], " ").replace(time_span[1], " ")
+
+    for k in DAY_MAP.keys():
+        cleaned = re.sub(rf"\b{k}\b", " ", cleaned, flags=re.I)
+
+    cleaned = re.sub(r"\bsection\s*:?\s*[A-Za-z0-9_-]+\b", " ", cleaned, flags=re.I)
+    cleaned = re.sub(r"\broom\s*:?\s*[A-Za-z0-9_-]+\b", " ", cleaned, flags=re.I)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip(" -|\t")
+
+    m = re.search(r"\b([A-Z]{2,6}\s?[-]?\s?\d{2,4}[A-Z]?)\b", cleaned)
+    code = None
+    title = None
+
+    if m:
+        code = re.sub(r"\s+", "", m.group(1)).replace("-", "")
+        title = cleaned.replace(m.group(1), "").strip(" -") or code
+    else:
+        title = cleaned
+
+    title, code = _clean_subject_value(title, code)
+    return title, code
+
+
+def _dedupe_items(items: List[TimetableExtractItem]) -> List[TimetableExtractItem]:
+    seen = set()
+    out: List[TimetableExtractItem] = []
+    for it in items:
+        key = (
+            it.day_of_week,
+            it.start_time,
+            it.end_time,
+            (it.subject_code or it.subject_title or "").strip().lower(),
+        )
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(it)
+    return out
+
+
+def _normalize_extract_item(it: TimetableExtractItem | TimetableImportItem) -> Tuple[Optional[TimetableImportItem], Optional[str]]:
+    if isinstance(it, TimetableImportItem):
+        return it, None
+
+    if it.day_of_week is None:
+        return None, f"Missing day_of_week for line: {it.raw_line or ''}"
+
+    if not it.start_time or not it.end_time:
+        return None, f"Missing time range for line: {it.raw_line or ''}"
+
+    try:
+        start_time = _norm_time(it.start_time)
+        end_time = _norm_time(it.end_time)
+    except Exception as e:
+        return None, f"Invalid time in line '{it.raw_line or ''}': {e}"
+
+    if start_time >= end_time:
+        return None, f"start_time must be before end_time for line: {it.raw_line or ''}"
+
+    subject_title = (it.subject_title or "").strip()
+    subject_code = (it.subject_code or "").strip() or None
+
+    if not _is_meaningful_subject_title(subject_title):
+        if subject_code and COURSE_CODE_RE.match(re.sub(r"[^A-Za-z0-9]", "", subject_code).upper()):
+            subject_title = subject_code
+        else:
+            return None, f"Rejected weak/empty subject title for line: {it.raw_line or ''}"
+
+    return TimetableImportItem(
+        day_of_week=int(it.day_of_week),
+        start_time=start_time,
+        end_time=end_time,
+        subject_title=subject_title,
+        subject_code=subject_code,
+        rrule=it.rrule,
+    ), None
+
+
+def _normalize_extract_items(items: List[TimetableExtractItem | TimetableImportItem]) -> Tuple[List[TimetableImportItem], List[str]]:
+    normalized: List[TimetableImportItem] = []
+    errors: List[str] = []
+
+    for it in items:
+        norm, err = _normalize_extract_item(it)
+        if err:
+            errors.append(err)
+            continue
+        if norm:
+            normalized.append(norm)
+
+    seen = set()
+    uniq: List[TimetableImportItem] = []
+    for it in normalized:
+        key = (it.day_of_week, it.start_time, it.end_time, (it.subject_code or it.subject_title).strip().lower())
+        if key in seen:
+            continue
+        seen.add(key)
+        uniq.append(it)
+
+    uniq.sort(key=lambda x: (x.day_of_week, x.start_time, x.subject_title.lower()))
+    return uniq, errors
+
+
+# ---------------------------------------------------------------------
+# CSV parsing
+# ---------------------------------------------------------------------
+
+def _read_csv_text(raw: str) -> TimetableExtractResponse:
+    text = raw or ""
+    reader = csv.DictReader(io.StringIO(text))
+    items: List[TimetableExtractItem] = []
+
+    if not reader.fieldnames:
+        raise HTTPException(status_code=400, detail="CSV has no headers/columns")
+
+    def norm(h: str) -> str:
+        return re.sub(r"[^a-z0-9]", "", h.strip().lower())
+
+    headers = {norm(h): h for h in reader.fieldnames if h}
+
+    def get(row, *names):
+        for n in names:
+            k = norm(n)
+            if k in headers:
+                return row.get(headers[k])
+        return None
+
+    for row in reader:
+        day = _day_to_int(get(row, "day", "weekday", "day_of_week"))
+        start_raw = get(row, "start", "start_time", "starttime")
+        end_raw = get(row, "end", "end_time", "endtime")
+        title = get(row, "subject", "title", "course", "course_title", "name")
+        code = get(row, "code", "subject_code", "course_code")
+
+        if not start_raw or not end_raw:
+            continue
+
+        try:
+            start = _norm_time(str(start_raw))
+            end = _norm_time(str(end_raw))
+        except Exception:
+            continue
+
+        subject_title, subject_code = _clean_subject_value(
+            str(title).strip() if title else None,
+            str(code).strip() if code else None,
+        )
+
+        items.append(
+            TimetableExtractItem(
+                day_of_week=day,
+                start_time=start,
+                end_time=end,
+                subject_title=subject_title,
+                subject_code=subject_code,
+                raw_line=",".join([str(row.get(h, "")).strip() for h in reader.fieldnames]),
+                confidence=1.0,
+            )
+        )
+
+    return TimetableExtractResponse(text=text, items=_dedupe_items(items), parser="csv")
+
+
+# ---------------------------------------------------------------------
+# Excel parsing
+# ---------------------------------------------------------------------
+
+def _cell_text(v: Any) -> str:
+    if v is None:
+        return ""
+    return str(v).strip()
+
+
+def _parse_row_excel(ws) -> List[TimetableExtractItem]:
+    rows = list(ws.iter_rows(values_only=True))
+    if not rows:
+        return []
+
+    header = [str(v or "").strip().lower() for v in rows[0]]
+    if not header:
+        return []
+
+    def find_idx(*names: str) -> Optional[int]:
+        for candidate in names:
+            if candidate in header:
+                return header.index(candidate)
+        return None
+
+    day_idx = find_idx("day", "weekday", "day_of_week")
+    start_idx = find_idx("start", "start_time", "starttime")
+    end_idx = find_idx("end", "end_time", "endtime")
+    subject_idx = find_idx("subject", "title", "course", "name", "course_title")
+    code_idx = find_idx("subject_code", "code", "course_code")
+
+    if day_idx is None or start_idx is None or end_idx is None or subject_idx is None:
+        return []
+
+    items: List[TimetableExtractItem] = []
+    for row in rows[1:]:
+        values = list(row)
+        items.append(
+            TimetableExtractItem(
+                day_of_week=_day_to_int(values[day_idx] if day_idx < len(values) else None),
+                day_label=_cell_text(values[day_idx] if day_idx < len(values) else None),
+                start_time=_cell_text(values[start_idx] if start_idx < len(values) else None) or None,
+                end_time=_cell_text(values[end_idx] if end_idx < len(values) else None) or None,
+                subject_title=_cell_text(values[subject_idx] if subject_idx < len(values) else None) or None,
+                subject_code=_cell_text(values[code_idx] if code_idx is not None and code_idx < len(values) else None) or None,
+                raw_line=" | ".join([_cell_text(v) for v in values]),
+                confidence=1.0,
+            )
+        )
+    return items
+
+
+def _parse_grid_excel(ws) -> List[TimetableExtractItem]:
+    rows = list(ws.iter_rows(values_only=True))
+    if not rows:
+        return []
+
+    header_idx = None
+    header_days: Dict[int, int] = {}
+    for i, row in enumerate(rows[:10]):
+        day_hits = {}
+        for col_idx, val in enumerate(row):
+            d = _day_to_int(_cell_text(val))
+            if d is not None:
+                day_hits[col_idx] = d
+        if len(day_hits) >= 2:
+            header_idx = i
+            header_days = day_hits
+            break
+
+    if header_idx is None:
+        return []
+
+    time_col = 0
+    first_day_col = min(header_days.keys())
+    for c in range(0, first_day_col + 1):
+        sample_hits = 0
+        for r in range(header_idx + 1, min(header_idx + 12, len(rows))):
+            txt = _cell_text(rows[r][c] if c < len(rows[r]) else "")
+            if TIME_TOKEN_RE.match(txt):
+                sample_hits += 1
+        if sample_hits >= 2:
+            time_col = c
+            break
+
+    items: List[TimetableExtractItem] = []
+    for r in range(header_idx + 1, len(rows)):
+        row = rows[r]
+        start_raw = _cell_text(row[time_col] if time_col < len(row) else "")
+        if not start_raw:
+            continue
+        try:
+            start_norm = _norm_time(start_raw)
+        except Exception:
+            continue
+
+        end_norm = None
+        for rr in range(r + 1, len(rows)):
+            nxt = _cell_text(rows[rr][time_col] if time_col < len(rows[rr]) else "")
+            if not nxt:
+                continue
+            try:
+                end_norm = _norm_time(nxt)
+                break
+            except Exception:
+                continue
+
+        if not end_norm or end_norm <= start_norm:
+            continue
+
+        for col_idx, day_idx in header_days.items():
+            if col_idx >= len(row):
+                continue
+            cell = _cell_text(row[col_idx])
+            if not cell:
+                continue
+
+            title, code = _infer_subject(cell, None)
+            if not title:
+                continue
+
+            items.append(
+                TimetableExtractItem(
+                    day_of_week=day_idx,
+                    day_label=DAY_LABELS[day_idx],
+                    start_time=start_norm,
+                    end_time=end_norm,
+                    subject_title=title,
+                    subject_code=code,
+                    raw_line=cell,
+                    confidence=1.0,
+                )
+            )
+
+    return items
+
+
+def _read_excel_bytes(raw_bytes: bytes) -> TimetableExtractResponse:
+    try:
+        wb = load_workbook(io.BytesIO(raw_bytes), data_only=True)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid Excel file: {e}")
+
+    all_items: List[TimetableExtractItem] = []
+    text_parts: List[str] = []
+
+    for ws in wb.worksheets:
+        row_items = _parse_row_excel(ws)
+        grid_items = _parse_grid_excel(ws)
+
+        items = row_items if len(row_items) >= len(grid_items) else grid_items
+        all_items.extend(items)
+
+        for row in ws.iter_rows(values_only=True):
+            text_parts.append(" | ".join(_cell_text(v) for v in row if _cell_text(v)))
+
+    return TimetableExtractResponse(
+        text="\n".join([p for p in text_parts if p]),
+        items=_dedupe_items(all_items),
+        parser="excel",
+    )
+
+
+# ---------------------------------------------------------------------
+# Image parsing
+# ---------------------------------------------------------------------
+
+def _ensure_tesseract_cmd() -> None:
+    if pytesseract is None:
+        raise HTTPException(status_code=500, detail="pytesseract is not installed on the server.")
+
+    current = getattr(pytesseract.pytesseract, "tesseract_cmd", "") or ""
+    if current and os.path.exists(current):
+        return
+
+    import shutil
+    exe = shutil.which("tesseract")
+    if exe:
+        pytesseract.pytesseract.tesseract_cmd = exe
+        return
+
+    candidates = [
+        r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+        r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+    ]
+    for p in candidates:
+        if os.path.exists(p):
+            pytesseract.pytesseract.tesseract_cmd = p
+            return
+
+    raise HTTPException(status_code=500, detail="Tesseract OCR is not installed or not on PATH.")
+
+
+def _preprocess_image(img: Image.Image) -> Image.Image:
+    img = img.convert("RGB")
+    w, h = img.size
+    if max(w, h) < 1600:
+        scale = 2 if max(w, h) >= 900 else 3
+        img = img.resize((w * scale, h * scale))
+    gray = ImageOps.grayscale(img)
+    gray = ImageEnhance.Contrast(gray).enhance(1.8)
+    gray = ImageEnhance.Sharpness(gray).enhance(2.0)
+    return gray
+
+
+def _extract_items_line_based(text: str) -> List[TimetableExtractItem]:
+    lines = [ln.strip() for ln in (text or "").splitlines() if ln.strip()]
+    items: List[TimetableExtractItem] = []
+
+    for ln in lines:
+        day_idx, day_label = _infer_day(ln)
+        m = TIME_RANGE_RE.search(ln)
+
+        time_span = None
+        start_time = end_time = None
+        if m:
+            try:
+                start_time = _norm_time(m.group("s"))
+                end_time = _norm_time(m.group("e"))
+                time_span = (m.group("s"), m.group("e"))
+            except Exception:
+                start_time = end_time = None
+
+        title, code = _infer_subject(ln, time_span)
+
+        if start_time or end_time or day_idx is not None:
+            items.append(
+                TimetableExtractItem(
+                    day_of_week=day_idx,
+                    day_label=day_label,
+                    start_time=start_time,
+                    end_time=end_time,
+                    subject_title=title,
+                    subject_code=code,
+                    raw_line=ln,
+                    confidence=0.55,
+                )
+            )
+    return _dedupe_items(items)
+
+
+def _read_image_with_huggingface(raw_bytes: bytes) -> Optional[TimetableExtractResponse]:
+    """
+    Optional hook:
+    - Set HF_API_TOKEN
+    - Set HF_TIMETABLE_MODEL if you want a custom model endpoint
+
+    Expected model behavior:
+    return JSON-ish text or OCR text that contains timetable rows.
+    """
+    if InferenceClient is None:
+        return None
+
+    token = os.getenv("HF_API_TOKEN")
+    model = os.getenv("HF_TIMETABLE_MODEL")
+    if not token or not model:
+        return None
+
+    try:
+        client = InferenceClient(token=token)
+        # text-generation style fallback; many VLM endpoints are model-specific.
+        # Keep this optional so the backend still works without HF.
+        result = client.chat_completion(
+            model=model,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": (
+                            "Extract a university timetable from this image. "
+                            "Return plain text lines in the format: "
+                            "DAY | START-END | SUBJECT | CODE(optional). "
+                            "Ignore empty cells, room-only labels, section-only labels, and decorations."
+                        )},
+                        {"type": "image_url", "image_url": {"url": "data:image/png;base64," + base64.b64encode(raw_bytes).decode("ascii")}},
+                    ],
+                }
+            ],
+            max_tokens=1200,
+        )
+        text = ""
+        if getattr(result, "choices", None):
+            text = result.choices[0].message.content or ""
+        if not text:
+            return None
+        items = _extract_items_line_based(text)
+        return TimetableExtractResponse(text=text, items=items, parser="huggingface")
+    except Exception:
+        return None
+
+
+def _read_image_bytes(raw_bytes: bytes) -> TimetableExtractResponse:
+    # Try optional HF parser first if configured.
+    hf_result = _read_image_with_huggingface(raw_bytes)
+    if hf_result and hf_result.items:
+        return hf_result
+
+    if pytesseract is None:
+        raise HTTPException(status_code=500, detail="pytesseract is not installed on the server.")
+    _ensure_tesseract_cmd()
+
+    try:
+        img = Image.open(io.BytesIO(raw_bytes))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid image: {e}")
+
+    img = _preprocess_image(img)
+
+    try:
+        from pytesseract import Output  # type: ignore
+        data = pytesseract.image_to_data(img, output_type=Output.DICT, config="--psm 6")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"OCR failed: {e}")
+
+    words: List[Dict[str, Any]] = []
+    n = len(data.get("text", []))
+    for i in range(n):
+        raw = (data["text"][i] or "").strip()
+        if not raw:
+            continue
+        try:
+            conf = float(data["conf"][i])
+        except Exception:
+            conf = -1.0
+        if conf < 55:
+            continue
+
+        left = int(data["left"][i]); top = int(data["top"][i]); width = int(data["width"][i]); height = int(data["height"][i])
+        words.append({
+            "text": raw,
+            "conf": conf,
+            "left": left,
+            "top": top,
+            "width": width,
+            "height": height,
+            "cx": left + width / 2.0,
+            "cy": top + height / 2.0,
+        })
+
+    raw_text = " ".join(w["text"] for w in words)
+    if not words:
+        return TimetableExtractResponse(text="", items=[], parser="ocr")
+
+    # Detect weekday headers
+    day_headers: List[Tuple[float, int]] = []  # x_center, frontend_day
+    for w in words:
+        d = _day_to_int(w["text"])
+        if d is not None:
+            day_headers.append((w["cx"], d))
+
+    # Detect time labels
+    time_rows: List[Tuple[float, str]] = []  # y_center, HH:MM
+    for w in words:
+        if TIME_TOKEN_RE.match(w["text"]):
+            try:
+                time_rows.append((w["cy"], _norm_time(w["text"])))
+            except Exception:
+                continue
+
+    # Fallback to line-based if we cannot recover a grid.
+    if len(day_headers) < 2 or len(time_rows) < 2:
+        try:
+            text = pytesseract.image_to_string(img, config="--psm 6")
+        except Exception:
+            text = raw_text
+        return TimetableExtractResponse(text=text, items=_extract_items_line_based(text), parser="ocr-line")
+
+    # Merge close headers/rows
+    day_headers.sort(key=lambda x: x[0])
+    merged_days: List[Tuple[float, int]] = []
+    for x, d in day_headers:
+        if merged_days and abs(merged_days[-1][0] - x) < 40:
+            continue
+        merged_days.append((x, d))
+
+    time_rows.sort(key=lambda x: x[0])
+    merged_times: List[Tuple[float, str]] = []
+    for y, t in time_rows:
+        if merged_times and abs(merged_times[-1][0] - y) < 18:
+            continue
+        merged_times.append((y, t))
+
+    if len(merged_days) < 2 or len(merged_times) < 2:
+        try:
+            text = pytesseract.image_to_string(img, config="--psm 6")
+        except Exception:
+            text = raw_text
+        return TimetableExtractResponse(text=text, items=_extract_items_line_based(text), parser="ocr-line")
+
+    # Determine header band / time column
+    header_y = min(y for y, _ in merged_times)
+    first_day_x = min(x for x, _ in merged_days)
+
+    # Build row boundaries
+    row_bounds: List[Tuple[float, float, str, Optional[str]]] = []
+    for idx, (y, start_t) in enumerate(merged_times):
+        next_y = merged_times[idx + 1][0] if idx + 1 < len(merged_times) else y + 80
+        end_t = merged_times[idx + 1][1] if idx + 1 < len(merged_times) else None
+        row_bounds.append((y - 18, (y + next_y) / 2.0, start_t, end_t))
+
+    # Build col boundaries
+    col_bounds: List[Tuple[float, float, int]] = []
+    for idx, (x, day_idx) in enumerate(merged_days):
+        next_x = merged_days[idx + 1][0] if idx + 1 < len(merged_days) else x + 180
+        col_bounds.append((x - 50, (x + next_x) / 2.0, day_idx))
+
+    items: List[TimetableExtractItem] = []
+    for x0, x1, day_idx in col_bounds:
+        for y0, y1, start_t, end_t in row_bounds:
+            if not end_t:
+                continue
+
+            cell_words = []
+            confs = []
+            for w in words:
+                if w["cy"] <= header_y + 8:
+                    continue
+                if w["left"] <= first_day_x:
+                    continue
+                if not (x0 <= w["cx"] < x1 and y0 <= w["cy"] < y1):
+                    continue
+                cell_words.append(w["text"])
+                confs.append(w["conf"])
+
+            if not cell_words:
+                continue
+
+            cell_text = re.sub(r"\s+", " ", " ".join(cell_words)).strip()
+            if not cell_text:
+                continue
+
+            title, code = _infer_subject(cell_text, None)
+            if not _is_meaningful_subject_title(title):
+                if not (code and COURSE_CODE_RE.match(re.sub(r"[^A-Za-z0-9]", "", code).upper())):
+                    continue
+                title = code
+
+            items.append(
+                TimetableExtractItem(
+                    day_of_week=day_idx,
+                    day_label=DAY_LABELS[day_idx],
+                    start_time=start_t,
+                    end_time=end_t,
+                    subject_title=title,
+                    subject_code=code,
+                    raw_line=cell_text,
+                    confidence=round(sum(confs) / len(confs), 2) if confs else None,
+                )
+            )
+
+    items = _dedupe_items(items)
+
+    # Safety filter: if OCR exploded into too many rows, prefer line-based output.
+    if len(items) > 60:
+        try:
+            text = pytesseract.image_to_string(img, config="--psm 6")
+        except Exception:
+            text = raw_text
+        line_items = _extract_items_line_based(text)
+        return TimetableExtractResponse(text=text, items=line_items, parser="ocr-line-fallback")
+
+    return TimetableExtractResponse(text=raw_text, items=items, parser="ocr-grid")
+
+
+# ---------------------------------------------------------------------
+# Persistence
+# ---------------------------------------------------------------------
+
+def _find_or_create_subject(
+    db: Session,
+    user_id: str,
+    subject_title: str,
+    subject_code: Optional[str],
+    create_missing: bool = True,
+) -> Tuple[Optional[Subject], bool]:
+    query = db.query(Subject).filter(Subject.user_id == user_id)
+
+    if subject_code:
+        subject = query.filter(Subject.code == subject_code).first()
+        if subject:
+            return subject, False
+
+    subject = query.filter(Subject.title == subject_title).first()
+    if subject:
+        return subject, False
+
+    if not create_missing:
+        return None, False
+
+    subject = Subject(
+        id=str(uuid.uuid4()),
+        user_id=user_id,
+        title=subject_title,
+        code=subject_code,
+        is_active=True,
+    )
+    db.add(subject)
+    db.flush()
+    return subject, True
+
+
+def _meeting_exists(
+    db: Session,
+    subject_id: str,
+    day_of_week_frontend: int,
+    start_time: str,
+    end_time: str,
+) -> bool:
+    backend_day = _frontend_day_to_backend(day_of_week_frontend)
+    st = _parse_time_obj(start_time)
+    et = _parse_time_obj(end_time)
+    existing = (
+        db.query(ClassMeeting)
+        .filter(
+            ClassMeeting.subject_id == subject_id,
+            ClassMeeting.day_of_week == backend_day,
+            ClassMeeting.start_time == st,
+            ClassMeeting.end_time == et,
+        )
+        .first()
+    )
+    return existing is not None
+
+
+def _import_normalized_items(
+    db: Session,
+    user_id: str,
+    items: List[TimetableImportItem],
+    *,
+    create_missing_subjects: bool = True,
+    replace_existing: bool = False,
+) -> TimetableImportResponse:
+    created_subjects = 0
+    reused_subjects = 0
+    created_meetings = 0
+    skipped_items = 0
+    warnings: List[str] = []
+
+    if len(items) > 100:
+        raise HTTPException(status_code=400, detail="Too many timetable rows detected. Please review the import preview.")
+
+    if replace_existing:
+        subject_ids = [s.id for s in db.query(Subject).filter(Subject.user_id == user_id).all()]
+        if subject_ids:
+            db.query(ClassMeeting).filter(ClassMeeting.subject_id.in_(subject_ids)).delete(synchronize_session=False)
+
+    seen_subjects: set[str] = set()
+
+    for item in items:
+        subject, created = _find_or_create_subject(
+            db=db,
+            user_id=user_id,
+            subject_title=item.subject_title,
+            subject_code=item.subject_code,
+            create_missing=create_missing_subjects,
+        )
+
+        if not subject:
+            skipped_items += 1
+            warnings.append(f"Skipped '{item.subject_title}' because subject does not exist")
+            continue
+
+        subj_key = f"{getattr(subject, 'title', '')}|{getattr(subject, 'code', '')}"
+        seen_subjects.add(subj_key)
+
+        if created:
+            created_subjects += 1
+        else:
+            reused_subjects += 1
+
+        if _meeting_exists(
+            db=db,
+            subject_id=str(subject.id),
+            day_of_week_frontend=item.day_of_week,
+            start_time=item.start_time,
+            end_time=item.end_time,
+        ):
+            skipped_items += 1
+            warnings.append(
+                f"Duplicate skipped: {item.subject_title} day={item.day_of_week} {item.start_time}-{item.end_time}"
+            )
+            continue
+
+        meeting = ClassMeeting(
+            id=str(uuid.uuid4()),
+            subject_id=subject.id,
+            day_of_week=_frontend_day_to_backend(item.day_of_week),
+            start_time=_parse_time_obj(item.start_time),
+            end_time=_parse_time_obj(item.end_time),
+            rrule=item.rrule,
+        )
+        db.add(meeting)
+        created_meetings += 1
+
+    # If an image import somehow created an absurd number of distinct courses, roll back instead of polluting DB.
+    if len(seen_subjects) > 20:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Import looks incorrect: too many distinct courses were detected. Please review the preview before saving.",
+        )
+
+    db.commit()
+
+    return TimetableImportResponse(
+        created_subjects=created_subjects,
+        reused_subjects=reused_subjects,
+        created_meetings=created_meetings,
+        skipped_items=skipped_items,
+        warnings=warnings,
+    )
+
+
+# ---------------------------------------------------------------------
+# Extract / preview endpoints
+# ---------------------------------------------------------------------
+
+@router.post("/extract/csv-text", response_model=TimetableExtractResponse)
+def extract_timetable_from_csv_text(payload: TimetableCsvTextRequest):
+    return _read_csv_text(payload.csv or "")
+
+
+@router.post("/extract/image-base64", response_model=TimetableExtractResponse)
+def extract_timetable_from_base64_image(payload: TimetableExtractBase64In):
+    try:
+        raw = base64.b64decode(payload.image_base64)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid base64 payload")
+    return _read_image_bytes(raw)
+
+
+@router.post("/extract/file", response_model=TimetableExtractResponse)
+async def extract_timetable_from_file(file: UploadFile = File(...)):
+    filename = (file.filename or "").lower()
+    content_type = file.content_type or ""
+    raw_bytes = await file.read()
+
+    if content_type.startswith("image/") or filename.endswith((".png", ".jpg", ".jpeg", ".webp")):
+        return _read_image_bytes(raw_bytes)
+
+    if filename.endswith(".csv") or content_type in ("text/csv", "application/csv", "application/vnd.ms-excel"):
+        try:
+            raw = raw_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            raw = raw_bytes.decode("utf-8-sig", errors="replace")
+        return _read_csv_text(raw)
+
+    if filename.endswith((".xlsx", ".xlsm", ".xls")):
+        return _read_excel_bytes(raw_bytes)
+
+    raise HTTPException(status_code=400, detail="Unsupported file type")
+
+
+@router.post("/import/preview", response_model=TimetableImportPreviewResponse)
+async def import_timetable_preview(file: UploadFile = File(...)):
+    extracted = await extract_timetable_from_file(file)
+    normalized, errors = _normalize_extract_items(extracted.items)
+    warnings: List[str] = []
+
+    if extracted.parser and extracted.parser.startswith("ocr"):
+        warnings.append("Image import may need review before saving.")
+    if not normalized:
+        warnings.append("No timetable rows could be extracted.")
+
+    # Soft guard against bad OCR imports.
+    distinct_titles = sorted({i.subject_title.lower() for i in normalized})
+    if len(distinct_titles) > 15:
+        warnings.append("A large number of distinct subjects were detected. This often means OCR noise. Please review carefully.")
+
+    return TimetableImportPreviewResponse(items=normalized, warnings=warnings, errors=errors)
+
+
+@router.post("/import/preview/csv-upload", response_model=TimetableImportPreviewResponse)
+async def import_timetable_preview_csv(file: UploadFile = File(...)):
+    filename = (file.filename or "").lower()
+    if not filename.endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Expected a .csv file")
+    extracted = await extract_timetable_from_file(file)
+    normalized, errors = _normalize_extract_items(extracted.items)
+    return TimetableImportPreviewResponse(items=normalized, warnings=[], errors=errors)
+
+
+@router.post("/import/preview/excel-upload", response_model=TimetableImportPreviewResponse)
+async def import_timetable_preview_excel(file: UploadFile = File(...)):
+    filename = (file.filename or "").lower()
+    if not filename.endswith((".xlsx", ".xlsm", ".xls")):
+        raise HTTPException(status_code=400, detail="Expected an Excel file")
+    extracted = await extract_timetable_from_file(file)
+    normalized, errors = _normalize_extract_items(extracted.items)
+    return TimetableImportPreviewResponse(items=normalized, warnings=[], errors=errors)
+
+
+@router.post("/import/preview/image-upload", response_model=TimetableImportPreviewResponse)
+async def import_timetable_preview_image(file: UploadFile = File(...)):
+    filename = (file.filename or "").lower()
+    if not filename.endswith((".png", ".jpg", ".jpeg", ".webp")):
+        raise HTTPException(status_code=400, detail="Expected an image file")
+    extracted = await extract_timetable_from_file(file)
+    normalized, errors = _normalize_extract_items(extracted.items)
+    warnings = ["Image import may need review before saving."]
+    distinct_titles = sorted({i.subject_title.lower() for i in normalized})
+    if len(distinct_titles) > 15:
+        warnings.append("A large number of distinct subjects were detected. This often means OCR noise. Please review carefully.")
+    return TimetableImportPreviewResponse(items=normalized, warnings=warnings, errors=errors)
+
+
+# ---------------------------------------------------------------------
+# Save / import endpoints
+# ---------------------------------------------------------------------
+
+@router.post("/import-items", response_model=TimetableImportResponse)
+async def import_timetable_items(
+    payload: TimetableImportRequest,
+    db: Session = Depends(get_db),
+    x_user_id: str = Header(..., alias="X-User-Id"),
+):
+    _guard_user(payload.user_id, x_user_id, db)
+
+    normalized, errors = _normalize_extract_items(payload.items)
+    result = _import_normalized_items(
+        db=db,
+        user_id=payload.user_id,
+        items=normalized,
+        create_missing_subjects=payload.create_missing_subjects,
+        replace_existing=payload.replace_existing,
+    )
+    result.warnings.extend(errors)
+    return result
+
+
+@router.post("/import-and-generate", response_model=dict)
+async def import_and_generate(
+    payload: TimetableImportAndGenerateRequest,
+    db: Session = Depends(get_db),
+    x_user_id: str = Header(..., alias="X-User-Id"),
+):
+    _guard_user(payload.user_id, x_user_id, db)
+
+    normalized, errors = _normalize_extract_items(payload.items)
+    import_result = _import_normalized_items(
+        db=db,
+        user_id=payload.user_id,
+        items=normalized,
+        create_missing_subjects=payload.create_missing_subjects,
+        replace_existing=payload.replace_existing,
+    )
+    import_result.warnings.extend(errors)
+
+    try:
+        from app.routers.auto_generate import auto_generate, AutoGenerateRequest  # type: ignore
+    except Exception as exc:
+        return {
+            "import_result": import_result.model_dump(),
+            "generate_result": None,
+            "warning": f"Import succeeded, but auto-generate import path must be fixed: {exc}",
+        }
+
+    generate_payload = AutoGenerateRequest(
+        user_id=payload.user_id,
+        window=payload.window or {
+            "weekdayStart": "08:00",
+            "weekdayEnd": "19:00",
+            "includeWeekends": False,
+            "weekendSameAsWeekday": True,
+            "weekendStart": None,
+            "weekendEnd": None,
+        },
+        busy_blocks=payload.busy_blocks,
+        treat_class_schedule_as_busy=payload.treat_class_schedule_as_busy,
+        use_stored_busy_blocks=payload.use_stored_busy_blocks,
+        seed=payload.seed,
+        shuffle=payload.shuffle,
+        breakMinutes=payload.breakMinutes,
+    )
+    generate_result = auto_generate(generate_payload, session=db, x_user_id=x_user_id)
+
+    return {
+        "import_result": import_result.model_dump(),
+        "generate_result": generate_result,
+    }

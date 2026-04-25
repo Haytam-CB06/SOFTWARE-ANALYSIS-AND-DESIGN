@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { lazy, Suspense, useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Toaster, toast } from './components/ui/sonner';
 import Navigation from './components/Navigation';
 import EnhancedDashboardLayout from './components/EnhancedDashboardLayout';
@@ -9,57 +10,38 @@ import { useTimetables } from './src/hooks/useTimetables';
 import { useDarkMode } from './src/hooks/useDarkMode';
 import { PageType, SettingsSection, TimetableData } from './src/types';
 import UnsavedTimetableDialog from './components/UnsavedTimetableDialog';
-import PomodoroWidget from "./components/PomodoroWidget";
 import { PomodoroProvider } from './contexts/PomodoroContext';
 import { TourProvider } from './contexts/TourContext';
 import TourOverlay, { TOUR_STEPS } from './components/tour/TourOverlay';
 import WelcomeOverlay from './components/tour/WelcomeOverlay';
+import SubscriptionPrompt, { SubscriptionPlan } from './components/SubscriptionPrompt';
+import PostSignupQuestionnaire from './components/PostSignupQuestionnaire';
 import welcomeImg from './assets/welcome.jpg';
+import logoImage from 'figma:asset/0550e77f773f70cb0e6201f9400b3cccad8c1d9b.png';
 import { registerServiceWorker, handleInstallPrompt } from './utils/registerServiceWorker';
 import { GoogleSuccess } from './src/pages/GoogleSuccess';
 import { apiJsonAuthed } from './lib/api';
 import { setupFormDraftPersistence } from './utils/persistFormDrafts';
 import { getUserItem, setUserItem } from './utils/userStorage';
+import GlobalTextLocalizer from './components/GlobalTextLocalizer';
 
+const PomodoroWidget = lazy(() => import('./components/PomodoroWidget'));
+const SUBSCRIPTION_PROMPT_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
-async function warmBackend(retries = 8) {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const res = await fetch(`${API_BASE_URL}/health`, { cache: "no-store" });
-      const ct = res.headers.get("content-type") || "";
-      if (ct.includes("application/json")) return true;
-    } catch {}
-    await new Promise((r) => setTimeout(r, 1500));
-  }
-  return false;
-}
 export default function App() {
+  const { t } = useTranslation();
   
   const { isAuthenticated, authReady, user, login, logout, updateUserName } = useAuth();
-  const [backendReady, setBackendReady] = useState(false);
   const onboardingTotalSteps = TOUR_STEPS.length + 1; // +1 for Welcome screen
   // Register service worker for PWA support
   
   useEffect(() => {
-    if (import.meta.env.DEV) {
+    if (!import.meta.env.DEV) {
       registerServiceWorker();
       handleInstallPrompt();
     }
   }, []);
   
-  // ============Remove this effect in checkpoint-01, it's just to wake the backend during development so we don't have to wait on cold starts.===========
-  
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const ok = await warmBackend();
-      if (!cancelled) setBackendReady(ok);
-    })();
-    return () => { cancelled = true; };
-  }, []);
-  // ========================================================================================================================================
   // Custom hooks for state management
 
   // Handle Google OAuth redirect back from backend (/callback -> FRONTEND_ORIGIN)
@@ -79,7 +61,7 @@ export default function App() {
 
       // Clean up URL (remove query params)
       window.history.replaceState({}, document.title, window.location.pathname);
-      toast.success('Signed in with Google');
+      toast.success(t('app.toasts.signedInWithGoogle', 'Signed in with Google'));
     }
   }, [login]);
   const {
@@ -127,6 +109,45 @@ useEffect(() => {
 
   checkGlobalAdmin();
 }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (!authReady || !isAuthenticated) return;
+
+    const userId = localStorage.getItem('currentUserId');
+    if (!userId) return;
+
+    let stopped = false;
+    let lastTouch = 0;
+
+    const touchPresence = async () => {
+      const now = Date.now();
+      if (now - lastTouch < 15000) return;
+      lastTouch = now;
+      try {
+        await apiJsonAuthed(`/user/${encodeURIComponent(userId)}/presence`, 'POST');
+      } catch (error) {
+        if (!stopped) {
+          console.warn('[App] presence update failed:', error);
+        }
+      }
+    };
+
+    touchPresence();
+    const interval = window.setInterval(touchPresence, 45000);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') touchPresence();
+    };
+    window.addEventListener('focus', touchPresence);
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      stopped = true;
+      window.clearInterval(interval);
+      window.removeEventListener('focus', touchPresence);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [authReady, isAuthenticated]);
+
   // --- Handle share-link deep link: /?page=workspace&join_token=... ---
   useEffect(() => {
       const params = new URLSearchParams(window.location.search);
@@ -189,6 +210,7 @@ useEffect(() => {
 
   // Local UI state
   const [currentPage, setCurrentPage] = useState<PageType>(getInitialPage);
+  const navigationHistoryRef = useRef<PageType[]>([]);
   const [deepLinkStartSessionId, setDeepLinkStartSessionId] = useState<string | null>(null);
   const [currentTimetableData, setCurrentTimetableData] = useState<TimetableData | null>(null);
   const [showTimetableResults, setShowTimetableResults] = useState(false);
@@ -216,6 +238,8 @@ useEffect(() => {
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean>(true);
   const [autoStartTour, setAutoStartTour] = useState<boolean>(false);
   const [showWelcome, setShowWelcome] = useState<boolean>(false);
+  const [showSubscriptionPrompt, setShowSubscriptionPrompt] = useState(false);
+  const [showProfileQuestionnaire, setShowProfileQuestionnaire] = useState(false);
   // Client-side first-run welcome. This is shown for guest users and also acts as a
   // safety-net if backend onboarding flags aren't available yet.
   const [clientWelcomeOpen, setClientWelcomeOpen] = useState<boolean>(() => {
@@ -280,12 +304,16 @@ useEffect(() => {
     return cleanup;
   }, []);
 
-  const setPage = (page: PageType) => {
+  const setPage = (page: PageType, mode: 'push' | 'replace' = 'push') => {
     setCurrentPage(page);
     try {
       const url = new URL(window.location.href);
       url.searchParams.set('page', page);
-      window.history.replaceState({}, document.title, url.toString());
+      if (mode === 'replace') {
+        window.history.replaceState({}, document.title, url.toString());
+      } else {
+        window.history.pushState({}, document.title, url.toString());
+      }
     } catch {
       // ignore
     }
@@ -293,6 +321,56 @@ useEffect(() => {
     if (isAuthenticated) {
       localStorage.setItem('lastAuthedPage', page);
     }
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const page = (params.get('page') as PageType | null) || (isAuthenticated ? 'dashboard' : 'home');
+        currentPageRef.current = page;
+        setCurrentPage(page);
+        setShowTimetableResults(false);
+        setHasUnsavedTimetable(false);
+        localStorage.setItem('lastPage', page);
+        if (isAuthenticated) {
+          localStorage.setItem('lastAuthedPage', page);
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch {
+        // ignore
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [isAuthenticated]);
+
+  const rememberCurrentPageForBack = (nextPage: PageType) => {
+    const current = currentPageRef.current as PageType;
+    if (!current || current === nextPage) return;
+
+    const history = navigationHistoryRef.current;
+    if (history[history.length - 1] !== current) {
+      navigationHistoryRef.current = [...history, current].slice(-30);
+    }
+  };
+
+  const handleBackNavigation = () => {
+    if (showTimetableResults) {
+      setShowTimetableResults(false);
+      setHasUnsavedTimetable(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    let previous = navigationHistoryRef.current.pop();
+    while (previous && previous === currentPageRef.current) {
+      previous = navigationHistoryRef.current.pop();
+    }
+
+    setPage(previous || (isAuthenticated ? 'dashboard' : 'home'), 'replace');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Deep-link scaffolding:
@@ -318,11 +396,11 @@ useEffect(() => {
       const urlPage = params.get('page') as PageType | null;
       const lastAuthed = (localStorage.getItem('lastAuthedPage') as PageType | null) || 'dashboard';
       const safe = urlPage || (currentPage === 'home' || currentPage === 'auth' || currentPage === 'terms' || currentPage === 'privacy' ? lastAuthed : currentPage);
-      if (safe !== currentPage) setPage(safe);
+      if (safe !== currentPage) setPage(safe, 'replace');
     } else {
       // If unauth but URL says dashboard page, bounce to home.
       if (currentPage !== 'home' && currentPage !== 'auth' && currentPage !== 'terms' && currentPage !== 'privacy') {
-        setPage('home');
+        setPage('home', 'replace');
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -384,6 +462,95 @@ useEffect(() => {
 
   const shouldShowWelcome = clientWelcomeOpen && (!isAuthenticated || (!onboardingCompleted && onboardingChecked && showWelcome));
 
+  const clearProfileQuestionnaireQuery = () => {
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('showProfileQuestionnaire')) {
+        url.searchParams.delete('showProfileQuestionnaire');
+        window.history.replaceState({}, document.title, url.toString());
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    if (!authReady || !isAuthenticated) {
+      setShowProfileQuestionnaire(false);
+      return;
+    }
+
+    const userId = localStorage.getItem('currentUserId');
+    if (!userId) {
+      setShowProfileQuestionnaire(false);
+      return;
+    }
+
+    setShowProfileQuestionnaire(
+      localStorage.getItem(`uplan_profile_questionnaire_pending_${userId}`) === 'true'
+    );
+  }, [authReady, isAuthenticated]);
+
+  useEffect(() => {
+    if (!authReady || !isAuthenticated) return;
+
+    try {
+      const url = new URL(window.location.href);
+      const shouldForceOpen = url.searchParams.get('showProfileQuestionnaire');
+      if (shouldForceOpen === '1' || shouldForceOpen === 'true') {
+        setShowProfileQuestionnaire(true);
+      }
+    } catch {
+      // ignore
+    }
+  }, [authReady, isAuthenticated, currentPage]);
+
+  useEffect(() => {
+    if (!authReady || !isAuthenticated) {
+      setShowSubscriptionPrompt(false);
+      return;
+    }
+
+    const currentPlan = getUserItem('subscriptionPlan');
+    if (currentPlan === 'pro' || currentPlan === 'university') {
+      setShowSubscriptionPrompt(false);
+      return;
+    }
+
+    const lastSeen = Number(getUserItem('subscriptionPromptLastSeen') || '0');
+    const shouldShow = !lastSeen || Date.now() - lastSeen >= SUBSCRIPTION_PROMPT_INTERVAL_MS;
+    setShowSubscriptionPrompt(shouldShow);
+  }, [authReady, isAuthenticated]);
+
+  const closeSubscriptionPrompt = () => {
+    setUserItem('subscriptionPromptLastSeen', String(Date.now()));
+    setShowSubscriptionPrompt(false);
+  };
+
+  const handleSelectSubscriptionPlan = (plan: SubscriptionPlan) => {
+    setUserItem('subscriptionPromptLastSeen', String(Date.now()));
+
+    if (plan === 'free') {
+      setUserItem('subscriptionPlan', 'free');
+      setShowSubscriptionPrompt(false);
+      toast.success(t('app.toasts.freePlanSelected', 'Free plan selected'));
+      return;
+    }
+
+    const checkoutUrl =
+      plan === 'pro'
+        ? import.meta.env.VITE_STRIPE_CHECKOUT_URL
+        : import.meta.env.VITE_UNIVERSITY_PLAN_CONTACT_URL || import.meta.env.VITE_STRIPE_CHECKOUT_URL;
+
+    if (checkoutUrl) {
+      window.location.href = checkoutUrl;
+      return;
+    }
+
+    setShowSubscriptionPrompt(false);
+    toast.error(t('app.toasts.paymentLinkMissing', 'Payment link is not configured yet. Add it in frontend/UPLAN/.env.'));
+  };
+
   // If the Welcome is visible, ensure the walkthrough doesn't start underneath it.
   useEffect(() => {
     if (shouldShowWelcome) setAutoStartTour(false);
@@ -434,12 +601,14 @@ useEffect(() => {
 
     // Guard: admin page is global-admin only
     if (page === 'admin' && !isGlobalAdmin) {
-      toast.error('You do not have access to Admin.');
+      toast.error(t('app.toasts.noAdminAccess', 'You do not have access to Admin.'));
       return;
     }
 
     // Normal navigation
-    setPage(page as PageType);
+    const nextPage = page as PageType;
+    rememberCurrentPageForBack(nextPage);
+    setPage(nextPage);
     setShowTimetableResults(false);
     if (page === 'settings' && settingsTab) {
       setSettingsSection(settingsTab);
@@ -448,8 +617,8 @@ useEffect(() => {
   };
 
   // Authentication handlers
-  const handleLogin = (name: string, email: string) => {
-    login(name, email);
+  const handleLogin = (name: string, email: string, remember = true) => {
+    login(name, email, remember);
     // New users will be routed to Welcome after profile fetch.
     setPage('dashboard');
   };
@@ -471,7 +640,7 @@ useEffect(() => {
   const handleSaveTimetable = (timetable: any) => {
     saveTimetable(timetable);
     setShowTimetableResults(false);
-    setCurrentPage('view-timetables');
+    setPage('view-timetables');
     setHasUnsavedTimetable(false);
   };
 
@@ -486,7 +655,9 @@ useEffect(() => {
     setHasUnsavedTimetable(false);
     setShowUnsavedDialog(false);
     if (pendingNavigationPage) {
-      setCurrentPage(pendingNavigationPage as PageType);
+      const nextPage = pendingNavigationPage as PageType;
+      rememberCurrentPageForBack(nextPage);
+      setPage(nextPage);
       setShowTimetableResults(false);
       setPendingNavigationPage(null);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -498,11 +669,32 @@ useEffect(() => {
     setPendingNavigationPage(null);
   };
 
+  if (!authReady) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-white dark:bg-neutral-950">
+        <div className="flex flex-col items-center gap-6 px-6 text-center">
+          <img
+            src={logoImage}
+            alt={t('auth.brand.logoAlt')}
+            className="h-28 w-28 object-contain sm:h-36 sm:w-36"
+          />
+          <div className="space-y-1">
+            <p className="text-base font-semibold text-neutral-950 dark:text-neutral-50">U PLAN</p>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">
+              {t('common.loading', 'Loading...')}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   
   if (isAuthenticated ) {
     return (
       <TourProvider>
         <PomodoroProvider>
+          <GlobalTextLocalizer />
           <EnhancedDashboardLayout
             currentPage={currentPage}
             onNavigate={handleNavigate}
@@ -511,6 +703,8 @@ useEffect(() => {
             userEmail={user?.email || ''}
             onShowPomodoroWidget={() => setShowPomodoroWidget(true)}
             isGlobalAdmin={isGlobalAdmin}
+            darkMode={darkMode}
+            onToggleDarkMode={toggleDarkMode}
           >
             <DashboardPages
               currentPage={currentPage}
@@ -521,6 +715,7 @@ useEffect(() => {
               darkMode={darkMode}
               settingsSection={settingsSection}
               onNavigate={handleNavigate}
+              onBack={handleBackNavigation}
               onGenerateTimetable={handleGenerateTimetable}
               onSaveTimetable={handleSaveTimetable}
               onDeleteTimetable={deleteTimetable}
@@ -566,20 +761,50 @@ useEffect(() => {
             onDiscard={handleDiscardTimetable}
             onStay={handleStayOnPage}
           />
-          <PomodoroWidget
-            show={showPomodoroWidget}
-            onClose={() => setShowPomodoroWidget(false)}
-          />
+          {showPomodoroWidget && (
+            <Suspense fallback={null}>
+              <PomodoroWidget
+                show={showPomodoroWidget}
+                onClose={() => setShowPomodoroWidget(false)}
+              />
+            </Suspense>
+          )}
 
           {/* First-time welcome (blurred background + image) */}
+          <PostSignupQuestionnaire
+            open={showProfileQuestionnaire && onboardingCompleted}
+            currentUserName={user?.name}
+            onComplete={(updatedName) => {
+              const userId = localStorage.getItem('currentUserId');
+              if (userId) {
+                localStorage.removeItem(`uplan_profile_questionnaire_pending_${userId}`);
+              }
+              if (updatedName) {
+                updateUserName(updatedName);
+              }
+              clearProfileQuestionnaireQuery();
+              setShowProfileQuestionnaire(false);
+            }}
+            onSkip={() => {
+              const userId = localStorage.getItem('currentUserId');
+              if (userId) {
+                localStorage.removeItem(`uplan_profile_questionnaire_pending_${userId}`);
+              }
+              clearProfileQuestionnaireQuery();
+              setShowProfileQuestionnaire(false);
+            }}
+          />
           <WelcomeOverlay
-            open={shouldShowWelcome}
+            open={!showProfileQuestionnaire && shouldShowWelcome}
             imageSrc={welcomeImg}
             currentStep={1}
             totalSteps={onboardingTotalSteps}
-            title="Welcome to U PLAN 🎉"
+            title={t('app.welcome.title', 'Welcome to U PLAN')}
             body={
-              "Ready to turn school stress into a clear plan?\n\nIn the next 60 seconds, we’ll show you where to:\n• update your profile\n• generate a clean timetable\n• track today’s sessions\n\nTap Next to start the walkthrough."
+              t(
+                'app.welcome.body',
+                "Ready to turn school stress into a clear plan?\n\nIn the next 60 seconds, we'll show you where to:\n- update your profile\n- generate a clean timetable\n- track today's sessions\n\nTap Next to start the walkthrough.",
+              )
             }
             onNext={() => {
               markWelcomeSeen();
@@ -595,8 +820,13 @@ useEffect(() => {
           {/* checkpoint-02: demo tour scaffold only (not wired to page navigation/DOM targets yet) */}
           <TourOverlay
             onNavigate={handleNavigate}
-            autoStart={autoStartTour}
+            autoStart={!showProfileQuestionnaire && autoStartTour}
             onFinishOnboarding={completeOnboarding}
+          />
+          <SubscriptionPrompt
+            open={showSubscriptionPrompt && !shouldShowWelcome && !showProfileQuestionnaire}
+            onClose={closeSubscriptionPrompt}
+            onSelectPlan={handleSelectSubscriptionPlan}
           />
         </PomodoroProvider>
       </TourProvider>
@@ -607,12 +837,14 @@ useEffect(() => {
   return (
     <TourProvider>
       <div className="min-h-screen bg-background">
+        <GlobalTextLocalizer />
         {currentPage !== 'auth' && (
           <Navigation currentPage={currentPage} onNavigate={handleNavigate} />
         )}
         <PublicPages
           currentPage={currentPage}
           onNavigate={handleNavigate}
+          onBack={handleBackNavigation}
           onLogin={handleLogin}
         />
         <Toaster
@@ -636,9 +868,12 @@ useEffect(() => {
           imageSrc={welcomeImg}
           currentStep={1}
           totalSteps={onboardingTotalSteps}
-          title="Welcome to U PLAN 🎉"
+          title={t('app.welcome.title', 'Welcome to U PLAN')}
           body={
-            "Ready to turn school stress into a clear plan?\n\nIn the next 60 seconds, we’ll show you where to:\n• update your profile\n• generate a clean timetable\n• track today’s sessions\n\nTap Next to start the walkthrough."
+            t(
+              'app.welcome.body',
+              "Ready to turn school stress into a clear plan?\n\nIn the next 60 seconds, we'll show you where to:\n- update your profile\n- generate a clean timetable\n- track today's sessions\n\nTap Next to start the walkthrough.",
+            )
           }
           onNext={() => {
             markWelcomeSeen();

@@ -116,6 +116,8 @@ class WorkspaceMemberResponse(BaseModel):
     email: Optional[str] = None
     role: str
     joined_at: datetime
+    last_seen_at: Optional[datetime] = None
+    is_online: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -189,6 +191,7 @@ class TaskCreate(BaseModel):
     status: TaskStatus = "todo"
     priority: TaskPriority = "medium"
     assigneeId: Optional[UUID] = None
+    dueDate: Optional[datetime] = None
     labels: Optional[List[str]] = []
 
 class TaskUpdate(BaseModel):
@@ -196,6 +199,7 @@ class TaskUpdate(BaseModel):
     description: Optional[str] = None
     priority: Optional[TaskPriority] = None
     assigneeId: Optional[UUID] = None
+    dueDate: Optional[datetime] = None
 
 class TaskMove(BaseModel):
     status: TaskStatus
@@ -220,6 +224,7 @@ class TaskOut(BaseModel):
     priority: TaskPriority
     assignee: Optional[dict] = None
     createdBy: Optional[UUID] = None
+    dueDate: Optional[datetime] = None
     createdAt: datetime
     updatedAt: datetime
     comments: List[CommentOut] = Field(default_factory=list)

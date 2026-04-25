@@ -185,7 +185,7 @@ export default function JoinWorkspaceDialog({
 
         {!loading && !linkError && !submitted && workspaceInfo && (
           <div className="space-y-4">
-            <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+            <div className="rounded-2xl border border-gray-700 bg-gray-800 p-4">
               <h3 className="font-medium text-white mb-1">{workspaceInfo.name}</h3>
               {workspaceInfo.description && (
                 <p className="text-sm text-gray-400">{workspaceInfo.description}</p>
@@ -193,7 +193,7 @@ export default function JoinWorkspaceDialog({
             </div>
 
             {!currentUserId && (
-              <div className="bg-yellow-900/30 border border-yellow-700 rounded-lg p-3 text-sm text-yellow-300">
+              <div className="rounded-2xl border border-yellow-700 bg-yellow-900/30 p-3 text-sm text-yellow-300">
                 {t('joinWorkspace.loginWarning')}
               </div>
             )}

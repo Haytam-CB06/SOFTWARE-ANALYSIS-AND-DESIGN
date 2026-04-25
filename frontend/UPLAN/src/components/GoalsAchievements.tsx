@@ -28,6 +28,7 @@ import { getUserWeekKey } from '../utils/userStorage';
 
 interface GoalsAchievementsProps {
   onNavigate?: (page: string) => void;
+  onBack?: () => void;
 }
 
 interface BackendAssessment {
@@ -73,7 +74,7 @@ const ACHIEVEMENT_ICON: Record<string, any> = {
   hours_10_week: Clock,
 };
 
-export default function GoalsAchievements({ onNavigate }: GoalsAchievementsProps) {
+export default function GoalsAchievements({ onNavigate, onBack }: GoalsAchievementsProps) {
   const { t } = useTranslation();
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -727,8 +728,11 @@ export default function GoalsAchievements({ onNavigate }: GoalsAchievementsProps
 
             <Button
               variant="ghost"
-              className="w-full rounded-lg border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300 dark:hover:bg-neutral-900 dark:hover:text-neutral-100 md:w-auto"
-              onClick={() => onNavigate?.('dashboard')}
+              className="w-full rounded-2xl border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300 dark:hover:bg-neutral-900 dark:hover:text-neutral-100 md:w-auto"
+              onClick={() => {
+                if (onBack) onBack();
+                else onNavigate?.('dashboard');
+              }}
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
               {t('goals.actions.back')}
@@ -737,7 +741,7 @@ export default function GoalsAchievements({ onNavigate }: GoalsAchievementsProps
         </div>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <Card data-tour="goals this week" className="rounded-2xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
+          <Card data-tour="goals-this-week" className="rounded-2xl border border-neutral-200 bg-white shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-neutral-900 dark:text-neutral-100">
                 <Calendar className="h-5 w-5 text-blue-700" />
@@ -773,17 +777,17 @@ export default function GoalsAchievements({ onNavigate }: GoalsAchievementsProps
             </CardHeader>
             <CardContent className="space-y-3 p-4 md:p-6">
               {loading ? (
-                <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                <div className="rounded-2xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
                   {t('common.loading')}
                 </div>
               ) : upcomingDeadlines.length === 0 ? (
-                <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                <div className="rounded-2xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
                   {t('goals.deadlines.empty')}
                 </div>
               ) : (
                 <div className="space-y-2">
                   {upcomingDeadlines.map((d) => (
-                    <div key={d.id} className="rounded-lg border bg-white p-3 shadow-sm">
+                    <div key={d.id} className="rounded-2xl border bg-white p-3 shadow-sm">
                       <div className="font-medium break-words [overflow-wrap:anywhere]">{d.title}</div>
                       <div className="text-xs text-muted-foreground">
                         {d.subject} • {t('goals.deadlines.due', { date: new Date(d.dueDate).toLocaleString() })}
@@ -848,7 +852,7 @@ export default function GoalsAchievements({ onNavigate }: GoalsAchievementsProps
               {summary?.achievements?.length ? (
                 <div className="space-y-2">
                   {summary.achievements.slice(0, 2).map((a) => (
-                    <div key={a.key} className="rounded-lg border bg-white p-3">
+                    <div key={a.key} className="rounded-2xl border bg-white p-3">
                       <div className="flex items-center gap-2">
                         {(() => {
                           const Icon = ACHIEVEMENT_ICON[a.key] || CheckCircle2;
@@ -861,7 +865,7 @@ export default function GoalsAchievements({ onNavigate }: GoalsAchievementsProps
                   ))}
                 </div>
               ) : (
-                <div className="rounded-lg border border-dashed px-4 py-3 text-xs text-muted-foreground">
+                <div className="rounded-2xl border border-dashed px-4 py-3 text-xs text-muted-foreground">
                   {t('goals.progress.tip')}
                 </div>
               )}
@@ -937,7 +941,7 @@ export default function GoalsAchievements({ onNavigate }: GoalsAchievementsProps
                         <div className="text-sm font-medium">{t('goals.goalDialog.currentGoals')}</div>
                         <div className="space-y-2">
                           {summary.goals.map((g) => (
-                            <div key={g.id} className="rounded-lg border bg-white p-3 shadow-sm">
+                            <div key={g.id} className="rounded-2xl border bg-white p-3 shadow-sm">
                               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                 <div className="font-medium text-sm">
                                   {g.subject_title || t('goals.goalDialog.overall')}
@@ -981,7 +985,7 @@ export default function GoalsAchievements({ onNavigate }: GoalsAchievementsProps
                         {t('goals.logDialog.hint')}
                       </p>
                       {timetableHint ? (
-                        <p className="rounded-md border border-blue-200 bg-blue-50 p-2 text-xs text-blue-700">
+                        <p className="rounded-2xl border border-blue-200 bg-blue-50 p-2 text-xs text-blue-700">
                           {timetableHint}
                         </p>
                       ) : null}
@@ -1042,7 +1046,7 @@ export default function GoalsAchievements({ onNavigate }: GoalsAchievementsProps
           <CardHeader>
             <div className="flex items-center justify-between gap-3">
               <CardTitle className="flex items-center gap-2 text-neutral-900 dark:text-neutral-100">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-200 bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-900">
+                <div className="flex h-9 w-9 items-center justify-center rounded-2xl border border-neutral-200 bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-900">
                   <Calendar className="h-4 w-4 text-neutral-700 dark:text-neutral-300" />
                 </div>
               </CardTitle>
@@ -1078,15 +1082,15 @@ export default function GoalsAchievements({ onNavigate }: GoalsAchievementsProps
             </div>
 
             {!todayExpanded ? (
-              <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+              <div className="rounded-2xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
                 {t('goals.todayPanel.hidden')}
               </div>
             ) : weekSessionsLoading ? (
-              <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+              <div className="rounded-2xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
                 {t('common.loading')}
               </div>
             ) : todaySessions.length === 0 ? (
-              <div className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+              <div className="rounded-2xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
                 {t('goals.todayPanel.empty')}
               </div>
             ) : (
@@ -1127,7 +1131,7 @@ export default function GoalsAchievements({ onNavigate }: GoalsAchievementsProps
                             <Button
                               size="sm"
                               variant="outline"
-                              className="rounded-lg border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300 dark:hover:bg-neutral-900"
+                              className="rounded-2xl border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300 dark:hover:bg-neutral-900"
                               onClick={() => patchSessionStatus(String(s.id), 'completed')}
                             >
                               {t('goals.actions.markCompleted')}
@@ -1138,7 +1142,7 @@ export default function GoalsAchievements({ onNavigate }: GoalsAchievementsProps
                             <Button
                               size="sm"
                               variant="outline"
-                              className="rounded-lg border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300 dark:hover:bg-neutral-900"
+                              className="rounded-2xl border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300 dark:hover:bg-neutral-900"
                               onClick={() => patchSessionStatus(String(s.id), 'skipped')}
                             >
                               {t('goals.actions.skip')}

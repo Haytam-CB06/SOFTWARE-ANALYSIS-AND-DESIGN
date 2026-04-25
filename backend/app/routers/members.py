@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 from typing import Optional, Union
 
@@ -13,6 +14,15 @@ from app.schemas import AddMemberRequest, WorkspaceMemberResponse
 
 
 router = APIRouter(prefix="/workspaces", tags=["members"])
+ONLINE_WINDOW = timedelta(minutes=2)
+
+
+def _presence_from(last_seen: datetime | None) -> tuple[datetime | None, bool]:
+    if not last_seen:
+        return None, False
+    if last_seen.tzinfo is None:
+        last_seen = last_seen.replace(tzinfo=timezone.utc)
+    return last_seen, datetime.now(timezone.utc) - last_seen <= ONLINE_WINDOW
 
 
 def _require_requester_membership(
@@ -90,6 +100,21 @@ def add_member(
     if existing:
         raise HTTPException(status_code=400, detail="User already a member of this workspace")
 
+    if workspace.parent_id:
+        parent_membership = (
+            db.query(WorkspaceMember)
+            .filter(
+                WorkspaceMember.workspace_id == workspace.parent_id,
+                WorkspaceMember.user_id == invited_user.id,
+            )
+            .first()
+        )
+        if not parent_membership:
+            raise HTTPException(
+                status_code=400,
+                detail="User must be a member of the parent workspace before joining this subworkspace",
+            )
+
     role = (payload.role or "member").lower().strip()
     if role not in {"admin", "member"}:
         role = "member"
@@ -104,6 +129,28 @@ def add_member(
     db.refresh(new_member)
 
     return new_member
+
+
+@router.post("/{workspace_id}/presence")
+def touch_workspace_presence(
+    workspace_id: int,
+    x_user_id: str = Header(..., alias="X-User-Id"),
+    db: Session = Depends(get_db),
+):
+    requester_user_id = _parse_user_id(x_user_id)
+    member = _require_requester_membership(db, workspace_id, requester_user_id)
+    now = datetime.now(timezone.utc)
+    member.last_seen_at = now
+    user = db.query(User).filter(User.id == requester_user_id).first()
+    if user:
+        user.last_seen_at = now
+    db.commit()
+    return {
+        "workspace_id": workspace_id,
+        "user_id": str(requester_user_id),
+        "last_seen_at": member.last_seen_at.isoformat(),
+        "is_online": True,
+    }
 
 
 @router.get("/{workspace_id}/members", response_model=list[WorkspaceMemberResponse])
@@ -129,15 +176,24 @@ def get_workspace_members(
 
     members = db.query(WorkspaceMember).filter(WorkspaceMember.workspace_id == workspace_id).all()
 
+    users_by_id = {
+        u.id: u
+        for u in db.query(User)
+        .filter(User.id.in_([m.user_id for m in members if m.user_id]))
+        .all()
+    } if members else {}
+
     # Enrich with username/email for frontend display (non-persistent, safe)
     for m in members:
-        try:
-            u = db.query(User).filter(User.id == m.user_id).first()
-            if u:
-                setattr(m, "username", getattr(u, "full_name", None) or getattr(u, "username", None) or u.email)
-                setattr(m, "email", u.email)
-        except Exception:
-            pass
+        u = users_by_id.get(m.user_id)
+        if u:
+            setattr(m, "username", getattr(u, "full_name", None) or getattr(u, "username", None) or u.email)
+            setattr(m, "email", u.email)
+        last_seen_at, is_online = _presence_from(getattr(u, "last_seen_at", None) if u else None)
+        if last_seen_at is None:
+            last_seen_at, is_online = _presence_from(getattr(m, "last_seen_at", None))
+        setattr(m, "last_seen_at", last_seen_at)
+        setattr(m, "is_online", is_online)
 
     return members
 

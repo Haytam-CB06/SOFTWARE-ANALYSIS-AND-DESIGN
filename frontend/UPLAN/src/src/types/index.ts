@@ -65,6 +65,9 @@ export type PageType =
   | 'create-timetable' 
   | 'view-timetables' 
   | 'workspace'
+  | 'messages'
+  | 'admin'
+  | 'notebook'
   | 'settings'
   | 'notes';
 

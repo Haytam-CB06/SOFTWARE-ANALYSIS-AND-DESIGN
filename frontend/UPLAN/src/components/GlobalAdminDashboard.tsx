@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "./ui/table";
 import { toast } from "sonner@2.0.3";
+import { useInlineText } from "../i18n/inlineText";
 
 type AdminUser = {
   id: string;
@@ -37,6 +38,7 @@ function fmt(dt?: string | null) {
 }
 
 export default function GlobalAdminDashboard() {
+  const tt = useInlineText();
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
   const currentUserId = localStorage.getItem("currentUserId") || "";
 
@@ -80,7 +82,7 @@ export default function GlobalAdminDashboard() {
         const data = await usersRes.json();
         setUsers(Array.isArray(data?.users) ? data.users : []);
       } else {
-        toast.error("Failed to load users");
+        toast.error(tt("Failed to load users"));
       }
 
       if (activeRes.ok) {
@@ -88,7 +90,7 @@ export default function GlobalAdminDashboard() {
         setActiveCount(typeof data?.active_users === "number" ? data.active_users : null);
       }
     } catch (e) {
-      toast.error("Failed to load admin dashboard");
+      toast.error(tt("Failed to load admin dashboard"));
     } finally {
       setLoading(false);
     }
@@ -117,13 +119,13 @@ export default function GlobalAdminDashboard() {
       );
       if (!res.ok) {
         const msg = await res.text();
-        toast.error(msg || "Request failed");
+        toast.error(msg || tt("Request failed"));
         return;
       }
       setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, is_banned: shouldBan } : u)));
-      toast.success(shouldBan ? "User banned" : "User unbanned");
+      toast.success(shouldBan ? tt("User banned") : tt("User unbanned"));
     } catch {
-      toast.error("Request failed");
+      toast.error(tt("Request failed"));
     }
   };
 
@@ -132,14 +134,13 @@ export default function GlobalAdminDashboard() {
       <div className="max-w-4xl mx-auto p-6">
         <Card>
           <CardHeader>
-            <CardTitle>Global Admin</CardTitle>
+            <CardTitle>{tt('Global Admin')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-sm text-gray-600 space-y-2">
-              <p>You are not authorized to view this page.</p>
+              <p>{tt('You are not authorized to view this page.')}</p>
               <p className="text-xs">
-                Dev setup: add your account email to <code className="px-1 py-0.5 bg-gray-100 rounded">ADMIN_EMAILS</code> in the backend
-                env (.env) and restart the backend.
+                {tt('Dev setup: add your account email to')} <code className="px-1 py-0.5 bg-gray-100 rounded">ADMIN_EMAILS</code> {tt('in the backend env (.env) and restart the backend.')}
               </p>
             </div>
           </CardContent>
@@ -152,23 +153,23 @@ export default function GlobalAdminDashboard() {
     <div className="max-w-6xl mx-auto p-6 space-y-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Global Admin</CardTitle>
+          <CardTitle>{tt('Global Admin')}</CardTitle>
           <div className="flex items-center gap-2">
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search users..."
+              placeholder={tt('Search users...')}
               className="w-64"
             />
             <Button variant="outline" onClick={load} disabled={loading}>
-              Refresh
+              {tt('Refresh')}
             </Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
             <div>
-              Active users (last
+              {tt('Active users (last')}
               <Input
                 type="number"
                 min={1}
@@ -177,19 +178,19 @@ export default function GlobalAdminDashboard() {
                 onChange={(e) => setActiveDays(Math.max(1, Math.min(365, Number(e.target.value || 7))))}
                 className="inline-block w-20 mx-2"
               />
-              days): <span className="font-semibold">{activeCount ?? "—"}</span>
+              {tt('days):')} <span className="font-semibold">{activeCount ?? "—"}</span>
             </div>
-            <div className="text-xs">Total users loaded: {users.length}</div>
+            <div className="text-xs">{tt('Total users loaded:')} {users.length}</div>
           </div>
 
-          <div className="rounded-md border overflow-x-auto">
+          <div className="overflow-x-auto rounded-[24px] border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Last sign-in</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{tt('User')}</TableHead>
+                  <TableHead>{tt('Last sign-in')}</TableHead>
+                  <TableHead>{tt('Status')}</TableHead>
+                  <TableHead className="text-right">{tt('Actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -202,19 +203,19 @@ export default function GlobalAdminDashboard() {
                     <TableCell className="text-sm">{fmt(u.last_login ?? u.last_sign_in ?? u.lastSignIn)}</TableCell>
                     <TableCell>
                       {u.is_banned ? (
-                        <Badge variant="destructive">banned</Badge>
+                        <Badge variant="destructive">{tt('banned')}</Badge>
                       ) : (
-                        <Badge variant="outline">active</Badge>
+                        <Badge variant="outline">{tt('active')}</Badge>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
                       {u.is_banned ? (
                         <Button size="sm" variant="outline" onClick={() => setBan(u.id, false)}>
-                          Unban
+                          {tt('Unban')}
                         </Button>
                       ) : (
                         <Button size="sm" variant="destructive" onClick={() => setBan(u.id, true)}>
-                          Ban
+                          {tt('Ban')}
                         </Button>
                       )}
                     </TableCell>
@@ -224,7 +225,7 @@ export default function GlobalAdminDashboard() {
                 {!loading && filtered.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={4} className="text-center text-sm text-gray-500 py-8">
-                      No users found.
+                      {tt('No users found.')}
                     </TableCell>
                   </TableRow>
                 )}
@@ -232,7 +233,7 @@ export default function GlobalAdminDashboard() {
             </Table>
           </div>
 
-          {loading && <div className="text-sm text-gray-500">Loading...</div>}
+          {loading && <div className="text-sm text-gray-500">{tt('Loading...')}</div>}
         </CardContent>
       </Card>
     </div>

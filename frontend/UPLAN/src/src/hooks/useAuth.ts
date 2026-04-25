@@ -39,11 +39,11 @@ export const useAuth = () => {
     setAuthReady(true);
   }, []);
 
-  const login = (name: string, email: string) => {
+  const login = (name: string, email: string, remember = true) => {
     const newUser = { name, email };
     setUser(newUser);
     setIsAuthenticated(true);
-    storageService.saveAuth(newUser);
+    storageService.saveAuth(newUser, remember);
     
     // Dispatch event after a microtask to ensure currentUserEmail is set
     setTimeout(() => {

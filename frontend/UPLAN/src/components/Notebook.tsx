@@ -10,6 +10,7 @@ import { Textarea } from "./ui/textarea";
 import { Separator } from "./ui/separator";
 import { Archive, Pin, Plus, Search, Trash2, TriangleAlert } from "lucide-react";
 import { createNote, deleteNote, listNotes, updateNote, type Note } from "../lib/notesApi";
+import ConfirmDeleteDialog from "./ConfirmDeleteDialog";
 
 type FilterMode = "all" | "pinned" | "archived";
 
@@ -58,6 +59,7 @@ export default function Notebook({
   const [pendingAction, setPendingAction] = useState<null | (() => void)>(null);
   const [autoSave, setAutoSave] = useState(true);
   const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const confirmBeforeLeaving = (action: () => void) => {
     if (!isDirty) {
@@ -218,7 +220,6 @@ export default function Notebook({
 
   const onDelete = async () => {
     if (!selected) return;
-    if (!confirm(t("notebook.confirm.delete"))) return;
 
     try {
       await deleteNote(selected.id);
@@ -597,7 +598,7 @@ export default function Notebook({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={onDelete}
+                      onClick={() => setDeleteDialogOpen(true)}
                       className="h-10 rounded-xl border-red-200 text-red-600 hover:bg-red-950/30"
                     >
                       <Trash2 className="mr-2 h-4 w-4" />
@@ -622,7 +623,7 @@ export default function Notebook({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={onDelete}
+                      onClick={() => setDeleteDialogOpen(true)}
                       className="h-10 rounded-xl border-red-900/40 text-red-400 hover:bg-red-950/30"
                     >
                       <Trash2 className="mr-2 h-4 w-4" />
@@ -744,6 +745,17 @@ export default function Notebook({
             </div>
           </div>
         )}
+        <ConfirmDeleteDialog
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          title="Delete note"
+          description={`This permanently deletes "${selected?.title || t("notebook.untitled")}".`}
+          confirmLabel={t("notebook.actions.delete")}
+          onConfirm={async () => {
+            await onDelete();
+            setDeleteDialogOpen(false);
+          }}
+        />
       </div>
     </div>
   );

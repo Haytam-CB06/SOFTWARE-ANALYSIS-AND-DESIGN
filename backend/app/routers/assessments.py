@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 from typing import List, Literal, Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 
@@ -112,6 +112,8 @@ def list_assessments(
     user_id: str,
     include_completed: bool = True,
     include_past: bool = True,
+    limit: int = Query(default=100, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
     session: Session = Depends(get_db),
     x_user_id: str = Header(..., alias="X-User-Id"),
 ):
@@ -132,7 +134,7 @@ def list_assessments(
 
     q = q.order_by(Assessment.due_at.asc())
 
-    rows = q.all()
+    rows = q.offset(offset).limit(limit).all()
     out: List[AssessmentOut] = []
     for a, s in rows:
         subj_title = (getattr(s, "title", None) or getattr(s, "name", None) or "").strip() or "(Untitled)"

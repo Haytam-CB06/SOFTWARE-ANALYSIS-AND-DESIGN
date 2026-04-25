@@ -129,6 +129,7 @@ class WorkspaceMember(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     role = Column(String(50))
     joined_at = Column(DateTime, default=datetime.utcnow)
+    last_seen_at = Column(DateTime, nullable=True)
 
     workspace = relationship("Workspace", back_populates="members")
 

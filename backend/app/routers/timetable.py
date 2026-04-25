@@ -134,6 +134,7 @@ class SubjectCreate(BaseModel):
 # ===============================
 
 from PIL import Image
+import uuid
 
 try:
     import pytesseract  # type: ignore
@@ -142,6 +143,101 @@ except Exception:  # pragma: no cover
 
 import os
 import shutil
+
+
+class CalendarSessionIn(BaseModel):
+    id: Optional[str] = None
+    subject: str
+    day: int
+    startTime: str
+    endTime: str
+    type: Optional[str] = None
+    color: Optional[str] = None
+    deadline: Optional[str] = None
+
+
+class CalendarSessionOut(BaseModel):
+    id: str
+    subject: str
+    startTime: str
+    endTime: str
+    day: int
+    type: Optional[str] = None
+    color: Optional[str] = None
+    deadline: Optional[str] = None
+
+
+@router.get("/user/{user_id}/sessions", response_model=List[CalendarSessionOut])
+def get_user_calendar_sessions(
+    user_id: str,
+    week_id: str = Query("default"),
+    db: Session = Depends(get_db),
+):
+    """Return the user's study sessions for a given week."""
+    row = (
+        db.query(UserWeekStudySchedule)
+        .filter(UserWeekStudySchedule.user_id == user_id, UserWeekStudySchedule.week_id == week_id)
+        .first()
+    )
+    stored = (row.sessions if row and isinstance(row.sessions, list) else [])
+
+    out: List[CalendarSessionOut] = []
+    for s in stored:
+        if not isinstance(s, dict):
+            continue
+        try:
+            out.append(
+                CalendarSessionOut(
+                    id=str(s.get("id") or uuid.uuid4()),
+                    subject=str(s.get("subject") or ""),
+                    startTime=str(s.get("startTime") or "08:00"),
+                    endTime=str(s.get("endTime") or "09:00"),
+                    day=int(s.get("day") if s.get("day") is not None else 0),
+                    type=s.get("type"),
+                    color=s.get("color"),
+                    deadline=s.get("deadline"),
+                )
+            )
+        except Exception:
+            continue
+    return out
+
+
+@router.put("/user/{user_id}/sessions")
+def put_user_calendar_sessions(
+    user_id: str,
+    payload: List[CalendarSessionIn],
+    week_id: str = Query("default"),
+    db: Session = Depends(get_db),
+):
+    """Replace the user's study sessions for a given week."""
+    normalized = []
+    for s in payload:
+        if not isinstance(s, dict):
+            continue
+        normalized.append({
+            "id": s.id or str(uuid.uuid4()),
+            "subject": s.subject,
+            "day": s.day,
+            "startTime": s.startTime,
+            "endTime": s.endTime,
+            "type": s.type,
+            "color": s.color,
+            "deadline": s.deadline,
+        })
+
+    row = (
+        db.query(UserWeekStudySchedule)
+        .filter(UserWeekStudySchedule.user_id == user_id, UserWeekStudySchedule.week_id == week_id)
+        .first()
+    )
+    if row:
+        row.sessions = normalized
+    else:
+        row = UserWeekStudySchedule(user_id=user_id, week_id=week_id, sessions=normalized)
+        db.add(row)
+    db.commit()
+    return {"ok": True, "week_id": week_id, "sessions": len(normalized)}
 
 
 class TimetableExtractItem(BaseModel):
@@ -196,13 +292,13 @@ class TimetableExtractBase64In(BaseModel):
 
 
 _DAY_MAP = {
-    "sun": 0, "sunday": 0,
-    "mon": 1, "monday": 1,
-    "tue": 2, "tues": 2, "tuesday": 2,
-    "wed": 3, "wednesday": 3,
-    "thu": 4, "thur": 4, "thurs": 4, "thursday": 4,
-    "fri": 5, "friday": 5,
-    "sat": 6, "saturday": 6,
+    "sun": 0, "sunday": 0, "s": 0,
+    "mon": 1, "monday": 1, "m": 1,
+    "tue": 2, "tues": 2, "tuesday": 2, "t": 2,
+    "wed": 3, "wednesday": 3, "w": 3,
+    "thu": 4, "thur": 4, "thurs": 4, "thursday": 4, "r": 4,
+    "fri": 5, "friday": 5, "f": 5,
+    "sat": 6, "saturday": 6, "sa": 6,
 }
 
 _TIME_RANGE_RE = re.compile(
@@ -256,15 +352,44 @@ def _ensure_tesseract_cmd() -> None:
         detail="Tesseract OCR is not installed or not on PATH. Install Tesseract and restart the backend.",
     )
 
+def _is_meaningful_subject_title(value: Optional[str]) -> bool:
+    if not value:
+        return False
+
+    s = re.sub(r"\s+", " ", str(value).strip())
+    if not s:
+        return False
+
+    if _looks_like_section_or_room(s):
+        return False
+
+    if len(s) < 4:
+        return False
+
+    if re.fullmatch(r"[\d\W_]+", s):
+        return False
+
+    bad_words = {
+        "room", "lab", "section", "sec", "rm", "cr",
+        "time", "day", "course", "subject", "class", "lecture"
+    }
+    if s.lower() in bad_words:
+        return False
+
+    token = re.sub(r"[^A-Za-z0-9]", "", s).upper()
+    if len(s.split()) == 1 and not _COURSE_CODE_RE.match(token):
+        if not re.fullmatch(r"[A-Za-z]{3,}", s):
+            return False
+
+    return True
+
+
 def _normalize_extract_item(it: TimetableExtractItem) -> Tuple[Optional[TimetableImportItem], Optional[str]]:
     if it.day_of_week is None:
         return None, f"Missing day_of_week for line: {it.raw_line or ''}"
 
     if not it.start_time or not it.end_time:
         return None, f"Missing time range for line: {it.raw_line or ''}"
-
-    if not it.subject_title:
-        return None, f"Missing subject_title for line: {it.raw_line or ''}"
 
     try:
         start_time = _norm_time(it.start_time)
@@ -276,15 +401,20 @@ def _normalize_extract_item(it: TimetableExtractItem) -> Tuple[Optional[Timetabl
         return None, f"start_time must be before end_time for line: {it.raw_line or ''}"
 
     subject_title = (it.subject_title or "").strip()
-    if not subject_title:
-        return None, f"Blank subject title for line: {it.raw_line or ''}"
+    subject_code = (it.subject_code or "").strip() or None
+
+    if not _is_meaningful_subject_title(subject_title):
+        if subject_code and _COURSE_CODE_RE.match(re.sub(r"[^A-Za-z0-9]", "", subject_code).upper()):
+            subject_title = subject_code
+        else:
+            return None, f"Rejected weak/empty subject title for line: {it.raw_line or ''}"
 
     return TimetableImportItem(
         day_of_week=it.day_of_week,
         start_time=start_time,
         end_time=end_time,
         subject_title=subject_title,
-        subject_code=(it.subject_code or "").strip() or None,
+        subject_code=subject_code,
         rrule=it.rrule,
     ), None
 
@@ -618,7 +748,7 @@ def _extract_items_grid(img: Image.Image) -> List[TimetableExtractItem]:
             conf = float(str(data.get("conf", ["-1"])[i]))
         except Exception:
             conf = -1.0
-        if conf < 20:
+        if conf < 40:
             continue
 
         try:
@@ -803,6 +933,9 @@ def _extract_items_grid(img: Image.Image) -> List[TimetableExtractItem]:
         if by_title[title] > 4:
             continue
         filtered.append(it)
+
+    if len(filtered) > 8:
+        filtered = filtered[:8]
 
     return filtered
 

@@ -224,7 +224,7 @@ export default function ProgressTracking() {
                 const Icon = ACHIEVEMENT_ICON[code] || Award;
 
                 return (
-                  <div key={code} className="flex justify-between gap-3 p-3 rounded-lg border">
+                  <div key={code} className="flex justify-between gap-3 rounded-2xl border p-3">
                     <div className="flex gap-3">
                       <Icon className="h-4 w-4 mt-0.5" />
                       <div>
@@ -262,7 +262,7 @@ export default function ProgressTracking() {
           <CardContent className="space-y-3">
             {(summary?.upcoming_deadlines || []).length ? (
               summary!.upcoming_deadlines.slice(0, 5).map((d) => (
-                <div key={d.id} className="flex justify-between gap-3 p-3 rounded-lg border">
+                <div key={d.id} className="flex justify-between gap-3 rounded-2xl border p-3">
                   <div>
                     <div className="font-medium">{d.title}</div>
                     <div className="text-xs text-muted-foreground">

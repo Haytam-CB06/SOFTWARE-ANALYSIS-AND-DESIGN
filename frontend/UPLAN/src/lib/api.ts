@@ -1,9 +1,16 @@
 // src/lib/api.ts
 export const API_BASE_URL: string =
   (import.meta as any).env?.VITE_API_BASE_URL ||
-  'https://software-analysis-and-design.onrender.com';
+  (((globalThis as any).location?.hostname === 'localhost' || (globalThis as any).location?.hostname === '127.0.0.1')
+    ? 'http://127.0.0.1:8000'
+    : 'https://software-analysis-and-design.onrender.com');
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+
+const pendingGetRequests = new Map<string, Promise<any>>();
+const responseCache = new Map<string, { expiresAt: number; value: any }>();
+const DEFAULT_GET_CACHE_MS = Number((import.meta as any).env?.VITE_API_GET_CACHE_MS || 10000);
+const DEFAULT_REQUEST_TIMEOUT_MS = Number((import.meta as any).env?.VITE_API_TIMEOUT_MS || 12000);
 
 export class ApiError extends Error {
   status: number;
@@ -65,32 +72,70 @@ export async function apiJson<T>(
     if (!headers[k]) headers[k] = v;
   }
 
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    method,
-    headers,
-    body:
-      body === undefined
-        ? undefined
-        : body instanceof FormData
-          ? body
-          : JSON.stringify(body),
-  });
+  const requestKey =
+    method === 'GET' && body === undefined
+      ? `${API_BASE_URL}${path}:${JSON.stringify(Object.entries(headers).sort())}`
+      : '';
 
-  let parsed: any = null;
-  const text = await res.text();
-  try {
-    parsed = text ? JSON.parse(text) : null;
-  } catch {
-    parsed = text;
+  if (requestKey) {
+    const cached = responseCache.get(requestKey);
+    if (cached && cached.expiresAt > Date.now()) return cached.value as T;
+
+    const pending = pendingGetRequests.get(requestKey);
+    if (pending) return pending as Promise<T>;
   }
 
-  if (!res.ok) {
-    const msg =
-      (parsed && (parsed.detail || parsed.message)) ||
-      `Request failed: ${method} ${path} (${res.status})`;
-    throw new ApiError(msg, res.status, parsed);
+  const request = (async () => {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), DEFAULT_REQUEST_TIMEOUT_MS);
+
+    const res = await fetch(`${API_BASE_URL}${path}`, {
+      method,
+      headers,
+      signal: controller.signal,
+      body:
+        body === undefined
+          ? undefined
+          : body instanceof FormData
+            ? body
+            : JSON.stringify(body),
+    }).finally(() => window.clearTimeout(timeoutId));
+
+    let parsed: any = null;
+    const text = await res.text();
+    try {
+      parsed = text ? JSON.parse(text) : null;
+    } catch {
+      parsed = text;
+    }
+
+    if (!res.ok) {
+      const msg =
+        (parsed && (parsed.detail || parsed.message)) ||
+        `Request failed: ${method} ${path} (${res.status})`;
+      throw new ApiError(msg, res.status, parsed);
+    }
+
+    if (requestKey && DEFAULT_GET_CACHE_MS > 0) {
+      responseCache.set(requestKey, {
+        expiresAt: Date.now() + DEFAULT_GET_CACHE_MS,
+        value: parsed,
+      });
+    }
+
+    if (method !== 'GET') {
+      responseCache.clear();
+    }
+
+    return parsed as T;
+  })();
+
+  if (requestKey) {
+    pendingGetRequests.set(requestKey, request);
+    request.finally(() => pendingGetRequests.delete(requestKey));
   }
-  return parsed as T;
+
+  return request;
 }
 
 /**

@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Switch } from './ui/switch';
 import { toast } from 'sonner@2.0.3';
 import { useTranslation } from 'react-i18next';
+import ConfirmDeleteDialog from './ConfirmDeleteDialog';
 
 interface Reminder {
   id: string;
@@ -36,6 +37,7 @@ export default function Reminders() {
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Reminder | null>(null);
   const [newReminder, setNewReminder] = useState<Partial<Reminder>>({
     title: '',
     description: '',
@@ -168,6 +170,12 @@ export default function Reminders() {
   const deleteReminder = (id: string) => {
     setReminders(reminders.filter(r => r.id !== id));
     toast.success(t('reminders.toast.deleted'));
+  };
+
+  const confirmDeleteReminder = () => {
+    if (!deleteTarget) return;
+    deleteReminder(deleteTarget.id);
+    setDeleteTarget(null);
   };
 
   // Toggle reminder enabled
@@ -441,7 +449,7 @@ export default function Reminders() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => deleteReminder(reminder.id)}
+                        onClick={() => setDeleteTarget(reminder)}
                         className="text-gray-400 hover:text-red-600"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -484,6 +492,14 @@ export default function Reminders() {
           </div>
         </CardContent>
       </Card>
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete reminder"
+        description={`This permanently deletes "${deleteTarget?.title || 'this reminder'}".`}
+        confirmLabel={t('common.delete')}
+        onConfirm={confirmDeleteReminder}
+      />
     </div>
   );
 }

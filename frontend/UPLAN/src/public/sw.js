@@ -1,5 +1,5 @@
 // Service Worker for U PLAN PWA
-const CACHE_NAME = 'u-plan-v1';
+const CACHE_NAME = 'u-plan-v2';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -20,32 +20,63 @@ self.addEventListener('install', (event) => {
 
 // Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', (event) => {
+  const request = event.request;
+  const url = new URL(request.url);
+
+  // Never intercept API, websocket, browser extension, or non-GET requests.
+  // This prevents stale/corrupt cached responses from surfacing as
+  // ERR_CONTENT_DECODING_FAILED / "Failed to fetch" in chat and other SaaS APIs.
+  const apiPrefixes = [
+    '/auth',
+    '/bff',
+    '/chat',
+    '/workspaces',
+    '/sessions',
+    '/assessments',
+    '/goals',
+    '/notifications',
+    '/calendar',
+    '/timetable',
+    '/auto-generate',
+    '/user',
+    '/admin',
+  ];
+
+  if (
+    request.method !== 'GET' ||
+    url.protocol === 'ws:' ||
+    url.protocol === 'wss:' ||
+    url.origin !== self.location.origin ||
+    apiPrefixes.some((prefix) => url.pathname.startsWith(prefix))
+  ) {
+    event.respondWith(fetch(request));
+    return;
+  }
+
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request).catch(() => caches.match('/index.html'))
+    );
+    return;
+  }
+
   event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // Cache hit - return response
-        if (response) {
+    caches.match(request).then((cached) => {
+      if (cached) return cached;
+
+      return fetch(request).then((response) => {
+        if (!response || response.status !== 200 || response.type !== 'basic') {
           return response;
         }
-        return fetch(event.request).then(
-          (response) => {
-            // Check if valid response
-            if (!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
-            }
 
-            // Clone the response
-            const responseToCache = response.clone();
+        const responseToCache = response.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(request, responseToCache);
+        });
 
-            caches.open(CACHE_NAME)
-              .then((cache) => {
-                cache.put(event.request, responseToCache);
-              });
-
-            return response;
-          }
-        );
-      })
+        return response;
+      });
+    })
   );
 });
 

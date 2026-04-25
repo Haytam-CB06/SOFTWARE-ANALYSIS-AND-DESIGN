@@ -1,4 +1,4 @@
-import { User, Bell, Moon, Sun, Save, Lock, CheckCircle2, XCircle, Palette, Info, Camera, Upload, Trash2, Settings as SettingsIcon } from 'lucide-react';
+import { User, Bell, Moon, Sun, Save, Lock, CheckCircle2, XCircle, Palette, Info, Camera, Upload, Trash2, Settings as SettingsIcon, AtSign, Briefcase } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from './ui/button';
@@ -23,13 +23,31 @@ interface SettingsProps {
 
 export default function Settings({ userName, onUpdateName, darkMode, onToggleDarkMode, initialSection = 'profile' }: SettingsProps) {
   const { t } = useTranslation();
+  const applyStoredRole = (storedRole: string) => {
+    const normalized = storedRole.trim().toLowerCase();
+    if (normalized === 'student' || normalized === 'administrator' || normalized === 'teacher') {
+      setRoleCategory(normalized);
+      setOtherRoleInfo('');
+      return;
+    }
+    if (storedRole.trim()) {
+      setRoleCategory('other');
+      setOtherRoleInfo(storedRole.trim());
+      return;
+    }
+    setRoleCategory('');
+    setOtherRoleInfo('');
+  };
 
   const { active: tourActive, currentStep } = useTour();
   const [activeSection, setActiveSection] = useState<'profile' | 'webapp'>(initialSection);
   const [isProfileEditing, setIsProfileEditing] = useState(false);
   const [name, setName] = useState(userName);
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('student@example.com');
-  const [department, setDepartment] = useState('');
+  const [roleCategory, setRoleCategory] = useState('');
+  const [otherRoleInfo, setOtherRoleInfo] = useState('');
+  const [profileTitle, setProfileTitle] = useState('Senior Developer');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [gender, setGender] = useState('');
 
@@ -80,8 +98,10 @@ export default function Settings({ userName, onUpdateName, darkMode, onToggleDar
         const loadedDepartment = (data.department || '').trim();
 
         setName(loadedName);
+        setUsername(data.username || '');
         setEmail(data.email || '');
-        setDepartment(loadedDepartment);
+        applyStoredRole(loadedDepartment);
+        setProfileTitle(data.profile_title || 'Senior Developer');
         setDateOfBirth(data.date_of_birth || '');
         setGender(data.gender || '');
 
@@ -208,16 +228,23 @@ export default function Settings({ userName, onUpdateName, darkMode, onToggleDar
         toast.error(t('settings.errors.notLoggedIn'));
         return;
       }
+      if (roleCategory === 'other' && !otherRoleInfo.trim()) {
+        toast.error(t('settings.errors.roleDetailsRequired'));
+        return;
+      }
 
       const data = await apiJsonAuthed<any>(`/user/${encodeURIComponent(userId)}`, 'PUT', {
-        full_name: (name || '').trim(),
-        department: (department || '').trim(),
+        username: (username || '').trim(),
+        department: roleCategory === 'other' ? otherRoleInfo.trim() : roleCategory,
+        profile_title: (profileTitle || '').trim(),
         date_of_birth: dateOfBirth,
         gender,
       });
       setName(data.full_name || name);
+      setUsername(data.username || username);
       setEmail(data.email || email);
-      setDepartment(data.department || department);
+      applyStoredRole(data.department || '');
+      setProfileTitle(data.profile_title || profileTitle);
       setDateOfBirth(data.date_of_birth || dateOfBirth);
       setGender(data.gender || gender);
 
@@ -368,7 +395,7 @@ export default function Settings({ userName, onUpdateName, darkMode, onToggleDar
         <Button
           onClick={() => setActiveSection('profile')}
           variant="ghost"
-          className={`h-10 flex-1 rounded-lg justify-start sm:justify-center border transition-colors ${
+          className={`h-10 flex-1 rounded-2xl justify-start sm:justify-center border transition-colors ${
             activeSection === 'profile'
               ? 'border-neutral-900 bg-neutral-900 text-white hover:bg-neutral-900 dark:border-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-100'
               : 'border-transparent text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-black'
@@ -381,7 +408,7 @@ export default function Settings({ userName, onUpdateName, darkMode, onToggleDar
         <Button
           onClick={() => setActiveSection('webapp')}
           variant="ghost"
-          className={`h-10 flex-1 rounded-lg justify-start sm:justify-center border transition-colors ${
+          className={`h-10 flex-1 rounded-2xl justify-start sm:justify-center border transition-colors ${
             activeSection === 'webapp'
               ? 'border-neutral-900 bg-neutral-900 text-white hover:bg-neutral-900 dark:border-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-100'
               : 'border-transparent text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:hover:text-black'
@@ -422,7 +449,7 @@ export default function Settings({ userName, onUpdateName, darkMode, onToggleDar
                     <Button
                       type="button"
                       variant="outline"
-                      className="rounded-lg border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300 dark:hover:bg-neutral-900"
+                      className="rounded-2xl border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300 dark:hover:bg-neutral-900"
                       onClick={() => document.getElementById('profile-picture-upload')?.click()}
                     >
                       <Upload className="mr-2 h-4 w-4" />
@@ -433,7 +460,7 @@ export default function Settings({ userName, onUpdateName, darkMode, onToggleDar
                       <Button
                         type="button"
                         variant="outline"
-                        className="rounded-lg border-red-200 bg-white text-red-700 hover:bg-red-50 dark:border-red-900/60 dark:bg-neutral-950 dark:text-red-300 dark:hover:bg-red-950/30"
+                        className="rounded-2xl border-red-200 bg-white text-red-700 hover:bg-red-50 dark:border-red-900/60 dark:bg-neutral-950 dark:text-red-300 dark:hover:bg-red-950/30"
                         onClick={handleRemoveProfilePicture}
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
@@ -454,11 +481,50 @@ export default function Settings({ userName, onUpdateName, darkMode, onToggleDar
               <Input
                 id="name"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
                 placeholder={t('settings.profile.placeholders.fullName')}
-                className={`bg-input-background ${!isProfileEditing ? 'opacity-60 cursor-not-allowed' : ''}`}
-                disabled={!isProfileEditing}
+                className="bg-input-background cursor-not-allowed opacity-60"
+                disabled
+                readOnly
               />
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                {t('settings.profile.hints.fullNameLocked')}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="username">{t('settings.profile.fields.username')}</Label>
+              <div className="relative">
+                <AtSign className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+                <Input
+                  id="username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value.replace(/\s+/g, '').toLowerCase())}
+                  placeholder="uplan.student"
+                  className={`bg-input-background pl-9 ${!isProfileEditing ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  disabled={!isProfileEditing}
+                />
+              </div>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                {t('settings.profile.hints.username')}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="profileTitle">{t('settings.profile.fields.profileTitle')}</Label>
+              <div className="relative">
+                <Briefcase className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+                <Input
+                  id="profileTitle"
+                  value={profileTitle}
+                  onChange={(e) => setProfileTitle(e.target.value)}
+                  placeholder="Senior Developer"
+                  className={`bg-input-background pl-9 ${!isProfileEditing ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  disabled={!isProfileEditing}
+                />
+              </div>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                {t('settings.profile.hints.profileTitle')}
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -475,15 +541,33 @@ export default function Settings({ userName, onUpdateName, darkMode, onToggleDar
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="department">{t('settings.profile.fields.department')}</Label>
-              <Input
-                id="department"
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-                placeholder={t('settings.profile.placeholders.department')}
-                className={`bg-input-background ${!isProfileEditing ? 'opacity-60 cursor-not-allowed' : ''}`}
-                disabled={!isProfileEditing}
-              />
+              <Label htmlFor="profile-role">{t('settings.profile.fields.role')}</Label>
+              <Select value={roleCategory} onValueChange={setRoleCategory} disabled={!isProfileEditing}>
+                <SelectTrigger id="profile-role" className={!isProfileEditing ? 'cursor-not-allowed opacity-60' : ''}>
+                  <SelectValue placeholder={t('settings.profile.placeholders.role')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="student">{t('settings.profile.roleOptions.student')}</SelectItem>
+                  <SelectItem value="administrator">{t('settings.profile.roleOptions.administrator')}</SelectItem>
+                  <SelectItem value="teacher">{t('settings.profile.roleOptions.teacher')}</SelectItem>
+                  <SelectItem value="other">{t('settings.profile.roleOptions.other')}</SelectItem>
+                </SelectContent>
+              </Select>
+              {roleCategory === 'other' && (
+                <div className="space-y-2">
+                  <Input
+                    id="profile-role-other"
+                    value={otherRoleInfo}
+                    onChange={(e) => setOtherRoleInfo(e.target.value)}
+                    placeholder={t('settings.profile.placeholders.otherRole')}
+                    className={`bg-input-background ${!isProfileEditing ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    disabled={!isProfileEditing}
+                  />
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                    {t('settings.profile.hints.otherRole')}
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -524,7 +608,7 @@ export default function Settings({ userName, onUpdateName, darkMode, onToggleDar
                 <Button
                   variant="outline"
                   data-tour="settings-edit-profile"
-                  className="rounded-lg border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300 dark:hover:bg-neutral-900"
+                  className="rounded-2xl border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300 dark:hover:bg-neutral-900"
                   onClick={() => setIsProfileEditing(true)}
                 >
                   <User className="h-4 w-4 mr-2" />
@@ -535,7 +619,7 @@ export default function Settings({ userName, onUpdateName, darkMode, onToggleDar
                   <Button
                     onClick={handleSaveProfile}
                     data-tour="settings-save-profile"
-                    className="rounded-lg bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200"
+                    className="rounded-2xl bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200"
                   >
                     <Save className="h-4 w-4 mr-2" />
                     {t('settings.profile.actions.save')}
@@ -594,7 +678,7 @@ export default function Settings({ userName, onUpdateName, darkMode, onToggleDar
                         className="border-neutral-200 bg-white text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-400 focus:ring-neutral-300 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100 dark:placeholder:text-neutral-500"
                       />
                       {newPassword && (
-                        <div className="mt-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3 space-y-2 dark:border-neutral-800 dark:bg-neutral-900">
+                        <div className="mt-3 space-y-2 rounded-2xl border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
                           <p className="mb-2 text-xs text-neutral-500 dark:text-neutral-400">
                             {t('auth.helper.passwordMustContain')}
                           </p>
@@ -684,13 +768,13 @@ export default function Settings({ userName, onUpdateName, darkMode, onToggleDar
                     <div className="flex flex-col gap-2 pt-2 sm:flex-row">
                       <Button
                         onClick={handleChangePassword}
-                        className="flex-1 rounded-lg bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200"
+                        className="flex-1 rounded-2xl bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-200"
                       >
                         {t('settings.password.actions.update')}
                       </Button>
                       <Button
                         variant="outline"
-                        className="flex-1 rounded-lg border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300 dark:hover:bg-neutral-900"
+                        className="flex-1 rounded-2xl border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300 dark:hover:bg-neutral-900"
                       >
                         {t('common.cancel')}
                       </Button>
@@ -857,7 +941,7 @@ export default function Settings({ userName, onUpdateName, darkMode, onToggleDar
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-200 bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-900">
+                <div className="flex h-9 w-9 items-center justify-center rounded-2xl border border-neutral-200 bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-900">
                   {darkMode ? (
                     <Moon className="h-4 w-4 text-neutral-700 dark:text-neutral-300" />
                   ) : (

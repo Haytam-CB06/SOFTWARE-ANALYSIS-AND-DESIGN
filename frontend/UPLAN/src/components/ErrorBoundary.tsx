@@ -55,13 +55,13 @@ class ErrorBoundaryInner extends React.Component<Props, State> {
           </div>
 
           {this.state.errorMessage && (
-            <pre className="mt-4 whitespace-pre-wrap break-words rounded-md bg-muted p-3 text-xs">
+            <pre className="mt-4 whitespace-pre-wrap break-words rounded-2xl bg-muted p-3 text-xs">
               {this.state.errorMessage}
             </pre>
           )}
 
           {this.state.errorStack && (
-            <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted p-3 text-xs">
+            <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-2xl bg-muted p-3 text-xs">
               {this.state.errorStack}
             </pre>
           )}

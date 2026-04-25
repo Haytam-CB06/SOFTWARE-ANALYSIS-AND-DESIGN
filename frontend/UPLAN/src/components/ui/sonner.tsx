@@ -1,10 +1,12 @@
 "use client";
 
-import { useTheme } from "next-themes@0.4.6";
 import { Toaster as Sonner, ToasterProps, toast } from "sonner@2.0.3";
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme();
+  const theme =
+    typeof document !== "undefined" && document.documentElement.classList.contains("dark")
+      ? "dark"
+      : "light";
 
   return (
     <Sonner

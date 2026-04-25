@@ -12,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { toast } from 'sonner@2.0.3';
 import { getUserWeekKey } from '../utils/userStorage';
 import { courseColorForSubject } from '../utils/courseColor';
+import { clearPermissionError } from '../utils/permissionErrors';
 import SessionCard from './SessionCard';
 import SessionDialog from './SessionDialog';
 import ImportDialog from './ImportDialog';
@@ -121,7 +122,7 @@ export default function CalendarView({
   workspaceStatus,
   showStatusBadges = false,
 }: CalendarViewProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [sessions, setSessions] = useState<Session[]>([]);
   // Assessments/deadlines are rendered inside the timetable week view, but are managed
   // from the Assessments & Deadlines page (not saved back into the timetable JSON).
@@ -189,6 +190,16 @@ export default function CalendarView({
 
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
   const currentUserId = localStorage.getItem('currentUserId');
+  const dateLocale = i18n.resolvedLanguage || i18n.language || undefined;
+
+  const dayLabel = (day: string) => t(`days.${day.toLowerCase()}`, day);
+  const dayLabelByIndex = (dayIndex: number) => dayLabel(days[dayIndex] || '');
+  const shortDateLabel = (date: Date, options?: Intl.DateTimeFormatOptions) =>
+    date.toLocaleDateString(dateLocale, options || { month: 'short', day: 'numeric' });
+  const sessionTypeLabel = (type: string) =>
+    type === 'test'
+      ? t('sessionTypes.test', 'Test/Quiz')
+      : t(`sessionTypes.${type}`, type.charAt(0).toUpperCase() + type.slice(1));
 
   const isAssessmentSessionId = (id: string) => (id || '').startsWith('assessment:');
 
@@ -478,10 +489,11 @@ export default function CalendarView({
         body: JSON.stringify({ items }),
       });
       if (!res.ok) {
-        toast.error('Failed to save workspace session statuses');
+        const data = await res.json().catch(() => ({}));
+        toast.error(clearPermissionError(res.status, data?.detail, 'session-status'));
       }
     } catch (e) {
-      toast.error('Failed to save workspace session statuses');
+      toast.error(t('calendar.toasts.statusSaveFailed'));
     }
   };
 
@@ -524,7 +536,7 @@ export default function CalendarView({
 
   const requireEditable = (): boolean => {
     if (!readOnly) return true;
-    toast.error('Only workspace admins can edit this timetable');
+    toast.error('Only workspace admins can edit this timetable. Members can view the schedule and track their own progress.');
     return false;
   };
 
@@ -863,7 +875,7 @@ const loadActiveTimetableName = () => {
   const handleEditSession = (session: Session) => {
     if (!requireEditable()) return;
     if (String(session.id || '').startsWith('assessment:')) {
-      toast.info('Edit this from Assessments & Deadlines');
+      toast.info(t('calendar.toasts.editAssessmentFromAssessments'));
       return;
     }
     setEditingSession(session);
@@ -902,21 +914,21 @@ const loadActiveTimetableName = () => {
     });
 
     if (hasConflict && conflictingSession) {
-      const dayName = days[sessionData.day];
+      const dayName = dayLabelByIndex(sessionData.day);
       
       // Show prominent warning notification
-      toast.error(' TIME CONFLICT DETECTED!', {
+      toast.error(t('calendar.toasts.timeConflictDetected'), {
         description: (
           <div className="space-y-2">
-            <p className="font-semibold">Cannot add "{sessionData.subject}"</p>
-            <p>"{conflictingSession.subject}" is already scheduled on {dayName}</p>
-            <p className="text-sm">Time: {conflictingSession.startTime} - {conflictingSession.endTime}</p>
-            <p className="text-sm text-red-200">Please choose a different time slot</p>
+            <p className="font-semibold">{t('calendar.toasts.cannotAdd', { subject: sessionData.subject })}</p>
+            <p>{t('calendar.toasts.alreadyScheduledOn', { subject: conflictingSession.subject, day: dayName })}</p>
+            <p className="text-sm">{t('calendar.toasts.timeRange', { start: conflictingSession.startTime, end: conflictingSession.endTime })}</p>
+            <p className="text-sm text-red-200">{t('calendar.toasts.chooseDifferentTimeSlot')}</p>
           </div>
         ),
         duration: 2500, // Stays until dismissed
         action: {
-          label: 'Dismiss',
+          label: t('calendar.dismiss'),
           onClick: () => {},
         },
       });
@@ -929,7 +941,7 @@ const loadActiveTimetableName = () => {
       userEditedRef.current = true;
       setSessions(sessions.map(s => s.id === editingSession.id ? { ...normalizedData, id: s.id } : s));
       const hasDeadline = normalizedData.deadline && (normalizedData.type === 'assignment' || normalizedData.type === 'test' || normalizedData.type === 'exam');
-      toast.success(hasDeadline ? 'Session & deadline updated!' : 'Session updated successfully');
+      toast.success(hasDeadline ? t('calendar.toasts.sessionDeadlineUpdated') : t('calendar.toasts.sessionUpdated'));
     } else {
       // Add new session
       const newSession: Session = {
@@ -939,7 +951,7 @@ const loadActiveTimetableName = () => {
       userEditedRef.current = true;
       setSessions([...sessions, newSession]);
       const hasDeadline = normalizedData.deadline && (normalizedData.type === 'assignment' || normalizedData.type === 'test' || normalizedData.type === 'exam');
-      toast.success(hasDeadline ? 'Session added with deadline!' : 'Session added successfully');
+      toast.success(hasDeadline ? t('calendar.toasts.sessionAddedWithDeadline') : t('calendar.toasts.sessionAdded'));
     }
     setIsDialogOpen(false);
     setSelectedSlot(null);
@@ -949,28 +961,28 @@ const loadActiveTimetableName = () => {
   const handleDeleteSession = (id: string) => {
     if (!requireEditable()) return;
     if (String(id || '').startsWith('assessment:')) {
-      toast.info('Delete this from Assessments & Deadlines');
+      toast.info(t('calendar.toasts.deleteAssessmentFromAssessments'));
       return;
     }
     userEditedRef.current = true;
     setSessions(sessions.filter(s => s.id !== id));
-    toast.success('Session deleted successfully');
+    toast.success(t('calendar.toasts.sessionDeleted'));
   };
 
   const handleClearAll = () => {
     if (!requireEditable()) return;
     setConfirmDialog({
       isOpen: true,
-      title: 'Delete all courses',
-      message: 'Are you sure you want to delete all courses and sessions for this week?',
+      title: t('calendar.confirm.deleteAllTitle'),
+      message: t('calendar.confirm.deleteAllMessage'),
       onConfirm: () => {
         userEditedRef.current = true;
         setSessions([]);
         const weekId = getWeekIdentifier(currentDate);
         localStorage.removeItem(getWeekKey(weekId));
-        toast.success('Done! All sessions have been cleared successfully.');
+        toast.success(t('calendar.toasts.allSessionsCleared'));
       },
-      confirmText: 'Delete all',
+      confirmText: t('calendar.deleteAll'),
       confirmVariant: 'destructive',
     });
   };
@@ -978,8 +990,8 @@ const loadActiveTimetableName = () => {
   const handleRecurse = () => {
     if (!requireEditable()) return;
     if (sessions.length === 0) {
-      toast.error(' Empty Timetable', {
-        description: 'Your timetable is empty. Please add some sessions before copying to the next week.',
+      toast.error(t('calendar.toasts.emptyTimetable'), {
+        description: t('calendar.toasts.emptyBeforeCopy'),
         duration: 2500,
       });
       return;
@@ -987,8 +999,8 @@ const loadActiveTimetableName = () => {
 
     setConfirmDialog({
       isOpen: true,
-      title: 'Copy to Next Week',
-      message: `Copy all ${sessions.length} session(s) from this week to the next week?`,
+      title: t('calendar.confirm.copyNextWeekTitle'),
+      message: t('calendar.confirm.copyNextWeekMessage', { count: sessions.length }),
       onConfirm: () => {
         // Get next week's date
         const nextWeekDate = new Date(currentDate);
@@ -1004,17 +1016,17 @@ const loadActiveTimetableName = () => {
         // Save to next week
         localStorage.setItem(getWeekKey(nextWeekId), JSON.stringify(copiedSessions));
         
-        toast.success('Sessions copied successfully!', {
-          description: `${sessions.length} session(s) copied to next week (Week ${nextWeekId})`,
+        toast.success(t('calendar.toasts.sessionsCopied'), {
+          description: t('calendar.toasts.sessionsCopiedDescription', { count: sessions.length, week: nextWeekId }),
           action: {
-            label: 'View',
+            label: t('calendar.view'),
             onClick: () => setCurrentDate(nextWeekDate),
           },
         });
         
         setConfirmDialog({ isOpen: false, title: '', message: '', onConfirm: () => {} });
       },
-      confirmText: 'Copy',
+      confirmText: t('calendar.copy'),
       confirmVariant: 'default',
     });
   };
@@ -1042,7 +1054,7 @@ const truncateText = (doc: any, text: string, maxWidth: number) => {
     result = result.slice(0, -1);
   }
 
-  return result === text ? text : `${result}…`;
+  return result === text ? text : `${result}...`;
 };
   const exportToPDF = async () => {
   const weekId = getWeekIdentifier(currentDate);
@@ -1067,10 +1079,10 @@ const truncateText = (doc: any, text: string, maxWidth: number) => {
     const start = weekDates[0];
     const end = weekDates[6];
 
-    const dateRange = `${start.toLocaleDateString('en-US', {
+    const dateRange = `${shortDateLabel(start, {
       month: 'short',
       day: 'numeric',
-    })} - ${end.toLocaleDateString('en-US', {
+    })} - ${shortDateLabel(end, {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -1082,8 +1094,8 @@ const truncateText = (doc: any, text: string, maxWidth: number) => {
         .sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
 
       return {
-        dayName,
-        dateLabel: weekDates[dayIndex].toLocaleDateString('en-US', {
+        dayName: dayLabel(dayName),
+        dateLabel: shortDateLabel(weekDates[dayIndex], {
           month: 'short',
           day: 'numeric',
         }),
@@ -1101,14 +1113,14 @@ const truncateText = (doc: any, text: string, maxWidth: number) => {
 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(18);
-      doc.text('Study Timetable', margin, margin + 20);
+      doc.text(t('calendar.title'), margin, margin + 20);
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10);
       doc.text(dateRange, margin, margin + 40);
 
       if (pageNumber > 1) {
-        doc.text(`Page ${pageNumber}`, pageWidth - margin - 40, margin + 20);
+        doc.text(t('calendar.export.page', { page: pageNumber }), pageWidth - margin - 40, margin + 20);
       }
     };
 
@@ -1116,11 +1128,9 @@ const truncateText = (doc: any, text: string, maxWidth: number) => {
       const lines = [
         session.subject || 'Untitled',
         `${session.startTime} - ${session.endTime}`,
-        session.type === 'test'
-          ? 'Test/Quiz'
-          : session.type.charAt(0).toUpperCase() + session.type.slice(1),
+        sessionTypeLabel(session.type),
         session.deadline
-          ? `Deadline: ${new Date(session.deadline).toLocaleDateString('en-US')}`
+          ? t('calendar.export.deadline', { date: shortDateLabel(new Date(session.deadline)) })
           : '',
       ].filter(Boolean);
 
@@ -1165,7 +1175,7 @@ const truncateText = (doc: any, text: string, maxWidth: number) => {
 
           doc.setFont('helvetica', 'italic');
           doc.setFontSize(8);
-          doc.text('No sessions', x + 8, y + 20);
+          doc.text(t('calendar.export.noSessions'), x + 8, y + 20);
           continue;
         }
 
@@ -1180,10 +1190,7 @@ const truncateText = (doc: any, text: string, maxWidth: number) => {
           anythingDrawnThisPage = true;
           dayOffsets[dayIndex] = i + 1;
 
-          const typeLabel =
-            session.type === 'test'
-              ? 'Test/Quiz'
-              : session.type.charAt(0).toUpperCase() + session.type.slice(1);
+          const typeLabel = sessionTypeLabel(session.type);
 
           doc.setDrawColor(225, 225, 225);
           doc.setFillColor(255, 255, 255);
@@ -1214,7 +1221,7 @@ const truncateText = (doc: any, text: string, maxWidth: number) => {
           if (session.deadline) {
             textY += 11;
             doc.text(
-              `Deadline: ${new Date(session.deadline).toLocaleDateString('en-US')}`,
+              t('calendar.export.deadline', { date: shortDateLabel(new Date(session.deadline)) }),
               x + 12,
               textY
             );
@@ -1227,7 +1234,7 @@ const truncateText = (doc: any, text: string, maxWidth: number) => {
         if (dayOffsets[dayIndex] < dayData.items.length) {
           doc.setFont('helvetica', 'italic');
           doc.setFontSize(8);
-          doc.text('Continued on next page', x + 8, contentBottom - 6);
+          doc.text(t('calendar.export.continued'), x + 8, contentBottom - 6);
         }
       }
 
@@ -1241,7 +1248,7 @@ const truncateText = (doc: any, text: string, maxWidth: number) => {
 
       if (!anythingDrawnThisPage) {
         // safety guard
-        throw new Error('PDF layout failed: content is too large to fit on page.');
+        throw new Error(t('calendar.toasts.pdfLayoutFailed'));
       }
 
       doc.addPage();
@@ -1250,11 +1257,11 @@ const truncateText = (doc: any, text: string, maxWidth: number) => {
     }
 
     doc.save(`timetable_${weekId}.pdf`);
-    toast.success('Timetable exported as PDF');
+    toast.success(t('calendar.toasts.exportedPdf'));
   } catch (err: any) {
     console.error('PDF export failed:', err);
-    toast.error('PDF export failed', {
-      description: err?.message || 'Unknown error',
+    toast.error(t('calendar.toasts.pdfExportFailed'), {
+      description: err?.message || t('calendar.toasts.unknownError'),
     });
   }
 };
@@ -1265,10 +1272,17 @@ const truncateText = (doc: any, text: string, maxWidth: number) => {
     
     // Create worksheet data
     const worksheetData: any[] = [
-      ['Study Timetable'],
-      [`Week: ${formatDateRange()}`],
+      [t('calendar.title')],
+      [t('calendar.export.week', { range: formatDateRange() })],
       [],
-      ['Day', 'Subject', 'Start Time', 'End Time', 'Type', 'Deadline']
+      [
+        t('calendar.export.day'),
+        t('calendar.export.subject'),
+        t('calendar.export.startTime'),
+        t('calendar.export.endTime'),
+        t('calendar.export.type'),
+        t('calendar.export.deadlineHeader'),
+      ]
     ];
     
     // Add sessions
@@ -1279,11 +1293,11 @@ const truncateText = (doc: any, text: string, maxWidth: number) => {
       })
       .forEach(session => {
         worksheetData.push([
-          days[session.day],
+          dayLabelByIndex(session.day),
           session.subject,
           session.startTime,
           session.endTime,
-          session.type,
+          sessionTypeLabel(session.type),
           session.deadline || ''
         ]);
       });
@@ -1303,27 +1317,27 @@ const truncateText = (doc: any, text: string, maxWidth: number) => {
     ];
     
     // Add worksheet to workbook
-    XLSX.utils.book_append_sheet(wb, ws, 'Timetable');
+    XLSX.utils.book_append_sheet(wb, ws, t('calendar.export.sheetName'));
     
     // Save Excel file
     XLSX.writeFile(wb, `timetable_${weekId}.xlsx`);
-    toast.success('Timetable exported as Excel');
+    toast.success(t('calendar.toasts.exportedExcel'));
   };
 
   const exportToGoogleCalendar = async () => {
     try {
       if (!API_BASE_URL) {
-        toast.error('Backend URL not configured (VITE_API_BASE_URL)');
+        toast.error(t('calendar.toasts.backendUrlMissing'));
         return;
       }
       if (!sessions.length) {
-        toast.info('No sessions to export');
+        toast.info(t('calendar.toasts.noSessionsToExport'));
         return;
       }
 
       const userId = localStorage.getItem('currentUserId');
       if (!userId) {
-        toast.error('You are not logged in');
+        toast.error(t('calendar.toasts.notLoggedIn'));
         return;
       }
 
@@ -1341,7 +1355,7 @@ const truncateText = (doc: any, text: string, maxWidth: number) => {
       // 1) Check if the user has linked Google Calendar
       const statusRes = await fetch(`${API_BASE_URL}/calendar/google/status/${userId}`);
       if (!statusRes.ok) {
-        toast.error('Could not check Google Calendar status');
+        toast.error(t('calendar.toasts.googleStatusFailed'));
         return;
       }
       const status = await statusRes.json();
@@ -1349,7 +1363,7 @@ const truncateText = (doc: any, text: string, maxWidth: number) => {
       // 2) If not linked, start OAuth. Google will NOT prompt again if the
       //    user is already signed in.
       if (!status.linked) {
-        toast.info('Connect Google Calendar to export...');
+        toast.info(t('calendar.toasts.connectGoogleToExport'));
         window.location.href = `${API_BASE_URL}/auth?user_id=${userId}`;
         return;
       }
@@ -1358,13 +1372,13 @@ const truncateText = (doc: any, text: string, maxWidth: number) => {
       let overwrite = false;
       if (status.has_previous_export) {
         overwrite = window.confirm(
-          'You already exported a timetable to Google Calendar.\n\nOK = Overwrite (replace previous export)\nCancel = Add on top (keep previous export)'
+          t('calendar.confirm.googleOverwrite')
         );
       }
 
       // 4) Export directly to Google Calendar via backend
-      toast.info('Exporting to Google Calendar...');
-      const res = await fetch(`${API_BASE_URL}/calendar/google/export/${userId}?overwrite=${overwrite ? 'true' : 'false'}`, {
+      toast.info(t('calendar.toasts.exportingGoogle'));
+      const res = await fetch(`${API_BASE_URL}/calendar/google/export/${userId}?overwrite=${overwrite ? 'true' : 'false'}&async_job=true`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1374,28 +1388,45 @@ const truncateText = (doc: any, text: string, maxWidth: number) => {
             day: s.day,
             startTime: s.startTime,
             endTime: s.endTime,
-            description: `SmartStudy session: ${s.type || 'session'}`,
+            description: t('calendar.export.googleDescription', { type: sessionTypeLabel(s.type || 'lecture') }),
           })),
         }),
       });
 
       if (res.status === 401) {
         // Link likely missing/expired; restart OAuth
-        toast.info('Reconnecting Google Calendar...');
+        toast.info(t('calendar.toasts.reconnectingGoogle'));
         window.location.href = `${API_BASE_URL}/auth?user_id=${userId}`;
         return;
       }
       if (!res.ok) {
         const msg = await res.text();
-        toast.error(`Export failed: ${msg || res.statusText}`);
+        toast.error(t('calendar.toasts.exportFailedWithMessage', { message: msg || res.statusText }));
         return;
       }
 
       const data = await res.json();
+      let exportedEvents = data.exported_events;
+      if (data.accepted && data.status_url) {
+        toast.info(t('calendar.toasts.exportingGoogle'));
+        for (let attempt = 0; attempt < 20; attempt += 1) {
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+          const statusResponse = await fetch(`${API_BASE_URL}${data.status_url}`);
+          const statusData = await statusResponse.json().catch(() => ({}));
+          if (statusData.status === 'succeeded') {
+            exportedEvents = statusData.result?.exported_events;
+            break;
+          }
+          if (statusData.status === 'failed') {
+            toast.error(statusData.error?.message || t('calendar.toasts.exportFailed'));
+            return;
+          }
+        }
+      }
       const weekId = getWeekIdentifier(currentDate);
       localStorage.setItem(`${getWeekKey(weekId)}_exported`, 'true');
       setHasExportedThisWeek(true);
-      toast.success(`Exported ${data.exported_events} session(s) to Google Calendar`);
+      toast.success(t('calendar.toasts.exportedGoogle', { count: exportedEvents ?? 0 }));
       if (data.calendar_url) {
         // Open the calendar in a new tab
         window.open(data.calendar_url, '_blank');
@@ -1403,7 +1434,7 @@ const truncateText = (doc: any, text: string, maxWidth: number) => {
       return;
     } catch (e) {
       console.error(e);
-      toast.error('Export failed');
+      toast.error(t('calendar.toasts.exportFailed'));
     }
   };
 
@@ -1431,18 +1462,18 @@ const truncateText = (doc: any, text: string, maxWidth: number) => {
     
     if (conflicts.length > 0) {
       // Show conflict warning
-      toast.error(' IMPORT CONFLICTS DETECTED!', {
+      toast.error(t('calendar.toasts.importConflictsDetected'), {
         description: (
           <div className="space-y-2">
-            <p className="font-semibold">{conflicts.length} conflict(s) found</p>
+            <p className="font-semibold">{t('calendar.toasts.conflictsFound', { count: conflicts.length })}</p>
             {conflicts.slice(0, 2).map((conflict, idx) => (
               <div key={idx} className="text-sm">
-                <p>"{conflict.imported.subject}" conflicts with "{conflict.existing.subject}"</p>
-                <p className="text-xs text-red-200">on {days[conflict.imported.day]}</p>
+                <p>{t('calendar.toasts.importConflictPair', { imported: conflict.imported.subject, existing: conflict.existing.subject })}</p>
+                <p className="text-xs text-red-200">{t('calendar.toasts.onDay', { day: dayLabelByIndex(conflict.imported.day) })}</p>
               </div>
             ))}
             {conflicts.length > 2 && (
-              <p className="text-xs text-red-200">and {conflicts.length - 2} more...</p>
+              <p className="text-xs text-red-200">{t('calendar.toasts.moreConflicts', { count: conflicts.length - 2 })}</p>
             )}
           </div>
         ),
@@ -1474,19 +1505,19 @@ const truncateText = (doc: any, text: string, maxWidth: number) => {
             
             console.log('[CalendarView] Saved availability settings to active timetable:', importedAvailabilitySettings);
             
-            toast.success(`Successfully imported ${importedSessions.length} session(s) with availability settings!`);
+            toast.success(t('calendar.toasts.importedWithAvailability', { count: importedSessions.length }));
           } else {
-            toast.success(`Successfully imported ${importedSessions.length} session(s)!`);
+            toast.success(t('calendar.toasts.imported', { count: importedSessions.length }));
           }
         } else {
-          toast.success(`Successfully imported ${importedSessions.length} session(s)!`);
+          toast.success(t('calendar.toasts.imported', { count: importedSessions.length }));
         }
       } catch (error) {
         console.error('[CalendarView] Error saving availability settings:', error);
-        toast.success(`Successfully imported ${importedSessions.length} session(s)!`);
+        toast.success(t('calendar.toasts.imported', { count: importedSessions.length }));
       }
     } else {
-      toast.success(`Successfully imported ${importedSessions.length} session(s)!`);
+      toast.success(t('calendar.toasts.imported', { count: importedSessions.length }));
     }
   };
 
@@ -1510,7 +1541,7 @@ const truncateText = (doc: any, text: string, maxWidth: number) => {
     const start = weekDates[0];
     const end = weekDates[6];
     const weekId = getWeekIdentifier(currentDate);
-    return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} (${weekId})`;
+    return `${shortDateLabel(start, { month: 'short', day: 'numeric' })} - ${shortDateLabel(end, { month: 'short', day: 'numeric', year: 'numeric' })} (${weekId})`;
   };
 
   // Helper function to convert time string to minutes
@@ -1600,18 +1631,18 @@ const truncateText = (doc: any, text: string, maxWidth: number) => {
         );
       });
       
-      toast.error(' DRAG & DROP CONFLICT!', {
+      toast.error(t('calendar.toasts.dragDropConflict'), {
         description: draggedSession && conflictingSession ? (
           <div className="space-y-2">
-            <p className="font-semibold">Cannot move "{draggedSession.subject}"</p>
-            <p>"{conflictingSession.subject}" is already in this time slot</p>
-            <p className="text-sm">on {days[day]}: {conflictingSession.startTime} - {conflictingSession.endTime}</p>
-            <p className="text-sm text-red-200">Please choose a different slot</p>
+            <p className="font-semibold">{t('calendar.toasts.cannotMove', { subject: draggedSession.subject })}</p>
+            <p>{t('calendar.toasts.alreadyInSlot', { subject: conflictingSession.subject })}</p>
+            <p className="text-sm">{t('calendar.toasts.onDayTimeRange', { day: dayLabelByIndex(day), start: conflictingSession.startTime, end: conflictingSession.endTime })}</p>
+            <p className="text-sm text-red-200">{t('calendar.toasts.chooseDifferentSlot')}</p>
           </div>
-        ) : 'Another session already exists at this time. Please choose a different slot.',
+        ) : t('calendar.toasts.anotherSessionExists'),
         duration: 2500, // Auto-dismiss after 10 seconds
         action: {
-          label: 'Dismiss',
+          label: t('calendar.dismiss'),
           onClick: () => {},
         },
       });
@@ -1628,8 +1659,8 @@ const truncateText = (doc: any, text: string, maxWidth: number) => {
         : s
     ));
 
-    toast.success('Session moved successfully', {
-      description: `Moved to ${days[day]} at ${time}`,
+    toast.success(t('calendar.toasts.sessionMoved'), {
+      description: t('calendar.toasts.sessionMovedDescription', { day: dayLabelByIndex(day), time }),
     });
     setDraggingSession(null);
     setDragOverSlot(null);
@@ -1794,12 +1825,12 @@ const [mobileSelectedDay, setMobileSelectedDay] = useState(
                             data-tour="my-timetable-title"
                             className="truncate text-xl font-semibold tracking-tight text-foreground sm:text-2xl"
                           >
-                             {activeTimetableName || t?.('calendar.title') || 'Study Timetable'}
+                             {activeTimetableName || t('calendar.title')}
                           </h1>
                         </div>
 
                         <p className="mt-1 text-sm text-muted-foreground">
-                          {t?.('calendar.subtitle') || 'Plan and organize your study sessions • each week has its own schedule'}
+                          {t('calendar.subtitle')}
                         </p>
                       </div>
                     </div>
@@ -1816,44 +1847,36 @@ const [mobileSelectedDay, setMobileSelectedDay] = useState(
                           variant="outline"
                           className="rounded-full border-red-200 bg-red-50 px-3 py-1 text-xs text-red-700 dark:border-red-500/30 dark:bg-red-950/30 dark:text-red-300"
                         >
-                          {allSessions.filter(
-                            (s) =>
-                              s.deadline &&
-                              (s.type === "assignment" ||
-                                s.type === "test" ||
-                                s.type === "exam")
-                          ).length}{' '}
-                          deadline
-                          {allSessions.filter(
-                            (s) =>
-                              s.deadline &&
-                              (s.type === "assignment" ||
-                                s.type === "test" ||
-                                s.type === "exam")
-                          ).length > 1
-                            ? 's'
-                            : ''}
+                          {t('calendar.deadlineCount', {
+                            count: allSessions.filter(
+                              (s) =>
+                                s.deadline &&
+                                (s.type === "assignment" ||
+                                  s.type === "test" ||
+                                  s.type === "exam")
+                            ).length,
+                          })}
                         </Badge>
                       )}
 
                       {workspaceStatusCounts && (
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge variant="outline" className={`rounded-full px-3 py-1 text-xs ${statusBadgeClass("completed")}`}>
-                            {workspaceStatusCounts.completed} completed
+                            {workspaceStatusCounts.completed} {t('calendar.status.completed')}
                           </Badge>
                           <Badge variant="outline" className={`rounded-full px-3 py-1 text-xs ${statusBadgeClass("missed")}`}>
-                            {workspaceStatusCounts.missed} missed
+                            {workspaceStatusCounts.missed} {t('calendar.status.missed')}
                           </Badge>
                           <Badge variant="outline" className={`rounded-full px-3 py-1 text-xs ${statusBadgeClass("skipped")}`}>
-                            {workspaceStatusCounts.skipped} skipped
+                            {workspaceStatusCounts.skipped} {t('calendar.status.skipped')}
                           </Badge>
                           <Badge variant="outline" className={`rounded-full px-3 py-1 text-xs ${statusBadgeClass("planned")}`}>
-                            {workspaceStatusCounts.planned} planned
+                            {workspaceStatusCounts.planned} {t('calendar.status.planned')}
                           </Badge>
 
                           {isStatusLoading && (
                             <Badge variant="outline" className="rounded-full border-border bg-muted px-3 py-1 text-xs text-muted-foreground">
-                              Loading…
+                              {t('calendar.loading')}
                             </Badge>
                           )}
                         </div>
@@ -1861,7 +1884,7 @@ const [mobileSelectedDay, setMobileSelectedDay] = useState(
 
                       {!workspaceStatus && showStatusBadges && isPersonalStatusLoading && (
                         <Badge variant="outline" className="rounded-full border-border bg-muted px-3 py-1 text-xs text-muted-foreground">
-                          Loading statuses…
+                          {t('calendar.loadingStatuses')}
                         </Badge>
                       )}
                     </div>
@@ -1891,7 +1914,7 @@ const [mobileSelectedDay, setMobileSelectedDay] = useState(
                         if (onNavigate) {
                           onNavigate("auto-generate");
                         } else {
-                          toast.error("Navigation is not available");
+                          toast.error(t('calendar.toasts.navigationUnavailable'));
                         }
                       }}
                       className="h-10 rounded-2xl bg-blue-700 px-3 shadow-sm hover:bg-blue-800"
@@ -1911,7 +1934,7 @@ const [mobileSelectedDay, setMobileSelectedDay] = useState(
                             // ignore
                           }
                           if (onNavigate) onNavigate("auto-generate");
-                          toast.info("Import is done from Auto Generate for non-admin users.");
+                          toast.info(t('calendar.toasts.importFromAutoGenerate'));
                           return;
                         }
                         setIsImportTargetDialogOpen(true);
@@ -1983,12 +2006,12 @@ const [mobileSelectedDay, setMobileSelectedDay] = useState(
               {headerCollapsed ? (
                 <>
                   <ChevronDown className="mr-2 h-4 w-4" />
-                  <span className="text-xs font-medium">Show details</span>
+                  <span className="text-xs font-medium">{t('calendar.showDetails')}</span>
                 </>
               ) : (
                 <>
                   <ChevronUp className="mr-2 h-4 w-4" />
-                  <span className="text-xs font-medium">Hide details</span>
+                  <span className="text-xs font-medium">{t('calendar.hideDetails')}</span>
                 </>
               )}
             </Button>
@@ -2010,7 +2033,7 @@ const [mobileSelectedDay, setMobileSelectedDay] = useState(
 
           <div className="flex-1 rounded-2xl border border-border/60 bg-card px-4 py-2.5 text-center shadow-sm">
             <div className="text-sm font-medium text-muted-foreground sm:text-[13px]">
-              Weekly view
+              {t('calendar.weeklyView')}
             </div>
             <div className="text-sm font-semibold tracking-tight text-foreground sm:text-base">
               {formatDateRange()}
@@ -2075,7 +2098,7 @@ const [mobileSelectedDay, setMobileSelectedDay] = useState(
                     <tr>
                       <th className="sticky left-0 z-30 border-b border-r border-border/70 bg-white px-2 py-3 text-left dark:bg-[#0f0f0f]">
                         <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                          Time
+                          {t('calendar.time')}
                         </div>
                       </th>
 
@@ -2096,7 +2119,7 @@ const [mobileSelectedDay, setMobileSelectedDay] = useState(
                                 isToday ? "text-blue-700 dark:text-blue-300" : "text-foreground"
                               }`}
                             >
-                              {day}
+                              {dayLabel(day)}
                             </div>
                             <div
                               className={`mt-1 text-xs ${
@@ -2105,7 +2128,7 @@ const [mobileSelectedDay, setMobileSelectedDay] = useState(
                                   : "text-muted-foreground"
                               }`}
                             >
-                              {date.toLocaleDateString("en-US", {
+                              {shortDateLabel(date, {
                                 month: "short",
                                 day: "numeric",
                               })}
@@ -2170,7 +2193,7 @@ const [mobileSelectedDay, setMobileSelectedDay] = useState(
                               {hasConflict && (
                                 <div className="absolute right-2 top-2 z-30">
                                   <Badge className="rounded-full bg-red-600 px-2 py-0.5 text-[10px] text-white shadow-sm">
-                                    ⚠ Conflict
+                                    {t('calendar.conflict')}
                                   </Badge>
                                 </div>
                               )}
@@ -2276,7 +2299,7 @@ const [mobileSelectedDay, setMobileSelectedDay] = useState(
                                             <Button
                                               variant="outline"
                                               size="sm"
-                                              className="h-6 rounded-lg border-border bg-background/90 px-2 py-0 text-xs shadow-sm"
+                                              className="h-6 rounded-2xl border-border bg-background/90 px-2 py-0 text-xs shadow-sm"
                                             >
                                               <MoreHorizontal className="h-3 w-3" />
                                             </Button>
@@ -2293,7 +2316,7 @@ const [mobileSelectedDay, setMobileSelectedDay] = useState(
                                                 )
                                               }
                                             >
-                                              Mark completed
+                                              {t('calendar.actions.markCompleted')}
                                             </DropdownMenuItem>
                                             <DropdownMenuItem
                                               onClick={() =>
@@ -2303,7 +2326,7 @@ const [mobileSelectedDay, setMobileSelectedDay] = useState(
                                                 )
                                               }
                                             >
-                                               Mark missed
+                                               {t('calendar.actions.markMissed')}
                                             </DropdownMenuItem>
                                             <DropdownMenuItem
                                               onClick={() =>
@@ -2313,7 +2336,7 @@ const [mobileSelectedDay, setMobileSelectedDay] = useState(
                                                 )
                                               }
                                             >
-                                               Mark skipped
+                                               {t('calendar.actions.markSkipped')}
                                             </DropdownMenuItem>
                                             <DropdownMenuItem
                                               onClick={() =>
@@ -2323,7 +2346,7 @@ const [mobileSelectedDay, setMobileSelectedDay] = useState(
                                                 )
                                               }
                                             >
-                                               Reset to planned
+                                               {t('calendar.actions.resetPlanned')}
                                             </DropdownMenuItem>
                                           </DropdownMenuContent>
                                         </DropdownMenu>
@@ -2407,10 +2430,10 @@ const [mobileSelectedDay, setMobileSelectedDay] = useState(
         <DialogContent className="rounded-[28px] border border-border bg-card shadow-xl">
           <DialogHeader>
             <DialogTitle className="text-foreground">
-              Import timetable
+              {t('calendar.importTimetable')}
             </DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Where are you importing to?
+              {t('calendar.importTargetPrompt')}
             </DialogDescription>
           </DialogHeader>
 
@@ -2422,7 +2445,7 @@ const [mobileSelectedDay, setMobileSelectedDay] = useState(
                 setIsImportDialogOpen(true);
               }}
             >
-              My Timetable
+              {t('calendar.myTimetable')}
             </Button>
 
             <Button
@@ -2437,11 +2460,11 @@ const [mobileSelectedDay, setMobileSelectedDay] = useState(
                 }
                 if (onNavigate) onNavigate("workspace");
                 toast.info(
-                  "Select the workspace, then upload/import in Workspace Auto Generate."
+                  t('calendar.toasts.selectWorkspaceImport')
                 );
               }}
             >
-              Workspace
+              {t('common.workspace')}
             </Button>
           </div>
         </DialogContent>
@@ -2488,7 +2511,7 @@ const [mobileSelectedDay, setMobileSelectedDay] = useState(
               }
               className="rounded-2xl border-border bg-background hover:bg-muted"
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               variant={confirmDialog.confirmVariant || "default"}
@@ -2507,7 +2530,7 @@ const [mobileSelectedDay, setMobileSelectedDay] = useState(
                   : "rounded-2xl bg-blue-700 hover:bg-blue-700"
               }
             >
-              {confirmDialog.confirmText || "Confirm"}
+              {confirmDialog.confirmText || t('calendar.confirm.confirm')}
             </Button>
           </div>
         </DialogContent>

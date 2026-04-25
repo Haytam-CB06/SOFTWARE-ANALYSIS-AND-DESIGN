@@ -30,6 +30,7 @@ class User(Base):
     # Global moderation (CP-08)
     # Added without full Alembic history; db.py backfills the column for existing DBs.
     is_banned = Column(Boolean, nullable=False, default=False, server_default="false")
+    last_seen_at = Column(DateTime(timezone=True), nullable=True)
 
     # Tarihler
     created_at = Column(DateTime(timezone=True), server_default=func.now())

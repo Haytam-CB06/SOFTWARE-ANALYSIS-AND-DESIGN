@@ -1,4 +1,4 @@
-const it = {
+﻿const it = {
   common: {
     start: 'Avvia',
     pause: 'Pausa',
@@ -7,7 +7,7 @@ const it = {
     home: 'Home',
     timetable: 'Orario',
     workspace: 'Spazio di lavoro',
-    saved: 'Salvati',
+    saved: 'Salvato',
     settings: 'Impostazioni',
     admin: 'Admin',
     logout: 'Disconnetti',
@@ -26,308 +26,343 @@ const it = {
     minimize: 'Riduci',
     total: 'Totale',
     today: 'Oggi',
-    pin: 'Fissa'
+    pin: 'Fissa',
+    next: 'Avanti',
+    skip: 'Salta',
   },
+
   autoGenerate: {
-    title: 'Generazione automatica dell’orario di studio',
-    subtitle: 'Configura il tuo programma e genera sessioni di studio ottimizzate.',
+    title: "Generazione automatica dell'orario",
+    subtitle: 'Configura il tuo piano e genera sessioni di studio ottimizzate.',
     studyWindow: {
-      title: 'Finestra di studio',
-      description: 'Imposta quando sei disponibile a studiare e modificalo in qualsiasi momento.',
-      weekdayStart: 'Inizio feriali',
-      weekdayEnd: 'Fine feriali',
+      title: 'Fascia oraria di studio',
+      description: 'Definisci quando sei disponibile a studiare e modificala in qualsiasi momento.',
+      weekdayStart: 'Inizio nei giorni feriali',
+      weekdayEnd: 'Fine nei giorni feriali',
       breakMinutes: 'Pausa tra le sessioni di studio (minuti)',
-      breakHelp: 'Lasceremo questo intervallo tra le sessioni generate consecutive così potrai riposarti.',
+      breakHelp:
+        'Lasceremo questo intervallo tra le sessioni generate consecutive così potrai riposarti.',
       includeWeekends: 'Includi i weekend',
-      includeWeekendsHelp: 'Se attivato, useremo anche il tempo libero di sabato e domenica.',
-      sameWeekend: 'Usa la stessa finestra nel weekend',
-      sameWeekendHelp: 'Le ore del weekend saranno uguali a quelle dei feriali.',
+      includeWeekendsHelp:
+        'Se attivato, riempiremo anche il tempo libero di sabato e domenica.',
+      sameWeekend: 'Usa la stessa fascia oraria nel weekend',
+      sameWeekendHelp:
+        'Gli orari del weekend saranno identici a quelli dei giorni feriali.',
       weekendStart: 'Inizio weekend',
-      weekendEnd: 'Fine weekend'
+      weekendEnd: 'Fine weekend',
     },
     classSchedule: {
-      title: 'Orario delle lezioni e priorità',
-      description: 'Aggiungi il tuo orario attuale e imposta la priorità di ogni corso. Il generatore lo usa insieme al tempo occupato per trovare i tuoi slot di studio liberi.',
-      fillButton: 'Compila orario attuale',
-      uploadButton: 'Carica',
-      emptyTitle: 'Nessun orario delle lezioni salvato',
-      emptyDescription: 'Usa Compila orario attuale o Carica per aggiungere i tuoi corsi.',
-      addAnotherSlot: 'Aggiungi un altro slot per questo corso',
+      title: 'Orario delle lezioni e priorità dei corsi',
+      description:
+        "Aggiungi il tuo orario attuale e imposta la priorità di ogni corso. Il generatore lo usa insieme agli intervalli occupati per trovare i tuoi spazi liberi.",
+      fillButton: "Compila l'orario attuale",
+      uploadButton: 'Importa',
+      emptyTitle: 'Nessun orario salvato',
+      emptyDescription: 'Usa "Compila l\'orario attuale" o "Importa" per aggiungere i tuoi corsi.',
+      addAnotherSlot: 'Aggiungi un altro intervallo per questo corso',
       courseName: 'Nome del corso',
       priority: 'Priorità',
       start: 'Inizio',
       end: 'Fine',
       days: 'Giorni',
       addCourseRow: 'Aggiungi riga corso',
-      addCourseRowHelp: 'Lo stesso corso può comparire più volte con giorni o orari diversi.'
+      addCourseRowHelp:
+        'Lo stesso corso può comparire più volte con giorni o orari diversi.',
     },
     busyTime: {
-      title: 'Tempo occupato',
-      description: 'Aggiungi altri blocchi occupati come lavoro, spostamenti o commissioni. La generazione automatica non inserirà mai sessioni di studio lì.',
-      treatExisting: 'Tratta le sessioni esistenti del calendario come occupate',
-      treatExistingHelp: 'Usa le sessioni della settimana corrente come tempo occupato aggiuntivo (trovate {{count}} sessioni).',
+      title: 'Fasce occupate',
+      description:
+        'Aggiungi altri blocchi occupati come lavoro, spostamenti o commissioni. La generazione automatica non pianificherà mai sessioni di studio in quei momenti.',
+      treatExisting: 'Tratta le sessioni esistenti come occupate',
+      treatExistingHelp:
+        'Usa le sessioni della settimana corrente come ulteriori intervalli occupati ({{count}} sessione/i trovata/e).',
       replaceExisting: 'Sostituisci le sessioni di studio esistenti',
-      replaceExistingHelp: 'Se attivato, rimuoviamo le sessioni di studio generate in precedenza prima di aggiungerne di nuove.',
-      addBusy: 'Aggiungi blocco occupato',
+      replaceExistingHelp:
+        'Se attivato, le sessioni generate in precedenza verranno rimosse prima di aggiungerne di nuove.',
+      addBusy: 'Aggiungi fascia occupata',
       titleLabel: 'Titolo',
       day: 'Giorno',
       start: 'Inizio',
-      end: 'Fine'
+      end: 'Fine',
     },
     upload: {
-      title: 'Carica orario',
-      description: 'Carica un CSV o un’immagine del tuo orario. Dopo l’importazione, imposta le priorità e fai clic su Salva.',
-      selectFile: 'Scegli file da caricare',
-      buttonHint: 'Supporta immagine o CSV'
+      title: 'Importa un orario',
+      description:
+        "Importa un file CSV o un'immagine del tuo orario. Dopo l'importazione, imposta le priorità e clicca su Salva.",
+      selectFile: 'Seleziona un file da importare',
+      buttonHint: 'Supporta immagini e file CSV',
     },
     priority: {
       high: 'ALTA',
       medium: 'MEDIA',
-      low: 'BASSA'
+      low: 'BASSA',
     },
-    busyDefaultTitle: 'Tempo occupato',
+    busyDefaultTitle: 'Fascia occupata',
     generate: 'Genera',
-    generating: 'Generazione…',
+    generating: 'Generazione in corso…',
     success: {
-      busySavedWorkspace: 'Tempo occupato salvato nello spazio di lavoro',
-      classSavedWorkspace: 'Orario delle lezioni salvato nello spazio di lavoro',
-      classSaved: 'Orario delle lezioni salvato',
-      importedRows: 'Importate {{count}} righe dell’orario. Ora imposta le priorità e fai clic su Salva.',
-      generatedSessions: 'Generate {{count}} sessioni di studio{{seed}}.'
+      busySavedWorkspace: 'Fasce occupate salvate nello spazio di lavoro',
+      classSavedWorkspace: 'Orario salvato nello spazio di lavoro',
+      classSaved: 'Orario salvato',
+      importedRows:
+        "{{count}} riga/e di orario importata/e. Ora imposta le priorità e clicca su Salva.",
+      generatedSessions: '{{count}} sessioni di studio generate{{seed}}.',
     },
     errors: {
-      saveBusy: 'Impossibile salvare il tempo occupato',
-      addCourseFirst: 'Aggiungi almeno un corso al tuo orario delle lezioni',
-      saveClass: 'Impossibile salvare l’orario delle lezioni',
-      uploadCsvOrImage: 'Carica un file CSV o un’immagine',
-      uploadFailed: 'Caricamento non riuscito',
-      uploadFailedGeneric: 'Caricamento non riuscito',
-      noClassesDetected: 'Nessuna lezione rilevata nel file caricato',
-      invalidImportFormat: 'Il file importato non corrisponde al formato previsto dell’orario',
+      saveBusy: 'Salvataggio delle fasce occupate non riuscito',
+      addCourseFirst: "Aggiungi almeno un corso al tuo orario",
+      saveClass: "Salvataggio dell'orario non riuscito",
+      uploadCsvOrImage: 'Importa un file CSV o un’immagine',
+      uploadFailed: "Importazione non riuscita",
+      uploadFailedGeneric: "Importazione non riuscita",
+      noClassesDetected: 'Nessun corso rilevato nel file importato',
+      invalidImportFormat: 'Il file importato non corrisponde al formato previsto',
       courseNameRequired: 'Il nome del corso è obbligatorio',
       selectAtLeastOneDay: 'Seleziona almeno un giorno',
-      missingApiBase: 'Manca VITE_API_BASE_URL. Configura l’ambiente frontend.',
+      missingApiBase: 'Manca VITE_API_BASE_URL. Configura il tuo ambiente frontend.',
       notLoggedIn: 'Non hai effettuato l’accesso',
-      fillOrUploadFirst: 'Compila o carica prima l’orario delle lezioni',
+      fillOrUploadFirst: "Compila o importa prima il tuo orario",
       generateFailed: 'Generazione automatica non riuscita',
-      noFreeTime: 'Nessun tempo libero disponibile per la finestra di studio selezionata'
-    }
+      noFreeTime: 'Nessuno spazio libero disponibile per la fascia oraria selezionata',
+    },
   },
+
   auth: {
     brand: {
       name: 'PLAN',
-      subtitle: 'Academic Planning',
-      logoAlt: 'U PLAN Logo'
+      subtitle: 'Pianificazione accademica',
+      logoAlt: 'Logo U PLAN',
     },
     hero: {
-      imageAlt: 'Student studying',
-      badge: 'Plan smarter. Study with clarity.',
-      titleLine1: 'Master your',
-      titleLine2: 'study schedule',
-      description: 'AI-powered timetable planning that adapts to your classes, exams, deadlines, and goals in one clean workspace.',
-      footer: 'Built to help students stay organized, focused, and confident.',
+      imageAlt: 'Studente che studia',
+      badge: 'Pianifica in modo più intelligente. Studia con chiarezza.',
+      titleLine1: 'Gestisci al meglio il tuo',
+      titleLine2: 'orario',
+      description:
+        'Pianificazione degli orari basata sull’IA che si adatta a lezioni, esami, scadenze e obiettivi in uno spazio di lavoro pulito.',
+      footer:
+        'Progettato per aiutare gli studenti a restare organizzati, concentrati e sicuri.',
       cards: {
         smartPlanning: {
-          title: 'Smarter planning',
-          description: 'Organize sessions around real priorities'
+          title: 'Pianificazione intelligente',
+          description: 'Organizza le sessioni attorno alle vere priorità',
         },
         flexibleFlow: {
-          title: 'Flexible flow',
-          description: 'Adjust study time as your week changes'
+          title: 'Flusso flessibile',
+          description: 'Adatta il tempo di studio nel corso della settimana',
         },
         studentFirst: {
-          title: 'Student-first',
-          description: 'Built for clarity, focus, and consistency'
-        }
-      }
+          title: 'Prima lo studente',
+          description: 'Progettato per chiarezza, concentrazione e costanza',
+        },
+      },
     },
     titles: {
-      welcomeBack: 'Welcome back',
-      verifyAccount: 'Verify your account',
-      createNewPassword: 'Create a new password',
-      resetPassword: 'Reset your password',
-      createAccount: 'Create your account',
-      continueWithProvider: 'Continue with {{provider}}',
-      completeProviderLogin: 'Complete {{provider}} Login',
-      enterVerificationCode: 'Enter Verification Code',
-      welcomeBackCard: 'Welcome Back',
-      createAccountCard: 'Create Account',
-      verifyYourEmail: 'Verify your email'
+      welcomeBack: 'Bentornato',
+      verifyAccount: 'Verifica il tuo account',
+      createNewPassword: 'Crea una nuova password',
+      resetPassword: 'Reimposta la tua password',
+      createAccount: 'Crea il tuo account',
+      continueWithProvider: 'Continua con {{provider}}',
+      completeProviderLogin: 'Completa l’accesso con {{provider}}',
+      enterVerificationCode: 'Inserisci il codice di verifica',
+      welcomeBackCard: 'Bentornato',
+      createAccountCard: 'Crea un account',
+      verifyYourEmail: 'Verifica la tua email',
     },
     descriptions: {
-      completeSignIn: 'Complete your sign-in details to continue.',
-      enterCodeSent: 'Enter the code sent to your email.',
-      chooseStrongPassword: 'Choose a strong new password to secure your account.',
-      sendVerificationToEmail: 'We’ll send a verification code to your email.',
-      joinAndOrganize: 'Join and start organizing your study schedule.',
-      accessPlanner: 'Access your study planner and continue where you left off.',
-      completeProviderLogin: 'Enter your email and name to complete the login process.',
-      resetCodeSentTo: 'We’ve sent a 6-digit verification code to {{email}}',
-      enterNewPasswordFor: 'Enter your new password for {{email}}',
-      resetPasswordHelp: 'Enter your email address and we’ll send you a verification code',
-      loginCard: 'Enter your credentials to access your study timetable',
-      signupCard: 'Start organizing your study schedule today',
-      signupCodeSentTo: 'Enter the 6-digit code sent to {{email}}'
+      completeSignIn: 'Completa i tuoi dati di accesso per continuare.',
+      enterCodeSent: 'Inserisci il codice inviato al tuo indirizzo email.',
+      chooseStrongPassword: 'Scegli una password sicura per proteggere il tuo account.',
+      sendVerificationToEmail: 'Invieremo un codice di verifica al tuo indirizzo email.',
+      joinAndOrganize: 'Unisciti a noi e inizia a organizzare il tuo orario.',
+      accessPlanner: 'Accedi al tuo pianificatore e riprendi da dove avevi lasciato.',
+      completeProviderLogin: 'Inserisci email e nome per completare l’accesso.',
+      resetCodeSentTo: 'Abbiamo inviato un codice di verifica a 6 cifre a {{email}}',
+      enterNewPasswordFor: 'Inserisci la tua nuova password per {{email}}',
+      resetPasswordHelp:
+        'Inserisci il tuo indirizzo email e ti invieremo un codice di verifica',
+      loginCard: 'Inserisci le tue credenziali per accedere al tuo orario',
+      signupCard: 'Inizia a organizzare il tuo orario oggi stesso',
+      signupCodeSentTo: 'Inserisci il codice a 6 cifre inviato a {{email}}',
     },
     labels: {
-      email: 'Email',
-      fullName: 'Full Name',
-      verificationCode: 'Verification Code',
-      newPassword: 'New Password',
-      confirmNewPassword: 'Confirm New Password',
-      emailOrUsername: 'Email/Username',
+      email: 'Indirizzo email',
+      fullName: 'Nome completo',
+      verificationCode: 'Codice di verifica',
+      newPassword: 'Nuova password',
+      confirmNewPassword: 'Conferma nuova password',
+      emailOrUsername: 'Email o nome utente',
       password: 'Password',
-      username: 'Username',
-      confirmPassword: 'Confirm Password',
-      dateOfBirth: 'Date of Birth',
-      gender: 'Gender'
+      username: 'Nome utente',
+      confirmPassword: 'Conferma password',
+      dateOfBirth: 'Data di nascita',
+      gender: 'Genere',
     },
     placeholders: {
-      socialEmail: 'your.email@gmail.com',
-      fullName: 'John Doe',
+      socialEmail: 'tua.email@gmail.com',
+      fullName: 'Mario Rossi',
       verificationCode: '000000',
-      newPassword: 'Enter new password',
-      confirmNewPassword: 'Confirm new password',
-      email: 'name@example.com',
-      emailOrUsername: 'name@example.com or username',
-      password: 'Enter your password',
-      username: 'johndoe123',
-      createPassword: 'Create a password',
-      confirmPassword: 'Confirm your password',
-      selectGender: 'Select your gender'
+      newPassword: 'Inserisci la tua nuova password',
+      confirmNewPassword: 'Conferma la tua nuova password',
+      email: 'nome@esempio.com',
+      emailOrUsername: 'nome@esempio.com o nome utente',
+      password: 'Inserisci la tua password',
+      username: 'mariorossi123',
+      createPassword: 'Crea una password',
+      confirmPassword: 'Conferma la password',
+      selectGender: 'Seleziona il tuo genere',
     },
     actions: {
-      backToHome: 'Back to Home',
-      completeLogin: 'Complete Login',
-      backToLogin: 'Back to Login',
-      verifyCode: 'Verify Code',
-      resendCode: 'Resend Code',
-      resetPassword: 'Reset Password',
-      sendVerificationCode: 'Send Verification Code',
-      loginTab: 'Login',
-      signupTab: 'Sign Up',
-      forgotPassword: 'Forgot password?',
-      rememberMe: 'Remember me',
-      signIn: 'Sign In',
-      orContinueWith: 'Or continue with',
-      continueWithGoogle: 'Continue with Google',
-      signUp: 'Sign Up',
-      sendingCode: 'Sending Code...',
-      verifyEmail: 'Verify Email',
-      creatingAccount: 'Creating Account...',
-      needHelp: 'Need help?'
+      backToHome: 'Torna alla home',
+      completeLogin: 'Completa accesso',
+      backToLogin: 'Torna al login',
+      verifyCode: 'Verifica codice',
+      resendCode: 'Invia di nuovo il codice',
+      resetPassword: 'Reimposta password',
+      sendVerificationCode: 'Invia codice di verifica',
+      loginTab: 'Accesso',
+      signupTab: 'Registrazione',
+      forgotPassword: 'Password dimenticata?',
+      rememberMe: 'Ricordami',
+      signIn: 'Accedi',
+      orContinueWith: 'Oppure continua con',
+      continueWithGoogle: 'Continua con Google',
+      signUp: 'Registrati',
+      sendingCode: 'Invio del codice…',
+      verifyEmail: 'Verifica email',
+      creatingAccount: 'Creazione account…',
+      needHelp: 'Hai bisogno di aiuto?',
     },
     requirements: {
       username: {
-        length: 'Between 3-20 characters',
-        format: 'Only letters, numbers, underscores, and periods',
-        noSpaces: 'No spaces allowed',
-        notReserved: 'Not a reserved username'
+        length: 'Tra 3 e 20 caratteri',
+        format: 'Solo lettere, numeri, underscore e punti',
+        noSpaces: 'Nessuno spazio consentito',
+        notReserved: 'Nome utente non riservato',
       },
       password: {
-        minLength: 'At least 8 characters',
-        upper: 'One uppercase letter (A-Z)',
-        lower: 'One lowercase letter (a-z)',
-        number: 'One number (0-9)',
-        special: 'One special character (!@#$%^&*)'
-      }
+        minLength: 'Almeno 8 caratteri',
+        upper: 'Una lettera maiuscola (A-Z)',
+        lower: 'Una lettera minuscola (a-z)',
+        number: 'Un numero (0-9)',
+        special: 'Un carattere speciale (!@#$%^&*)',
+      },
     },
     genderOptions: {
-      male: 'Male',
-      female: 'Female',
-      other: 'Other',
-      preferNotToSay: 'Prefer not to say'
+      male: 'Maschio',
+      female: 'Femmina',
+      other: 'Altro',
+      preferNotToSay: 'Preferisco non rispondere',
     },
     helper: {
-      didntReceiveCode: 'Didn’t receive the code?',
-      passwordMustContain: 'Password must contain:',
-      usernameRequirements: 'Username requirements:',
-      agreeTermsBefore: 'I agree to the',
-      termsOfService: 'Terms of Service',
-      privacyPolicy: 'Privacy Policy',
-      and: 'and',
-      byContinuing: 'By continuing, you agree to our'
+      didntReceiveCode: 'Non hai ricevuto il codice?',
+      passwordMustContain: 'La password deve contenere:',
+      usernameRequirements: 'Requisiti del nome utente:',
+      agreeTermsBefore: 'Accetto i',
+      termsOfService: 'Termini di servizio',
+      privacyPolicy: 'Informativa sulla privacy',
+      and: 'e',
+      byContinuing: 'Continuando, accetti i nostri',
     },
     help: {
-      title: 'Need Help?',
-      creatingAccountTitle: 'Creating an Account',
-      issuesTitle: 'Having Issues?',
-      issuesDescription: 'If you’re having trouble signing up or logging in, please check your internet connection and make sure all required fields are completed correctly.',
+      title: 'Hai bisogno di aiuto?',
+      creatingAccountTitle: 'Creare un account',
+      issuesTitle: 'Problemi?',
+      issuesDescription:
+        "Se hai difficoltà a registrarti o ad accedere, controlla la tua connessione internet e assicurati che tutti i campi obbligatori siano compilati correttamente.",
       points: {
-        username: 'Choose a unique username (3–20 characters)',
-        email: 'Use a valid email address',
-        password: 'Create a strong password with uppercase, lowercase, numbers, and special characters',
-        age: 'You must be 13+ years old to sign up'
-      }
+        username: 'Scegli un nome utente unico (da 3 a 20 caratteri)',
+        email: 'Usa un indirizzo email valido',
+        password:
+          'Crea una password sicura con maiuscole, minuscole, numeri e caratteri speciali',
+        age: 'Devi avere almeno 13 anni per registrarti',
+      },
     },
     errors: {
-      passwordMismatch: 'Passwords do not match!',
-      dateOfBirthRequired: 'Date of birth is required',
-      ageRestriction: 'You must be at least 13 years old to create an account',
-      signupFailed: 'Signup failed',
-      acceptInviteFailed: 'Failed to accept invite',
-      inviteInvalid: 'Invite link is invalid or expired',
-      loginFailed: 'incorrect username,email or password',
-      loginUnexpected: 'Something went wrong during login',
-      invalidSignupCode: 'Invalid signup verification code',
-      verifySignupCodeFailed: 'Failed to verify signup code',
-      usernameLength: 'Username must be between 3 and 20 characters long!',
-      usernameFormat: 'Username can only contain letters, numbers, underscores, and periods!',
-      usernameNoSpaces: 'Username cannot contain spaces!',
-      usernameReserved: 'Username is reserved. Please choose a different one!',
-      emailRequired: 'Email is required',
-      genderRequired: 'Please select your gender',
-      passwordLength: 'Password must be at least 8 characters long!',
-      passwordUpper: 'Password must contain at least one uppercase letter!',
-      passwordLower: 'Password must contain at least one lowercase letter!',
-      passwordNumber: 'Password must contain at least one number!',
-      passwordSpecial: 'Password must contain at least one special character!',
-      sendSignupCodeFailed: 'Failed to send signup verification code',
-      emailNotFound: 'No account found with this email.',
-      requestResetFailed: 'Failed to request reset code.',
-      invalidResetCode: 'Invalid verification code. Please try again.',
-      verifyCodeFailed: 'Something went wrong during verification.',
-      resetPasswordFailed: 'Failed to reset password',
-      resetPasswordUnexpected: 'Something went wrong during password reset',
-      fillRequired: 'Please enter all required information.',
-      resendCodeFailed: 'Failed to resend verification code',
-      resendSignupCodeFailed: 'Failed to resend signup code',
-      somethingWentWrong: 'Something went wrong'
+      passwordMismatch: 'Le password non corrispondono!',
+      dateOfBirthRequired: 'La data di nascita è obbligatoria',
+      ageRestriction: 'Devi avere almeno 13 anni per creare un account',
+      signupFailed: 'Registrazione non riuscita',
+      acceptInviteFailed: "Accettazione dell'invito non riuscita",
+      inviteInvalid: "Il link d'invito non è valido o è scaduto",
+      loginFailed: 'Nome utente, email o password non corretti',
+      loginUnexpected: "Si è verificato un errore durante l'accesso",
+      invalidSignupCode: 'Codice di verifica registrazione non valido',
+      verifySignupCodeFailed:
+        'Verifica del codice di registrazione non riuscita',
+      usernameLength: 'Il nome utente deve contenere tra 3 e 20 caratteri!',
+      usernameFormat:
+        'Il nome utente può contenere solo lettere, numeri, underscore e punti!',
+      usernameNoSpaces: 'Il nome utente non può contenere spazi!',
+      usernameReserved:
+        'Questo nome utente è riservato. Scegline un altro!',
+      emailRequired: "L'indirizzo email è obbligatorio",
+      genderRequired: 'Seleziona il tuo genere',
+      passwordLength: 'La password deve contenere almeno 8 caratteri!',
+      passwordUpper:
+        'La password deve contenere almeno una lettera maiuscola!',
+      passwordLower:
+        'La password deve contenere almeno una lettera minuscola!',
+      passwordNumber: 'La password deve contenere almeno un numero!',
+      passwordSpecial:
+        'La password deve contenere almeno un carattere speciale!',
+      sendSignupCodeFailed:
+        'Questa email o questo nome utente è già registrato, provane altri',
+      emailNotFound: 'Nessun account trovato con questa email.',
+      requestResetFailed:
+        'Richiesta del codice di reimpostazione non riuscita.',
+      invalidResetCode: 'Codice di verifica non valido. Riprova.',
+      verifyCodeFailed: 'Si è verificato un errore durante la verifica.',
+      resetPasswordFailed: 'Reimpostazione della password non riuscita',
+      resetPasswordUnexpected:
+        'Si è verificato un errore durante la reimpostazione della password',
+      fillRequired: 'Compila tutte le informazioni richieste.',
+      resendCodeFailed: 'Reinvio del codice di verifica non riuscito',
+      resendSignupCodeFailed:
+        'Reinvio del codice di registrazione non riuscito',
+      somethingWentWrong: 'Si è verificato un errore',
     },
     success: {
-      accountCreated: 'Account created successfully! Welcome, {{name}}!',
-      welcomeBack: 'Welcome back!',
-      welcomeBackName: 'Welcome back, {{name}}!',
-      emailVerified: 'Email verified successfully.',
-      signupCodeSent: 'Verification code sent to {{email}}',
-      resetCodeSent: 'Verification code sent to {{email}}.',
-      verificationSuccess: 'Verification successful!',
-      passwordReset: 'Password reset successfully! Logging you in...',
-      passwordsMatch: 'Passwords match',
-      ageVerified: 'Age verified (13+ years)',
-      genderSelected: 'Gender selected',
-      emailVerifiedInline: 'Email verified',
-      newVerificationCodeSent: 'New verification code sent!',
-      newSignupVerificationCodeSent: 'New signup verification code sent!'
-    }
+      accountCreated: 'Account creato con successo! Benvenuto, {{name}}!',
+      welcomeBack: 'Bentornato!',
+      welcomeBackName: 'Bentornato, {{name}}!',
+      emailVerified: 'Indirizzo email verificato con successo.',
+      signupCodeSent: 'Codice di verifica inviato a {{email}}',
+      resetCodeSent: 'Codice di verifica inviato a {{email}}.',
+      verificationSuccess: 'Verifica riuscita!',
+      passwordReset:
+        'Password reimpostata con successo! Accesso in corso…',
+      passwordsMatch: 'Le password corrispondono',
+      ageVerified: 'Età verificata (13 anni o più)',
+      genderSelected: 'Genere selezionato',
+      emailVerifiedInline: 'Email verificata',
+      newVerificationCodeSent: 'Nuovo codice di verifica inviato!',
+      newSignupVerificationCodeSent:
+        'Nuovo codice di verifica per la registrazione inviato!',
+    },
   },
+
   errorBoundary: {
-    title: 'Qualcosa è andato storto',
-    description: 'L’app si è bloccata durante il rendering di questa pagina. Aggiorna per ripristinare.',
+    title: "Si è verificato un errore",
+    description:
+      "L'applicazione si è bloccata durante il rendering di questa pagina. Aggiorna per recuperare.",
     actions: {
       reload: 'Ricarica',
-      continue: 'Prova a continuare'
-    }
+      continue: 'Prova a continuare',
+    },
   },
+
   examTracker: {
-    title: 'Monitor esami',
-    subtitle: 'Tieni traccia dei prossimi esami e preparati di conseguenza',
+    title: 'Monitoraggio esami',
+    subtitle: 'Tieni traccia dei tuoi prossimi esami e preparati di conseguenza',
     actions: {
-      add: 'Aggiungi esame'
+      add: 'Aggiungi esame',
     },
     dialog: {
-      title: 'Aggiungi nuovo esame',
-      description: 'Programma un nuovo esame o test per il tuo orario di studio.'
+      title: 'Aggiungi un nuovo esame',
+      description:
+        'Pianifica un nuovo esame o una sessione di test nel tuo orario.',
     },
     fields: {
       subject: 'Materia',
@@ -335,535 +370,612 @@ const it = {
       time: 'Ora',
       location: 'Luogo',
       priority: 'Priorità',
-      notes: 'Note'
+      notes: 'Note',
     },
     placeholders: {
-      subject: 'es. Matematica',
-      location: 'es. Aula 301',
-      notes: 'Note aggiuntive...'
+      subject: 'es.: Matematica',
+      location: 'es.: Aula 301',
+      notes: 'Note aggiuntive…',
     },
     priority: {
       high: 'Alta',
       medium: 'Media',
-      low: 'Bassa'
+      low: 'Bassa',
     },
     upcoming: 'Prossimi esami',
     empty: {
-      title: 'Nessun esame imminente programmato',
-      subtitle: 'Aggiungi le date degli esami per iniziare a monitorarli'
+      title: 'Nessun esame pianificato',
+      subtitle: 'Aggiungi le date dei tuoi esami per iniziare il monitoraggio',
     },
     today: 'Oggi!',
     tomorrow: 'Domani!',
-    daysAway: 'tra {{count}} giorni',
+    daysAway: 'Tra {{count}} giorni',
     success: {
-      added: 'Esame aggiunto con successo',
-      deleted: 'Esame eliminato'
+      added: 'Esame aggiunto con successo!',
+      deleted: 'Esame eliminato',
     },
     errors: {
-      required: 'Compila materia e data'
-    }
+      required: 'Inserisci la materia e la data',
+    },
   },
+
   goals: {
     title: 'Obiettivi e risultati',
-    subtitle: 'Tieni traccia dei target settimanali, della costanza nello studio e dei traguardi in arrivo.',
+    subtitle:
+      'Tieni traccia dei tuoi obiettivi settimanali, della continuità e dei prossimi passi.',
     actions: {
       back: 'Indietro',
       setGoals: 'Imposta obiettivi',
       logSession: 'Registra sessione',
       collapse: 'Comprimi',
       expand: 'Espandi',
-      markCompleted: 'Segna come completata',
-      skip: 'Salta'
+      markCompleted: 'Segna come completato',
+      skip: 'Salta',
     },
     common: {
-      subject: 'Subject',
-      study: 'Study',
-      missed: 'missed'
+      subject: 'Materia',
+      study: 'Studio',
+      missed: 'persa',
     },
     success: {
-      achievementUnlocked: 'Achievement unlocked',
-      sessionLogged: 'Session logged',
-      sessionSkipped: 'Session skipped',
-      goalSaved: 'Goal saved'
+      achievementUnlocked: 'Risultato sbloccato',
+      sessionLogged: 'Sessione registrata',
+      sessionSkipped: 'Sessione saltata',
+      goalSaved: 'Obiettivo salvato',
     },
     errors: {
-      updateSession: 'Could not update session',
-      validTarget: 'Please enter a valid target hours number',
-      summaryNotLoaded: 'Summary not loaded yet',
-      exceedsAvailability: 'Goal exceeds weekly availability',
-      exceedsAvailabilityDesc: 'You only have about {{hours}}h available this week based on your timetable.',
-      subjectExceedsWeekly: 'Subject goal exceeds weekly goal',
-      subjectExceedsWeeklyDesc: 'Your overall weekly goal is {{hours}}h. Subject goals must fit within it.',
-      subjectGoalsExceedWeekly: 'Subject goals exceed weekly goal',
-      subjectGoalsExceedWeeklyDesc: "Your other subject goals total {{otherHours}}h. With this, you'd exceed your weekly goal of {{weeklyHours}}h.",
-      weeklyTooLow: 'Weekly goal is too low',
-      weeklyTooLowDesc: 'Your subject goals already total {{hours}}h. Increase your weekly goal or reduce subject goals.',
-      saveGoal: 'Could not save goal',
-      selectSession: 'Select a session',
-      todayOnly: 'You can only log missed sessions for today.',
-      sessionNotFound: 'Session not found',
-      onlyMissed: 'Only missed sessions can be marked completed manually (same day).',
-      skippedCannotComplete: 'Skipped sessions cannot be marked completed.'
+      updateSession: 'Impossibile aggiornare la sessione',
+      validTarget: 'Inserisci un numero valido di ore obiettivo',
+      summaryNotLoaded: 'Il riepilogo non è ancora caricato',
+      exceedsAvailability:
+        "L'obiettivo supera la disponibilità settimanale",
+      exceedsAvailabilityDesc:
+        'Hai solo {{hours}}h disponibili questa settimana in base al tuo orario.',
+      subjectExceedsWeekly:
+        "L'obiettivo per materia supera l'obiettivo settimanale",
+      subjectExceedsWeeklyDesc:
+        'Il tuo obiettivo settimanale complessivo è di {{hours}}h. Gli obiettivi per materia devono rientrare in questo totale.',
+      subjectGoalsExceedWeekly:
+        'Gli obiettivi per materia superano l’obiettivo settimanale',
+      subjectGoalsExceedWeeklyDesc:
+        'I tuoi altri obiettivi per materia totalizzano {{otherHours}}h. Aggiungendo questo, supereresti il tuo obiettivo settimanale di {{weeklyHours}}h.',
+      weeklyTooLow: "L'obiettivo settimanale è troppo basso",
+      weeklyTooLowDesc:
+        'I tuoi obiettivi per materia totalizzano già {{hours}}h. Aumenta il tuo obiettivo settimanale o riduci quelli per materia.',
+      saveGoal: "Impossibile salvare l'obiettivo",
+      selectSession: 'Seleziona una sessione',
+      todayOnly: 'Puoi registrare solo le sessioni perse di oggi.',
+      sessionNotFound: 'Sessione non trovata',
+      onlyMissed:
+        'Solo le sessioni perse possono essere segnate manualmente come completate (nello stesso giorno).',
+      skippedCannotComplete:
+        'Le sessioni saltate non possono essere segnate come completate.',
     },
     thisWeek: {
-      title: 'This Week',
-      description: 'What’s scheduled (from My Timetable)',
-      sessions: 'sessions',
-      hours: '~{{hours}} hours',
-      tipPrefix: 'Tip: If this looks empty, open',
-      tipHighlight: 'My Timetable',
-      tipSuffix: 'once to load the current week.'
+      title: 'Questa settimana',
+      description: 'Ciò che è pianificato (dal Mio orario)',
+      sessions: 'sessioni',
+      hours: '~{{hours}} ore',
+      tipPrefix: 'Suggerimento: se sembra vuoto, apri',
+      tipHighlight: 'Mio orario',
+      tipSuffix: 'una volta per caricare la settimana corrente.',
     },
     deadlines: {
-      title: 'Upcoming Deadlines',
-      description: 'From Assessments',
-      empty: 'No upcoming deadlines',
-      due: 'Due {{date}}',
-      manage: 'Manage deadlines'
+      title: 'Prossime scadenze',
+      description: 'Dalle valutazioni',
+      empty: 'Nessuna scadenza imminente',
+      due: 'Scadenza {{date}}',
+      manage: 'Gestisci scadenze',
     },
     progress: {
-      title: 'Progress & Streak',
-      description: 'From your completed sessions',
-      completed: 'completed',
-      target: 'target',
-      streak: '{{count}}-day streak',
-      tip: 'Tip: use “Log Session” below to start building achievements.'
+      title: 'Progresso e serie',
+      description: 'Dalle tue sessioni completate',
+      completed: 'completate',
+      target: 'obiettivo',
+      streak: 'Serie di {{count}} giorni',
+      tip:
+        'Suggerimento: usa "Registra sessione" qui sotto per iniziare a sbloccare risultati.',
     },
     goalDialog: {
-      title: 'Set goals for this week',
-      description: 'Weekly goals.',
-      weeklyTarget: 'Weekly target hours',
-      weeklyPlaceholder: 'e.g. 8',
-      saveWeekly: 'Save weekly goal',
-      subjectGoal: 'Subject-specific goal (optional)',
-      selectSubject: 'Select a subject',
-      subjectPlaceholder: 'e.g. 3',
-      saveSubject: 'Save subject goal',
-      currentGoals: 'Current goals',
-      overall: 'Overall'
+      title: 'Imposta gli obiettivi della settimana',
+      description: 'Obiettivi settimanali.',
+      weeklyTarget: 'Ore obiettivo a settimana',
+      weeklyPlaceholder: 'es.: 8',
+      saveWeekly: 'Salva obiettivo settimanale',
+      subjectGoal: 'Obiettivo per materia (facoltativo)',
+      selectSubject: 'Seleziona una materia',
+      subjectPlaceholder: 'es.: 3',
+      saveSubject: 'Salva obiettivo per materia',
+      currentGoals: 'Obiettivi attuali',
+      overall: 'Generale',
     },
     logDialog: {
-      title: 'Log a completed study session',
-      description: 'This updates your backend streak and completed hours.',
-      date: 'Date',
-      hint: 'You can only log sessions that exist on your current “My Timetable” for that day. Unlogged sessions become missed after midnight.',
-      sessions: 'Timetable sessions',
-      selectMissed: 'Select a missed session',
-      noMissed: 'No missed sessions for this day',
-      onlyMissedHint: 'Only missed sessions for today (from your current “My Timetable”) are shown here.',
-      logSelected: 'Log selected session'
+      title: 'Registra una sessione di studio completata',
+      description: 'Questo aggiorna la tua serie e le ore completate.',
+      date: 'Data',
+      hint:
+        'Puoi registrare solo le sessioni presenti nel tuo "Mio orario" per quel giorno. Le sessioni non registrate diventano perse dopo mezzanotte.',
+      sessions: "Sessioni dell'orario",
+      selectMissed: 'Seleziona una sessione persa',
+      noMissed: 'Nessuna sessione persa per questo giorno',
+      onlyMissedHint:
+        'Qui vengono mostrate solo le sessioni perse del giorno (dal tuo "Mio orario").',
+      logSelected: 'Registra la sessione selezionata',
     },
     hints: {
-      openTimetableFirst: 'Tip: Open “My Timetable” once so this week loads, then return here.'
+      openTimetableFirst:
+        'Suggerimento: apri "Mio orario" una volta per caricare questa settimana, poi torna qui.',
     },
     todayPanel: {
-      description: 'Backend-tracked slots from your timetable. Skipped cannot be marked completed.',
-      weekTotals: 'Week totals: {{completed}} completed • {{skipped}} skipped • {{missed}} missed • {{planned}} planned',
-      hidden: 'Hidden. Click “Expand” to view and manage today’s sessions.',
-      empty: 'No timetable sessions found for today.',
-      status: 'Status'
-    }
+      description:
+        'Fasce tracciate dal tuo orario. Le sessioni saltate non possono essere segnate come completate.',
+      weekTotals:
+        'Totali della settimana: {{completed}} completate • {{skipped}} saltate • {{missed}} perse • {{planned}} pianificate',
+      hidden: 'Nascosto. Clicca su "Espandi" per vedere e gestire le sessioni di oggi.',
+      empty: 'Nessuna sessione trovata per oggi nel tuo orario.',
+      status: 'Stato',
+    },
   },
+
   googleCalendar: {
     success: {
-      connected: 'Successfully connected to Google Calendar!',
-      disconnected: 'Disconnected from Google Calendar',
-      exported: 'Timetable exported to Google Calendar successfully! Check your calendar.'
+      connected: 'Connessione a Google Calendar riuscita!',
+      disconnected: 'Disconnesso da Google Calendar',
+      exported:
+        'Orario esportato su Google Calendar con successo! Controlla il tuo calendario.',
     },
     errors: {
-      connect: 'Failed to connect to Google Calendar. Please try again.',
-      connectFirst: 'Please connect to Google Calendar first',
-      export: 'Failed to export to Google Calendar'
+      connect: 'Connessione a Google Calendar non riuscita. Riprova.',
+      connectFirst: 'Collegati prima a Google Calendar',
+      export: "Esportazione su Google Calendar non riuscita",
     },
     info: {
-      exporting: 'Exporting to Google Calendar...'
+      exporting: 'Esportazione su Google Calendar in corso…',
     },
     confirm: {
-      disconnect: 'Are you sure you want to disconnect from Google Calendar? Your existing calendar events will not be affected.'
-    }
+      disconnect:
+        'Sei sicuro di voler disconnetterti da Google Calendar? I tuoi eventi esistenti non saranno modificati.',
+    },
   },
+
   help: {
-    button: 'Help',
-    title: 'How to Use Smart Study',
-    description: 'Learn how to create and manage your study timetables effectively',
-    walkthrough: 'Tips / Walkthrough',
+    button: 'Aiuto',
+    title: 'Come usare Smart Study',
+    description: 'Scopri come creare e gestire efficacemente i tuoi orari',
+    walkthrough: 'Suggerimenti / Tutorial',
     quickStart: {
-      title: 'Quick Start',
-      description: 'Get started in 3 simple steps: Add your subjects → Configure study hours → Generate your personalized timetable!'
+      title: 'Avvio rapido',
+      description:
+        'Inizia in 3 semplici passaggi: Aggiungi le materie → Configura le ore di studio → Genera il tuo orario personalizzato!',
     },
     priority: {
-      high: 'High Priority',
-      highDesc: 'Critical subjects requiring focused attention',
-      medium: 'Medium Priority',
-      mediumDesc: 'Regular coursework subjects',
-      low: 'Low Priority',
-      lowDesc: 'Extra reading or electives'
+      high: 'Priorità alta',
+      highDesc: 'Materie critiche che richiedono attenzione costante',
+      medium: 'Priorità media',
+      mediumDesc: 'Materie del programma corrente',
+      low: 'Priorità bassa',
+      lowDesc: 'Letture extra o opzionali',
     },
     sections: {
       create: {
-        title: 'Creating Your First Timetable',
-        step1Title: 'Step 1: Add Subjects',
-        step1Desc: 'Navigate to "Create Timetable" and add all your subjects. Choose priority levels:',
-        step2Title: 'Step 2: Select Study Days',
-        step2Desc: 'Choose which days you want to study. The smart scheduler will distribute your subjects optimally across selected days.',
-        step3Title: 'Step 3: Configure Time Preferences',
-        step3Desc: 'Set your daily study hours, preferred time slots, and break intervals. We recommend following the Pomodoro technique (25-minute sessions with 5-minute breaks).',
-        step4Title: 'Step 4: Generate Timetable',
-        step4Desc: 'Click "Generate Timetable" to create your personalized study schedule!'
+        title: 'Crea il tuo primo orario',
+        step1Title: 'Passaggio 1: Aggiungi materie',
+        step1Desc:
+          'Vai su "Crea un orario" e aggiungi tutte le tue materie. Scegli i livelli di priorità:',
+        step2Title: 'Passaggio 2: Seleziona i giorni di studio',
+        step2Desc:
+          'Scegli i giorni in cui vuoi studiare. Il pianificatore intelligente distribuirà le materie in modo ottimale nei giorni selezionati.',
+        step3Title: 'Passaggio 3: Configura le preferenze orarie',
+        step3Desc:
+          'Imposta le ore di studio giornaliere, le fasce preferite e gli intervalli di pausa. Consigliamo la tecnica Pomodoro (sessioni da 25 minuti con pause da 5 minuti).',
+        step4Title: 'Passaggio 4: Genera l’orario',
+        step4Desc:
+          'Clicca su "Genera l\'orario" per creare il tuo piano personalizzato!',
       },
       timetable: {
-        title: 'Using My Timetable (Calendar View)',
-        addingTitle: 'Adding Sessions Manually',
-        adding1: 'Click on any time slot in the calendar to add a study session',
-        adding2: 'Click the blue "+" button at the bottom right corner',
-        adding3: 'Fill in subject, time, and session type (Reading, Revision, Practice, etc.)',
-        editingTitle: 'Editing Sessions',
-        editingDesc: 'Click on any existing session card to edit its details or delete it.',
-        navigationTitle: 'Navigation Controls',
-        todayButton: 'Today Button',
-        todayDesc: 'Jump back to the current week',
-        arrowButtons: 'Arrow Buttons',
-        arrowDesc: 'Navigate between weeks',
-        dayWeekView: 'Day/Week View',
-        dayWeekDesc: 'Switch between weekly overview and detailed day view',
-        savingTitle: 'Saving Your Work',
-        saveTimetable: 'Save Timetable',
-        saveTimetableDesc: 'Saves your timetable to the "Saved Timetables" section',
-        exportPdf: 'Export as PDF',
-        exportPdfDesc: 'Download your timetable as a PDF file',
-        saveDropdown: 'Click the "Save" button dropdown to access both options'
+        title: 'Usare Mio orario (vista calendario)',
+        addingTitle: 'Aggiungere sessioni manualmente',
+        adding1:
+          'Clicca su qualsiasi fascia nel calendario per aggiungere una sessione',
+        adding2: 'Clicca sul pulsante blu "+" in basso a destra',
+        adding3:
+          'Inserisci materia, orario e tipo di sessione (Lettura, Ripasso, Esercizio, ecc.)',
+        editingTitle: 'Modificare le sessioni',
+        editingDesc:
+          'Clicca su una scheda sessione esistente per modificare i dettagli o eliminarla.',
+        navigationTitle: 'Controlli di navigazione',
+        todayButton: 'Pulsante Oggi',
+        todayDesc: 'Torna alla settimana corrente',
+        arrowButtons: 'Pulsanti freccia',
+        arrowDesc: 'Naviga tra le settimane',
+        dayWeekView: 'Vista giorno/settimana',
+        dayWeekDesc:
+          'Passa dalla vista settimanale alla vista giornaliera dettagliata',
+        savingTitle: 'Salvare il tuo lavoro',
+        saveTimetable: "Salva l'orario",
+        saveTimetableDesc:
+          'Salva il tuo orario nella sezione "Orari salvati"',
+        exportPdf: 'Esporta PDF',
+        exportPdfDesc: 'Scarica il tuo orario come file PDF',
+        saveDropdown:
+          'Clicca sul menu a tendina del pulsante "Salva" per accedere a entrambe le opzioni',
       },
       smart: {
-        title: 'Smart Scheduling Rules',
-        intro: 'Our intelligent scheduling system follows these proven study principles:',
-        highTitle: 'High Priority (50% of total time):',
-        highDesc: 'Critical subjects requiring focused attention receive the largest time allocation to ensure mastery of challenging material.',
-        mediumTitle: 'Medium Priority (30% of total time):',
-        mediumDesc: 'Regular coursework subjects receive moderate time allocation for consistent progress and understanding.',
-        lowTitle: 'Low Priority (20% of total time):',
-        lowDesc: 'Extra reading and electives receive appropriate time without overwhelming your schedule.',
-        optimalTitle: 'Optimal Scheduling:',
-        optimalDesc: 'High priority subjects are scheduled in the first part of each day when focus is at its peak, maximizing learning effectiveness.'
+        title: 'Regole di pianificazione intelligente',
+        intro:
+          'Il nostro sistema di pianificazione intelligente segue questi principi di studio comprovati:',
+        highTitle: 'Priorità alta (50% del tempo totale):',
+        highDesc:
+          'Le materie più critiche ricevono la maggiore allocazione di tempo per garantire la padronanza dei contenuti difficili.',
+        mediumTitle: 'Priorità media (30% del tempo totale):',
+        mediumDesc:
+          'Le materie del programma corrente ricevono una quota di tempo moderata per un progresso costante.',
+        lowTitle: 'Priorità bassa (20% del tempo totale):',
+        lowDesc:
+          'Le letture extra e le materie opzionali ricevono il tempo adeguato senza sovraccaricare il piano.',
+        optimalTitle: 'Pianificazione ottimale:',
+        optimalDesc:
+          'Le materie prioritarie vengono pianificate all’inizio della giornata, quando la concentrazione è massima, per massimizzare l’efficacia dello studio.',
       },
       tips: {
-        title: 'Study Tips & Best Practices',
-        pomodoroTitle: 'Pomodoro Technique',
-        pomodoroDesc: 'Study in 25-minute focused sessions with 5-minute breaks. After 4 sessions, take a longer 15-30 minute break.',
-        activeTitle: 'Active Learning',
-        activeDesc: 'Mix different session types: Reading → Practice → Revision for better comprehension and retention.',
-        peakTitle: 'Peak Performance Times',
-        peakDesc: 'Schedule high-priority subjects during your peak focus hours (usually morning for most people).',
-        consistencyTitle: 'Consistency is Key',
-        consistencyDesc: 'Stick to your timetable! Regular study habits are more effective than cramming.'
+        title: 'Suggerimenti e buone pratiche',
+        pomodoroTitle: 'Tecnica Pomodoro',
+        pomodoroDesc:
+          'Studia in sessioni concentrate da 25 minuti con pause da 5 minuti. Dopo 4 sessioni, fai una pausa più lunga da 15 a 30 minuti.',
+        activeTitle: 'Apprendimento attivo',
+        activeDesc:
+          'Alterna diversi tipi di sessioni: Lettura → Esercizio → Ripasso per una migliore comprensione e memorizzazione.',
+        peakTitle: 'Orari di massima resa',
+        peakDesc:
+          'Pianifica le materie prioritarie durante le ore di massima concentrazione (di solito al mattino per la maggior parte delle persone).',
+        consistencyTitle: 'La costanza è fondamentale',
+        consistencyDesc:
+          'Segui il tuo orario! Abitudini di studio regolari sono più efficaci del ripasso dell’ultimo minuto.',
       },
       types: {
-        title: 'Understanding Session Types',
-        reading: 'Reading',
-        readingDesc: 'Learning new material, textbook reading',
-        revision: 'Revision',
-        revisionDesc: 'Reviewing previously learned content',
-        practice: 'Practice',
-        practiceDesc: 'Problem-solving, exercises, practice tests',
-        lecture: 'Lecture',
-        lectureDesc: 'Attending classes or watching lectures',
-        assignment: 'Assignment',
-        assignmentDesc: 'Working on projects and assignments',
-        break: 'Break',
-        breakDesc: 'Rest periods to recharge'
-      }
+        title: 'Comprendere i tipi di sessione',
+        reading: 'Lettura',
+        readingDesc: 'Apprendimento di nuovi contenuti, lettura di manuali',
+        revision: 'Ripasso',
+        revisionDesc: 'Revisione di contenuti già studiati',
+        practice: 'Esercizio',
+        practiceDesc: 'Risoluzione di problemi, esercizi, test pratici',
+        lecture: 'Lezione',
+        lectureDesc: 'Partecipare a lezioni o guardare conferenze',
+        assignment: 'Compito',
+        assignmentDesc: 'Lavorare a progetti e compiti',
+        break: 'Pausa',
+        breakDesc: 'Periodi di riposo per ricaricarsi',
+      },
     },
-    footer: 'Still have questions? Explore the app to discover more features!'
+    footer:
+      "Hai ancora domande? Esplora l'app per scoprire altre funzionalità!",
   },
+
   joinWorkspace: {
-    title: 'Join Workspace',
-    loading: 'Verifying link…',
-    loginWarning: '⚠️ You need to be logged in to send a join request.',
+    title: 'Unisciti a uno spazio di lavoro',
+    loading: 'Verifica del link…',
+    loginWarning:
+      '⚠️ Devi aver effettuato l’accesso per inviare una richiesta di adesione.',
     states: {
-      verifying: 'Verifying invite link…',
-      invalid: 'Invalid or expired invite link',
-      sent: 'Your request has been sent',
-      requestToJoin: 'Request to join "{{name}}"'
+      verifying: "Verifica del link d'invito…",
+      invalid: "Link d'invito non valido o scaduto",
+      sent: 'La tua richiesta è stata inviata',
+      requestToJoin: 'Richiedi di unirti a "{{name}}"',
     },
     message: {
-      label: 'Message',
-      placeholder: "Tell the admin why you'd like to join…"
+      label: 'Messaggio',
+      placeholder:
+        "Spiega all'amministratore perché desideri unirti…",
     },
     actions: {
-      send: 'Send Request',
-      sending: 'Sending…'
+      send: 'Invia richiesta',
+      sending: 'Invio in corso…',
     },
     success: {
-      alreadyMember: "You're already a member of this workspace!",
-      requestSent: 'Request sent! The admin will review it shortly.',
-      title: 'Request Sent!',
-      description: "The workspace admin will review your request and you'll be added once approved."
+      alreadyMember: 'Sei già membro di questo spazio di lavoro!',
+      requestSent:
+        "Richiesta inviata! L'amministratore la esaminerà a breve.",
+      title: 'Richiesta inviata!',
+      description:
+        "L'amministratore dello spazio di lavoro esaminerà la tua richiesta e verrai aggiunto una volta approvata.",
     },
     errors: {
-      invalidLink: 'Invalid invite link',
-      expiredLink: 'Invalid or expired invite link',
-      loginRequired: 'You must be logged in to request to join a workspace',
-      requestFailed: 'Request failed',
-      sendFailed: 'Failed to send request'
-    }
+      invalidLink: "Link d'invito non valido",
+      expiredLink: "Link d'invito non valido o scaduto",
+      loginRequired:
+        'Devi aver effettuato l’accesso per richiedere di unirti a uno spazio di lavoro',
+      requestFailed: 'Richiesta non riuscita',
+      sendFailed: 'Invio della richiesta non riuscito',
+    },
   },
+
   notebook: {
-    untitled: 'Untitled',
-    updated: 'Updated',
+    untitled: 'Senza titolo',
+    updated: 'Aggiornato',
     time: {
-      justNow: 'Just now',
-      minutesAgo: '{{count}}m ago',
-      hoursAgo: '{{count}}h ago',
-      daysAgo: '{{count}}d ago'
+      justNow: 'Proprio adesso',
+      minutesAgo: '{{count}} min fa',
+      hoursAgo: '{{count}} h fa',
+      daysAgo: '{{count}} g fa',
     },
     toasts: {
-      noteCreated: 'Note created',
-      saved: 'Saved',
-      deleted: 'Deleted'
+      noteCreated: 'Nota creata',
+      saved: 'Salvato',
+      deleted: 'Eliminato',
     },
     errors: {
-      loadNotes: 'Failed to load notes',
-      createNote: 'Failed to create note',
-      saveNote: 'Failed to save note',
-      deleteNote: 'Failed to delete note'
+      loadNotes: 'Caricamento delle note non riuscito',
+      createNote: 'Creazione della nota non riuscita',
+      saveNote: 'Salvataggio della nota non riuscito',
+      deleteNote: 'Eliminazione della nota non riuscita',
     },
     confirm: {
-      delete: 'Delete this note? This cannot be undone.'
+      delete: 'Eliminare questa nota? Questa azione è irreversibile.',
     },
     mobile: {
-      notes: 'Notes',
-      title: 'Notebook',
-      yourNotes: 'Your notes'
+      notes: 'Note',
+      title: 'Blocco note',
+      yourNotes: 'Le tue note',
     },
     sidebar: {
-      myNotes: 'My Notes',
-      noteCount: '{{count}} note',
-      noteCount_other: '{{count}} notes'
+      myNotes: 'Le mie note',
+      noteCount: '{{count}} nota',
+      noteCount_other: '{{count}} note',
     },
     filters: {
-      all: 'All',
-      pinned: 'Pinned',
-      archived: 'Archived'
+      all: 'Tutte',
+      pinned: 'Fissate',
+      archived: 'Archiviate',
     },
     tags: {
-      title: 'Tags'
+      title: 'Tag',
     },
     empty: {
-      noNotes: 'No notes yet. Click',
-      createOne: 'to create one.',
-      noContent: 'No content',
-      noNoteSelected: 'No note selected',
-      getStarted: 'Open the notes menu or create a new note to get started.'
+      noNotes: 'Nessuna nota. Clicca su',
+      createOne: 'per crearne una.',
+      noContent: 'Nessun contenuto',
+      noNoteSelected: 'Nessuna nota selezionata',
+      getStarted:
+        'Apri il menu note o crea una nuova nota per iniziare.',
     },
     actions: {
-      add: 'Add',
-      new: 'New',
-      addNote: 'Add Note',
-      save: 'Save',
-      delete: 'Delete',
-      createNote: 'Create note'
+      add: 'Aggiungi',
+      new: 'Nuovo',
+      addNote: 'Aggiungi nota',
+      save: 'Salva',
+      delete: 'Elimina',
+      createNote: 'Crea nota',
     },
     placeholders: {
-      search: '     Search notes...',
-      untitled: 'Untitled note',
-      tags: 'school, exam, todo',
-      startWriting: 'Start writing...'
+      search: '     Cerca nelle note…',
+      untitled: 'Nota senza titolo',
+      tags: 'scuola, esame, attività',
+      startWriting: 'Inizia a scrivere…',
     },
     editor: {
-      autoSave: 'Auto-save',
-      saving: 'Saving...',
-      unsavedChanges: 'Unsaved changes',
-      pinned: 'Pinned',
-      archived: 'Archived'
+      autoSave: 'Salvataggio automatico',
+      saving: 'Salvataggio in corso…',
+      unsavedChanges: 'Modifiche non salvate',
+      pinned: 'Fissata',
+      archived: 'Archiviata',
     },
     unsaved: {
-      title: 'Unsaved changes',
-      description: 'You have unsaved edits. Are you sure you want to leave this note?',
-      stay: 'Stay here',
-      saveAndContinue: 'Save and continue',
-      leaveWithoutSaving: 'Leave without saving'
-    }
+      title: 'Modifiche non salvate',
+      description:
+        'Hai modifiche non salvate. Sei sicuro di voler uscire da questa nota?',
+      stay: 'Resta qui',
+      saveAndContinue: 'Salva e continua',
+      leaveWithoutSaving: 'Esci senza salvare',
+    },
   },
+
   notifications: {
     title: 'Notifiche',
-    markRead: 'Segna come letta',
+    markRead: 'Segna come letto',
     empty: 'Nessuna notifica',
-    new: 'Nuova',
-    clear: 'Cancella'
+    new: 'Nuovo',
+    clear: 'Cancella',
+    studyReminder: 'Promemoria sessione di studio',
+    studyReminderBody: '{{subject}} inizia tra {{minutes}} minuti',
+    studyStarted: 'Sessione di studio iniziata',
+    studyStartedBody: '{{subject}} inizia ora',
   },
+
   privacyPolicy: {
-    back: 'Back',
-    title: 'Privacy Policy',
-    lastUpdated: 'Last Updated: October 24, 2025',
+    back: 'Indietro',
+    title: 'Informativa sulla privacy',
+    lastUpdated: 'Ultimo aggiornamento: 24 ottobre 2025',
     sections: {
       introduction: {
-        title: '1. Introduction',
-        content: 'Welcome to U PLAN ("we," "our," or "us"). We are committed to protecting your privacy and ensuring the security of your personal information. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our Service.'
+        title: '1. Introduzione',
+        content:
+          'Benvenuto su U PLAN ("noi", "nostro" o "nostri"). Ci impegniamo a proteggere la tua privacy e a garantire la sicurezza delle tue informazioni personali. Questa informativa sulla privacy spiega come raccogliamo, utilizziamo, divulghiamo e proteggiamo le tue informazioni quando utilizzi il nostro Servizio.',
       },
       informationWeCollect: {
-        title: '2. Information We Collect',
+        title: '2. Informazioni che raccogliamo',
         personalInfo: {
-          title: '2.1 Personal Information',
-          description: 'When you register for an account, we collect:',
+          title: '2.1 Informazioni personali',
+          description: 'Quando ti registri, raccogliamo:',
           items: [
-            'Full name',
-            'Email address',
-            'Password (encrypted)',
-            'Account creation date'
-          ]
+            'Nome completo',
+            'Indirizzo email',
+            'Password (crittografata)',
+            'Data di creazione account',
+          ],
         },
         studyInfo: {
-          title: '2.2 Study Schedule Information',
-          description: 'To provide our timetable generation service, we collect:',
+          title: "2.2 Informazioni sull'orario di studio",
+          description:
+            'Per fornire il nostro servizio di generazione orari, raccogliamo:',
           items: [
-            'Course names and subjects',
-            'Study session times and durations',
-            'Priority levels assigned to courses',
-            'Custom notes and descriptions',
-            'Timetable preferences and settings'
-          ]
+            'Nomi di corsi e materie',
+            'Orari e durate delle sessioni di studio',
+            'Livelli di priorità assegnati ai corsi',
+            'Note e descrizioni personalizzate',
+            "Preferenze e impostazioni dell'orario",
+          ],
         },
         usageData: {
-          title: '2.3 Usage Data',
-          description: 'We may collect information about how you access and use the Service:',
+          title: '2.3 Dati di utilizzo',
+          description:
+            'Potremmo raccogliere informazioni su come accedi e utilizzi il Servizio:',
           items: [
-            'Browser type and version',
-            'Device information',
-            'User preferences (e.g., dark mode settings)',
-            'Session information and activity timestamps'
-          ]
-        }
+            'Tipo e versione del browser',
+            'Informazioni sul dispositivo',
+            'Preferenze utente (es.: impostazioni modalità scura)',
+            'Informazioni di sessione e timestamp di attività',
+          ],
+        },
       },
       storage: {
-        title: '3. How We Store Your Information',
-        description: 'Local Storage: All your data is stored locally in your browser using localStorage technology. This means:',
+        title: '3. Come archiviamo le tue informazioni',
+        description:
+          'Archiviazione locale: tutti i tuoi dati sono archiviati localmente nel tuo browser tramite la tecnologia localStorage. Questo significa:',
         items: [
-          'Your data remains on your device and is not transmitted to our servers',
-          'We do not have access to your personal information or study schedules',
-          'Clearing your browser data will delete all stored information',
-          'Your data is only accessible from the browser where you created it',
-          'We recommend backing up important timetables regularly'
-        ]
+          'I tuoi dati restano sul tuo dispositivo e non vengono trasmessi ai nostri server',
+          'Non abbiamo accesso alle tue informazioni personali o ai tuoi orari',
+          'Cancellare i dati del browser eliminerà tutte le informazioni archiviate',
+          'I tuoi dati sono accessibili solo dal browser in cui li hai creati',
+          'Ti consigliamo di eseguire regolarmente il backup degli orari importanti',
+        ],
       },
       usage: {
-        title: '4. How We Use Your Information',
-        description: 'We use the information we collect for the following purposes:',
+        title: '4. Come utilizziamo le tue informazioni',
+        description:
+          'Utilizziamo le informazioni raccolte per i seguenti scopi:',
         items: [
-          'To provide, maintain, and improve our Service',
-          'To create and manage your account',
-          'To generate personalized study timetables',
-          'To save your preferences and settings',
-          'To authenticate your access to the Service',
-          'To respond to your requests and provide customer support',
-          'To send you updates about the Service (with your consent)',
-          'To analyze usage patterns and improve user experience'
-        ]
+          'Fornire, mantenere e migliorare il nostro Servizio',
+          'Creare e gestire il tuo account',
+          'Generare orari personalizzati',
+          'Salvare le tue preferenze e impostazioni',
+          'Autenticare il tuo accesso al Servizio',
+          'Rispondere alle tue richieste e fornire assistenza clienti',
+          'Inviarti aggiornamenti sul Servizio (con il tuo consenso)',
+          "Analizzare i modelli d'uso e migliorare l'esperienza utente",
+        ],
       },
       sharing: {
-        title: '5. Data Sharing and Disclosure',
-        description: 'Because your data is stored locally on your device, we do not share, sell, or rent your personal information to third parties. However, we may disclose information in the following circumstances:',
+        title: '5. Condivisione e divulgazione dei dati',
+        description:
+          'Poiché i tuoi dati sono archiviati localmente sul tuo dispositivo, non condividiamo, vendiamo né affittiamo le tue informazioni personali a terzi. Tuttavia, potremmo divulgare informazioni nei seguenti casi:',
         items: [
-          'Legal Requirements: If required by law or in response to valid legal processes',
-          'Protection of Rights: To protect our rights, privacy, safety, or property',
-          'With Your Consent: When you explicitly authorize us to share information'
-        ]
+          'Obblighi legali: se richiesto dalla legge o in risposta a procedimenti legali validi',
+          'Tutela dei diritti: per proteggere i nostri diritti, la nostra privacy, la nostra sicurezza o la nostra proprietà',
+          'Con il tuo consenso: quando ci autorizzi esplicitamente a condividere informazioni',
+        ],
       },
       security: {
-        title: '6. Data Security',
-        description: 'We implement appropriate security measures to protect your information:',
+        title: '6. Sicurezza dei dati',
+        description:
+          'Implementiamo misure di sicurezza appropriate per proteggere le tue informazioni:',
         items: [
-          'Passwords are never stored in plain text',
-          'Local storage is encrypted by your browser',
-          'We use secure coding practices to prevent vulnerabilities',
-          'Regular security updates and maintenance'
+          'Le password non vengono mai archiviate in chiaro',
+          'L’archiviazione locale è protetta dal tuo browser',
+          'Utilizziamo pratiche di sviluppo sicure per prevenire vulnerabilità',
+          'Aggiornamenti e manutenzione di sicurezza regolari',
         ],
-        note: 'However, no method of electronic storage is 100% secure. While we strive to protect your information, we cannot guarantee absolute security.'
+        note:
+          'Tuttavia, nessun metodo di archiviazione elettronica è sicuro al 100%. Sebbene ci impegniamo a proteggere le tue informazioni, non possiamo garantire una sicurezza assoluta.',
       },
       rights: {
-        title: '7. Your Rights and Choices',
-        description: 'You have the following rights regarding your data:',
+        title: '7. I tuoi diritti e le tue scelte',
+        description: 'Hai i seguenti diritti riguardo ai tuoi dati:',
         items: [
-          'Access: You can view all your stored data at any time through the Service',
-          'Modification: You can edit your profile information and study schedules',
-          'Deletion: You can delete your account and all associated data through the Settings page',
-          'Export: You can export your timetables for backup purposes',
-          'Opt-out: You can disable certain features or notifications in Settings'
-        ]
+          'Accesso: puoi visualizzare tutti i tuoi dati archiviati in qualsiasi momento tramite il Servizio',
+          'Modifica: puoi modificare le informazioni del tuo profilo e i tuoi orari',
+          'Eliminazione: puoi eliminare il tuo account e tutti i dati associati tramite la pagina Impostazioni',
+          'Esportazione: puoi esportare i tuoi orari a scopo di backup',
+          'Disattivazione: puoi disabilitare alcune funzionalità o notifiche nelle Impostazioni',
+        ],
       },
       cookies: {
-        title: '8. Cookies and Tracking Technologies',
-        content: 'The Service uses localStorage to store your preferences and data locally on your device. We do not use third-party cookies for tracking or advertising purposes. Session information is used solely to maintain your login state and preferences.'
+        title: '8. Cookie e tecnologie di tracciamento',
+        content:
+          'Il Servizio utilizza localStorage per salvare le tue preferenze e i dati localmente sul tuo dispositivo. Non utilizziamo cookie di terze parti per tracciamento o pubblicità. Le informazioni di sessione vengono usate solo per mantenere il tuo stato di accesso e le tue preferenze.',
       },
       children: {
-        title: "9. Children's Privacy",
-        content: 'Our Service is intended for students of all ages. However, we do not knowingly collect personally identifiable information from children under 13 without parental consent. If you are a parent or guardian and believe your child has provided us with personal information, please contact us so we can take appropriate action.'
+        title: '9. Privacy dei minori',
+        content:
+          'Il nostro Servizio è destinato a studenti di tutte le età. Tuttavia, non raccogliamo consapevolmente informazioni personali identificabili da minori di 13 anni senza il consenso dei genitori. Se sei un genitore o tutore e ritieni che tuo figlio ci abbia fornito informazioni personali, contattaci.',
       },
       thirdParty: {
-        title: '10. Third-Party Services',
-        content: 'Our Service may contain links to third-party websites or services that are not operated by us. We are not responsible for the privacy practices of these third parties. We encourage you to review the privacy policies of any third-party services you access.'
+        title: '10. Servizi di terze parti',
+        content:
+          'Il nostro Servizio può contenere link a siti o servizi di terze parti non gestiti da noi. Non siamo responsabili delle pratiche sulla privacy di tali terze parti. Ti invitiamo a consultare le informative sulla privacy di ogni servizio di terze parti a cui accedi.',
       },
       retention: {
-        title: '11. Data Retention',
-        description: "Your data is retained in your browser's localStorage until you explicitly delete it by:",
+        title: '11. Conservazione dei dati',
+        description:
+          'I tuoi dati vengono conservati nel localStorage del browser finché non li elimini esplicitamente tramite:',
         items: [
-          'Deleting your account through Settings',
-          "Clearing your browser's local storage",
-          'Uninstalling or resetting your browser'
-        ]
+          'Eliminazione del tuo account tramite le Impostazioni',
+          'Cancellazione dello storage locale del browser',
+          'Disinstallazione o ripristino del browser',
+        ],
       },
       international: {
-        title: '12. International Users',
-        content: 'Since all data is stored locally on your device, data transfer regulations do not apply. However, if we introduce cloud-based features in the future, we will update this policy to reflect any international data transfer practices.'
+        title: '12. Utenti internazionali',
+        content:
+          'Poiché tutti i dati sono archiviati localmente sul tuo dispositivo, le normative sul trasferimento dei dati non si applicano. Tuttavia, se in futuro introdurremo funzionalità basate sul cloud, aggiorneremo questa informativa di conseguenza.',
       },
       changes: {
-        title: '13. Changes to This Privacy Policy',
-        content: 'We may update our Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the "Last Updated" date. You are advised to review this Privacy Policy periodically for any changes. Your continued use of the Service after changes are posted constitutes acceptance of those changes.'
+        title: '13. Modifiche a questa informativa sulla privacy',
+        content:
+          'Potremmo aggiornare questa informativa sulla privacy di tanto in tanto. Ti informeremo di eventuali modifiche pubblicando la nuova informativa su questa pagina e aggiornando la data di "Ultimo aggiornamento". Ti consigliamo di rivedere periodicamente questa informativa. L’uso continuato del Servizio dopo la pubblicazione delle modifiche costituisce accettazione delle stesse.',
       },
       contact: {
-        title: '14. Contact Us',
-        description: 'If you have any questions, concerns, or requests regarding this Privacy Policy or our privacy practices, please contact us through:',
+        title: '14. Contattaci',
+        description:
+          'Se hai domande, dubbi o richieste riguardo a questa informativa sulla privacy o alle nostre pratiche in materia di privacy, contattaci tramite:',
         items: [
-          'The Settings page in the application',
-          'The support section of our website',
-          'Our customer service channels'
-        ]
+          "La pagina Impostazioni dell'applicazione",
+          'La sezione supporto del nostro sito web',
+          'I nostri canali di assistenza clienti',
+        ],
       },
       consent: {
-        title: 'Your Consent',
-        content: 'By using U PLAN, you consent to our Privacy Policy and agree to its terms. If you do not agree with this policy, please do not use our Service.'
+        title: 'Il tuo consenso',
+        content:
+          'Utilizzando U PLAN, acconsenti alla nostra informativa sulla privacy e ne accetti i termini. Se non accetti questa informativa, ti invitiamo a non utilizzare il nostro Servizio.',
       },
       commitment: {
-        title: 'Privacy Commitment',
-        content: 'We are committed to transparency and protecting your privacy. Your trust is important to us, and we will continue to prioritize the security and confidentiality of your information as we develop and improve our Service.'
-      }
-    }
+        title: 'Impegno per la privacy',
+        content:
+          'Ci impegniamo alla trasparenza e alla protezione della tua privacy. La tua fiducia è importante per noi e continueremo a dare priorità alla sicurezza e alla riservatezza delle tue informazioni mentre sviluppiamo e miglioriamo il nostro Servizio.',
+      },
+    },
   },
+
   pomodoro: {
     title: 'Pomodoro',
     modes: {
-      focus: 'Focus',
+      focus: 'Concentrazione',
       break: 'Pausa',
-      longBreak: 'Pausa lunga'
+      longBreak: 'Pausa lunga',
     },
     pin: 'Fissa',
-    focusMode: 'Modalità focus',
-    focusSession: 'Sessione di focus',
-    running: 'In esecuzione',
+    focusMode: 'Modalità concentrazione',
+    focusSession: 'Sessione di concentrazione',
+    running: 'In corso',
     paused: 'In pausa',
-    sessionsToday: 'Sessioni di oggi',
+    sessionsToday: 'Sessioni oggi',
     totalSessions: 'Sessioni totali',
-    focusTime: 'Tempo di focus',
+    focusTime: 'Tempo di concentrazione',
     stayWithIt: 'Continua così',
-    readyWhenYouAre: 'Pronto quando lo sei tu',
+    readyWhenYouAre: 'Pronto quando vuoi',
     closeTimer: 'Chiudi timer',
-    unpinWidgetHint: 'Sblocca widget (si chiuderà durante la navigazione)',
-    pinWidgetHint: 'Fissa widget (rimane aperto durante la navigazione)',
+    unpinWidgetHint:
+      'Rimuovi il fissaggio del widget (si chiuderà durante la navigazione)',
+    pinWidgetHint:
+      'Fissa il widget (rimane aperto durante la navigazione)',
     today: 'Oggi',
     total: 'Totale',
-    focusShort: 'Focus',
+    focusShort: 'Conc.',
     settings: {
       title: 'Impostazioni Pomodoro',
-      description: 'Personalizza le preferenze del timer Pomodoro',
-      focus: 'Focus',
+      description: 'Personalizza le tue preferenze del timer Pomodoro',
+      focus: 'Concentrazione',
       break: 'Pausa',
       longBreak: 'Pausa lunga',
       durationsMinutes: 'Durate (minuti)',
@@ -875,8 +987,8 @@ const it = {
       soundAlerts: 'Avvisi sonori',
       vibrationMobile: 'Vibrazione (mobile)',
       sessionSettings: 'Impostazioni sessione',
-      longBreakAfterEvery: 'Pausa lunga dopo ogni',
-      focusSessions: 'sessioni di focus'
+      longBreakAfterEvery: 'Pausa lunga ogni',
+      focusSessions: 'sessioni di concentrazione',
     },
     actions: {
       start: 'Avvia',
@@ -884,148 +996,166 @@ const it = {
       reset: 'Reimposta',
       exit: 'Esci',
       settings: 'Impostazioni',
-      focus: 'spillo',
+      focus: 'Concentrazione',
       minimize: 'Riduci',
-      expand: 'Espandi'
-    }
+      expand: 'Espandi',
+    },
   },
+
   navigation: {
     home: 'Home',
     about: 'Chi siamo',
     services: 'Servizi',
     login: 'Accedi',
+    seePlans: 'Vedi piani',
     subtitle: 'Pianificazione accademica',
     logoAlt: 'Logo PLAN',
     switchToLight: 'Passa alla modalità chiara',
     switchToDark: 'Passa alla modalità scura',
-    openMenu: 'Apri menu'
+    openMenu: 'Apri menu',
   },
+
   createTimetable: {
-    title: 'Create Timetable',
-    subtitle: 'Configure your courses, study preferences, and unavailable time to generate an academic schedule.',
+    title: 'Crea un orario',
+    subtitle:
+      'Configura i tuoi corsi, le preferenze di studio e i tempi non disponibili per generare un piano accademico.',
     stats: {
-      courses: 'Courses',
-      hoursPerWeek: 'Hours / Week'
+      courses: 'Corsi',
+      hoursPerWeek: 'Ore / Settimana',
     },
     details: {
-      title: 'Timetable Details',
-      description: 'Give your timetable a specific name so it can be saved and recognized later.',
-      name: 'Timetable Name',
-      placeholder: 'e.g., Midterm Prep Plan, Exam Week, Revision Schedule'
+      title: "Dettagli dell'orario",
+      description:
+        'Dai un nome specifico al tuo orario così potrai salvarlo e ritrovarlo facilmente.',
+      name: "Nome dell'orario",
+      placeholder:
+        'es.: Piano di ripasso metà semestre, Settimana esami, Programma revisioni',
     },
     courseSetup: {
-      title: 'Course Setup',
-      description: 'Add your courses and define how much study time each one needs.'
+      title: 'Configurazione corsi',
+      description:
+        'Aggiungi i tuoi corsi e definisci il tempo di studio necessario per ciascuno.',
     },
     fields: {
-      courseName: 'Course Name',
-      coursePlaceholder: 'e.g., Calculus, Physics, English...',
-      hoursNeeded: 'Hours Needed Per Week',
-      priorityLevel: 'Priority Level',
-      preferredStudyTime: 'Preferred Study Time',
-      hoursPerWeek: 'Hours/Week',
-      preferredTime: 'Preferred Time',
-      preferredStartTime: 'Preferred Start Time',
-      optional: 'Optional',
-      sessionDuration: 'Session Duration (min)',
-      breakDuration: 'Break Duration (min)',
-      studyDaysFor: 'Study Days for {{name}}'
+      courseName: 'Nome del corso',
+      coursePlaceholder: 'es.: Calcolo, Fisica, Inglese…',
+      hoursNeeded: 'Ore necessarie a settimana',
+      priorityLevel: 'Livello di priorità',
+      preferredStudyTime: 'Fascia di studio preferita',
+      hoursPerWeek: 'Ore/settimana',
+      preferredTime: 'Orario preferito',
+      preferredStartTime: 'Ora di inizio preferita',
+      optional: 'Facoltativo',
+      sessionDuration: 'Durata sessione (min)',
+      breakDuration: 'Durata pausa (min)',
+      studyDaysFor: 'Giorni di studio per {{name}}',
     },
     hints: {
-      startTime: 'Optional: Set specific start time',
-      sessionDuration: 'Recommended: 45-50',
-      breakDuration: 'Recommended: 10-15'
+      startTime: 'Facoltativo: imposta un’ora di inizio specifica',
+      sessionDuration: 'Consigliato: 45-50',
+      breakDuration: 'Consigliato: 10-15',
     },
     actions: {
-      addCourse: 'Add Course',
-      resetAll: 'Reset All',
-      generate: 'Generate Smart Timetable',
-      saveToTimetable: 'Save to Timetable'
+      addCourse: 'Aggiungi corso',
+      resetAll: 'Reimposta tutto',
+      generate: 'Genera un orario intelligente',
+      saveToTimetable: "Salva nell'orario",
     },
     priority: {
-      high: 'High',
-      medium: 'Medium',
-      low: 'Low',
-      highLabel: 'High Priority',
-      mediumLabel: 'Medium Priority',
-      lowLabel: 'Low Priority',
-      highDesc: 'Critical courses, upcoming exams',
-      mediumDesc: 'Regular coursework',
-      lowDesc: 'Optional reading, review'
+      high: 'Alta',
+      medium: 'Media',
+      low: 'Bassa',
+      highLabel: 'Priorità alta',
+      mediumLabel: 'Priorità media',
+      lowLabel: 'Priorità bassa',
+      highDesc: 'Corsi critici, esami vicini',
+      mediumDesc: 'Programma corrente',
+      lowDesc: 'Letture facoltative, revisione',
     },
     time: {
-      morning: 'Morning (6AM-12PM)',
-      afternoon: 'Afternoon (12PM-6PM)',
-      evening: 'Evening (6PM-10PM)',
-      any: 'Anytime'
+      morning: 'Mattina (6-12)',
+      afternoon: 'Pomeriggio (12-18)',
+      evening: 'Sera (18-22)',
+      any: 'Qualsiasi momento',
     },
     timeShort: {
-      morning: 'Morning',
-      afternoon: 'Afternoon',
-      evening: 'Evening',
-      any: 'Any'
+      morning: 'Mattina',
+      afternoon: 'Pomeriggio',
+      evening: 'Sera',
+      any: 'Qualsiasi',
     },
     timeBest: {
-      morning: 'Peak focus',
-      afternoon: 'Active learning',
-      evening: 'Review & practice',
-      any: 'Flexible'
+      morning: 'Massima concentrazione',
+      afternoon: 'Apprendimento attivo',
+      evening: 'Ripasso e pratica',
+      any: 'Flessibile',
     },
     courses: {
-      title: 'Your Courses ({{count}})',
-      total: 'Total:',
-      totalHours: '{{count}}h/week'
+      title: 'I tuoi corsi ({{count}})',
+      total: 'Totale:',
+      totalHours: '{{count}}h/settimana',
     },
     summaryCard: {
-      title: 'Time Allocation Summary',
-      hoursPercent: '{{count}}h ({{percent}}%)'
+      title: 'Riepilogo allocazione tempo',
+      hoursPercent: '{{count}}h ({{percent}}%)',
     },
-    selectedDays: '{{count}} day selected',
-    selectedDays_other: '{{count}} days selected',
+    selectedDays: '{{count}} giorno selezionato',
+    selectedDays_other: '{{count}} giorni selezionati',
     success: {
-      courseAdded: 'Added {{name}} to your courses',
-      blockedAdded: 'Unavailable time blocked successfully!',
-      reset: 'All fields have been reset!',
-      generated: 'Smart timetable generated successfully!'
+      courseAdded: '{{name}} aggiunto ai tuoi corsi',
+      blockedAdded: 'Fascia non disponibile bloccata con successo!',
+      reset: 'Tutti i campi sono stati reimpostati!',
+      generated: 'Orario intelligente generato con successo!',
     },
     errors: {
-      courseNameEnter: 'Please enter a course name',
-      courseNameRequired: 'Please enter a course name.',
-      blockedTitle: 'Please enter a title for the blocked time',
-      timetableName: 'Please enter a timetable name before generating',
-      noCourses: 'Please add at least one course before generating a timetable',
-      noDays: 'Please select at least one day for studying',
-      selectStudyDay: 'Select at least one study day.'
+      courseNameEnter: 'Inserisci un nome del corso',
+      courseNameRequired: 'Inserisci un nome del corso.',
+      blockedTitle: 'Inserisci un titolo per la fascia bloccata',
+      timetableName:
+        "Inserisci un nome per l'orario prima di generarlo",
+      noCourses:
+        'Aggiungi almeno un corso prima di generare un orario',
+      noDays: 'Seleziona almeno un giorno di studio',
+      selectStudyDay: 'Seleziona almeno un giorno di studio.',
     },
     confirm: {
-      reset: 'Are you sure you want to reset all fields? This will clear all your subjects and settings.'
+      reset:
+        'Sei sicuro di voler reimpostare tutti i campi? Questo cancellerà tutte le tue materie e impostazioni.',
     },
     university: {
-      loaded: 'Loaded {{count}} class from your university schedule',
-      loaded_other: 'Loaded {{count}} classes from your university schedule'
+      loaded: '{{count}} corso caricato dal tuo orario universitario',
+      loaded_other:
+        '{{count}} corsi caricati dal tuo orario universitario',
     },
     import: {
-      removedConflicts: 'Removed {{count}} conflicting sessions based on your availability settings',
-      defaultName: 'Imported Timetable - {{date}}',
-      withAvailability: ' with availability settings',
-      savedSuccess: 'Saved {{count}} sessions to Saved Timetables{{settingsMessage}}!',
-      savedDescription: 'Go to Saved Timetables to activate and view your schedule'
+      removedConflicts:
+        '{{count}} sessione/i in conflitto rimossa/e in base alle tue impostazioni di disponibilità',
+      defaultName: 'Orario importato - {{date}}',
+      withAvailability: ' con impostazioni di disponibilità',
+      savedSuccess:
+        '{{count}} sessione/i salvata/e negli orari{{settingsMessage}}!',
+      savedDescription:
+        'Vai negli orari salvati per attivare e consultare il tuo piano',
     },
     file: {
-      selected: 'File "{{name}}" selected. Processing...',
-      analyzing: 'AI is analyzing your file. This feature is in development.'
+      selected: 'File "{{name}}" selezionato. Elaborazione in corso…',
+      analyzing:
+        "L'IA sta analizzando il tuo file. Questa funzionalità è in fase di sviluppo.",
     },
-    readySummary: 'Ready to generate. You have {{courses}} course and {{hours}} hour of planned study time per week.',
-    readySummary_other: 'Ready to generate. You have {{courses}} courses and {{hours}} hours of planned study time per week.'
+    readySummary:
+      'Pronto per generare. Hai {{courses}} corsi e {{hours}} ora di studio pianificata a settimana.',
+    readySummary_other:
+      'Pronto per generare. Hai {{courses}} corsi e {{hours}} ore di studio pianificate a settimana.',
   },
+
   days: {
-    monday: 'Monday',
-    tuesday: 'Tuesday',
-    wednesday: 'Wednesday',
-    thursday: 'Thursday',
-    friday: 'Friday',
-    saturday: 'Saturday',
-    sunday: 'Sunday',
+    monday: 'Lunedì',
+    tuesday: 'Martedì',
+    wednesday: 'Mercoledì',
+    thursday: 'Giovedì',
+    friday: 'Venerdì',
+    saturday: 'Sabato',
+    sunday: 'Domenica',
     short: {
       Monday: 'Lun',
       Tuesday: 'Mar',
@@ -1033,860 +1163,1106 @@ const it = {
       Thursday: 'Gio',
       Friday: 'Ven',
       Saturday: 'Sab',
-      Sunday: 'Dom'
-    }
+      Sunday: 'Dom',
+    },
   },
+
   settings: {
-    title: 'Settings',
-    subtitle: 'Manage your account, reminders, and workspace preferences',
+    title: 'Impostazioni',
+    subtitle:
+      'Gestisci il tuo account, i promemoria e le preferenze del tuo spazio di lavoro',
     tabs: {
-      profile: 'Profile',
-      workspace: 'Workspace'
+      profile: 'Profilo',
+      workspace: 'Spazio di lavoro',
     },
     profile: {
-      title: 'Profile Information',
-      description: 'Update your personal information and contact details',
-      picture: 'Profile Picture',
-      pictureAlt: 'Profile',
-      uploadPicture: 'Upload picture',
-      pictureHint: 'JPG, PNG, or GIF. Max size 5MB.',
+      title: 'Informazioni profilo',
+      description:
+        'Aggiorna le tue informazioni personali e i dettagli di contatto',
+      picture: 'Foto profilo',
+      pictureAlt: 'Profilo',
+      uploadPicture: 'Carica una foto',
+      pictureHint: 'JPG, PNG o GIF. Dimensione massima 5 MB.',
       fields: {
-        department: 'Department'
+        username: 'Nome utente',
+        profileTitle: 'Titolo del profilo',
+        role: 'Ruolo',
+        department: 'Dipartimento',
       },
       placeholders: {
-        fullName: 'Enter your full name',
-        email: 'Enter your email',
-        department: 'Enter your department',
-        dateOfBirth: 'Enter your date of birth'
+        fullName: 'Inserisci il tuo nome completo',
+        email: 'Inserisci il tuo indirizzo email',
+        role: 'Seleziona il tuo ruolo',
+        otherRole: 'Inserisci le informazioni del tuo ruolo',
+        department: 'Inserisci il tuo dipartimento',
+        dateOfBirth: 'Inserisci la tua data di nascita',
+      },
+      hints: {
+        fullNameLocked: 'Il tuo nome completo viene salvato durante la registrazione e non puo essere modificato dopo.',
+        username: 'Questo appare solo sul tuo profilo pubblico.',
+        profileTitle: 'Questo appare sotto il tuo nome nel profilo.',
+        otherRole: 'Aggiungi le informazioni del ruolo che vuoi mostrare nel tuo profilo.',
+      },
+      roleOptions: {
+        student: 'Studente',
+        administrator: 'Amministratore',
+        teacher: 'Insegnante',
+        other: 'Altro',
       },
       actions: {
-        edit: 'Edit Profile',
-        save: 'Save Changes'
-      }
+        edit: 'Modifica profilo',
+        save: 'Salva modifiche',
+      },
     },
     notifications: {
-      title: 'Notifications',
-      description: 'Manage how you receive notifications and reminders',
+      title: 'Notifiche',
+      description: 'Gestisci come ricevere notifiche e promemoria',
       push: {
-        title: 'Push Notifications',
-        description: 'Receive notifications about your study schedule'
+        title: 'Notifiche push',
+        description: 'Ricevi notifiche sul tuo orario',
       },
       emailStudyReminders: {
-        title: 'Email Study Reminders',
-        description: 'Receive an email reminder before each planned study session'
+        title: 'Promemoria studio via email',
+        description:
+          'Ricevi un promemoria via email prima di ogni sessione di studio pianificata',
       },
       minutesBefore: {
-        title: 'Minutes before',
-        description: 'How early to send the reminder email',
-        select: 'Select',
+        title: 'Minuti prima',
+        description: 'Con quanto anticipo inviare il promemoria',
+        select: 'Seleziona',
         options: {
-          atStart: '0 (at start)'
-        }
+          atStart: '0 (all’inizio)',
+        },
       },
       deadlineAlerts: {
-        title: 'Email Deadline Alerts',
-        description: 'Get an email when a deadline is approaching'
+        title: 'Avvisi scadenze via email',
+        description: 'Ricevi una email quando una scadenza si avvicina',
       },
       achievementAlerts: {
-        title: 'Email Achievement Alerts',
-        description: 'Get an email when you unlock an achievement'
+        title: 'Avvisi risultati via email',
+        description: 'Ricevi una email quando sblocchi un risultato',
       },
       weeklySummary: {
-        title: 'Email Weekly Summary',
-        description: 'Receive a weekly summary of your progress'
-      }
+        title: 'Riepilogo settimanale via email',
+        description: 'Ricevi un riepilogo settimanale dei tuoi progressi',
+      },
     },
     appearance: {
-      title: 'Appearance',
-      description: 'Customize the look and feel of your dashboard',
+      title: 'Aspetto',
+      description: "Personalizza l'aspetto della tua dashboard",
       darkMode: {
-        title: 'Dark mode',
-        description: 'Switch to a darker interface for low-light use'
-      }
+        title: 'Modalità scura',
+        description:
+          'Passa a un’interfaccia più scura per l’uso in condizioni di scarsa luminosità',
+      },
     },
     about: {
-      title: 'About',
-      version: 'Application Version',
+      title: 'Informazioni',
+      version: "Versione dell'app",
       versionValue: '1.0.0',
-      lastUpdated: 'Last Updated',
-      lastUpdatedValue: 'October 2025',
-      description: 'Our platform helps learners and study teams plan schedules, manage deadlines, track progress, and stay aligned with structured study workflows.'
+      lastUpdated: 'Ultimo aggiornamento',
+      lastUpdatedValue: 'Ottobre 2025',
+      description:
+        'La nostra piattaforma aiuta studenti e team di studio a pianificare i propri orari, gestire le scadenze, monitorare i progressi e restare allineati grazie a flussi di studio strutturati.',
     },
     password: {
-      title: 'Change Password',
-      description: 'Create a strong password with at least 8 characters, including uppercase, lowercase, numbers, and special characters.',
+      title: 'Cambia password',
+      description:
+        'Crea una password forte di almeno 8 caratteri, includendo maiuscole, minuscole, numeri e caratteri speciali.',
       fields: {
-        current: 'Current Password',
-        new: 'New Password',
-        confirm: 'Confirm New Password'
+        current: 'Password attuale',
+        new: 'Nuova password',
+        confirm: 'Conferma nuova password',
       },
       placeholders: {
-        current: 'Enter current password',
-        new: 'Enter new password',
-        confirm: 'Re-enter new password'
+        current: 'Inserisci la password attuale',
+        new: 'Inserisci la nuova password',
+        confirm: 'Reinserisci la nuova password',
       },
       actions: {
-        update: 'Update password'
+        update: 'Aggiorna password',
       },
       errors: {
-        fillAllFields: 'Please fill in all password fields',
-        sameAsCurrent: 'New password must be different from current password',
-        requirements: 'Password does not meet requirements',
-        noMatch: 'Passwords do not match',
-        userNotLoggedIn: 'User not logged in',
-        changeFailed: 'Failed to change password',
-        server: 'Server error. Please try again later.'
+        fillAllFields: 'Compila tutti i campi della password',
+        sameAsCurrent:
+          'La nuova password deve essere diversa dalla password attuale',
+        requirements: 'La password non soddisfa i requisiti',
+        noMatch: 'Le password non corrispondono',
+        userNotLoggedIn: 'Utente non connesso',
+        changeFailed: 'Cambio password non riuscito',
+        server: 'Errore del server. Riprova più tardi.',
       },
       success: {
-        changed: 'Password changed successfully!',
-        changedDescription: 'Your password has been updated securely.'
-      }
+        changed: 'Password cambiata con successo!',
+        changedDescription:
+          'La tua password è stata aggiornata in modo sicuro.',
+      },
     },
     success: {
-      profilePictureUpdated: 'Profile picture updated successfully!',
-      profilePictureRemoved: 'Profile picture removed successfully!',
-      profileUpdated: 'Profile updated successfully!',
-      reminderSettingsUpdated: 'Reminder settings updated'
+      profilePictureUpdated: 'Foto profilo aggiornata con successo!',
+      profilePictureRemoved: 'Foto profilo rimossa con successo!',
+      profileUpdated: 'Profilo aggiornato con successo!',
+      reminderSettingsUpdated: 'Impostazioni promemoria aggiornate',
     },
     errors: {
-      notLoggedIn: 'You are not logged in',
-      uploadImageOnly: 'Please upload an image file',
-      uploadImageFailedWithReason: 'Failed to upload image: {{reason}}',
-      profilePictureUploadFailed: 'Failed to upload profile picture',
-      updateProfileFailed: 'Failed to update profile',
-      updateReminderSettingsFailed: 'Failed to update reminder settings'
-    }
+      notLoggedIn: 'Non hai effettuato l’accesso',
+      roleDetailsRequired: 'Inserisci le informazioni del tuo ruolo prima di salvare.',
+      uploadImageOnly: 'Carica un file immagine',
+      uploadImageFailedWithReason:
+        'Caricamento immagine non riuscito: {{reason}}',
+      profilePictureUploadFailed:
+        'Caricamento della foto profilo non riuscito',
+      updateProfileFailed: 'Aggiornamento del profilo non riuscito',
+      updateReminderSettingsFailed:
+        'Aggiornamento delle impostazioni promemoria non riuscito',
+    },
   },
+
   courseEdit: {
-    title: 'Edit Course',
-    description: 'Edit the details of your course to ensure your timetable is accurate and reflects your study schedule.',
+    title: 'Modifica corso',
+    description:
+      'Modifica i dettagli del tuo corso affinché il tuo orario sia accurato e rifletta il tuo piano di studio.',
     fields: {
-      name: 'Course Name',
-      hours: 'Hours/Week',
-      preferredTime: 'Preferred Time',
-      startTime: 'Preferred Start Time',
-      sessionDuration: 'Session Duration (min)',
-      breakDuration: 'Break Duration (min)',
-      studyDays: 'Study Days for {{name}}',
-      priority: 'Priority Level'
+      name: 'Nome del corso',
+      hours: 'Ore/settimana',
+      preferredTime: 'Orario preferito',
+      startTime: 'Ora di inizio preferita',
+      sessionDuration: 'Durata sessione (min)',
+      breakDuration: 'Durata pausa (min)',
+      studyDays: 'Giorni di studio per {{name}}',
+      priority: 'Livello di priorità',
     },
     placeholders: {
-      name: 'e.g., Mathematics'
+      name: 'es.: Matematica',
     },
     time: {
-      morning: 'Morning',
-      afternoon: 'Afternoon',
-      evening: 'Evening',
-      any: 'Any'
+      morning: 'Mattina',
+      afternoon: 'Pomeriggio',
+      evening: 'Sera',
+      any: 'Qualsiasi',
     },
     priority: {
-      high: 'High Priority',
-      medium: 'Medium Priority',
-      low: 'Low Priority'
+      high: 'Priorità alta',
+      medium: 'Priorità media',
+      low: 'Priorità bassa',
     },
     hints: {
-      startTime: 'Optional: Set specific start time',
-      session: 'Recommended: 45-50',
-      break: 'Recommended: 10-15'
+      startTime: 'Facoltativo: imposta un’ora di inizio specifica',
+      session: 'Consigliato: 45-50',
+      break: 'Consigliato: 10-15',
     },
-    selectedDays: '{{count}} day selected',
+    selectedDays: '{{count}} giorno selezionato',
     actions: {
-      save: 'Save Changes',
-      cancel: 'Cancel',
-      delete: 'Delete Course'
+      save: 'Salva modifiche',
+      cancel: 'Annulla',
+      delete: 'Elimina corso',
     },
     errors: {
-      nameRequired: 'Course name is required',
-      selectDay: 'Please select at least one study day'
+      nameRequired: 'Il nome del corso è obbligatorio',
+      selectDay: 'Seleziona almeno un giorno di studio',
     },
-    confirmDelete: 'Are you sure you want to delete "{{name}}"? This will regenerate your timetable without this course.'
+    confirmDelete:
+      'Sei sicuro di voler eliminare "{{name}}"? Questo rigenererà il tuo orario senza questo corso.',
   },
+
   assessments: {
-    title: 'Assessments',
-    subtitle: 'Manage exams, quizzes, assignments, and projects in one place.',
-    listTitle: 'Assessments',
-    listDescription: 'These automatically show up in the Dashboard Deadlines tab.',
+    title: 'Valutazioni',
+    subtitle:
+      'Gestisci esami, quiz, compiti e progetti in un unico posto.',
+    listTitle: 'Valutazioni',
+    listDescription:
+      'Appariranno automaticamente nella scheda Scadenze della dashboard.',
     empty: {
-      title: 'No assessments added yet',
-      description: 'Add your first exam, quiz, assignment, or project below.'
+      title: 'Nessuna valutazione aggiunta',
+      description:
+        'Aggiungi qui sotto il tuo primo esame, quiz, compito o progetto.',
     },
     add: {
-      title: 'Add assessment',
-      description: 'Create a new assessment and it will appear in your deadlines overview.',
-      button: 'Add assessment'
+      title: 'Aggiungi una valutazione',
+      description:
+        'Crea una nuova valutazione che apparirà nella panoramica delle scadenze.',
+      button: 'Aggiungi una valutazione',
     },
     fields: {
-      course: 'Course',
-      type: 'Type',
-      dateTime: 'Date & time',
-      titleOptional: 'Title (optional)'
+      course: 'Corso',
+      type: 'Tipo',
+      dateTime: 'Data e ora',
+      titleOptional: 'Titolo (facoltativo)',
     },
     placeholders: {
-      selectCourse: 'Select course',
-      title: 'Leave blank to auto-name'
+      selectCourse: 'Seleziona un corso',
+      title: 'Lascia vuoto per assegnare un nome automaticamente',
     },
-    courseHint: 'If a course is missing, add it in Auto Generate → Class Timetable.',
-    due: 'Due',
-    completed: 'Completed',
+    courseHint:
+      'Se manca un corso, aggiungilo in Generazione automatica → Orario delle lezioni.',
+    due: 'Scadenza',
+    completed: 'Completato',
     types: {
-      exam: 'Exam',
+      exam: 'Esame',
       quiz: 'Quiz',
-      assignment: 'Assignment',
-      project: 'Project'
+      assignment: 'Compito',
+      project: 'Progetto',
     },
     success: {
-      added: 'Assessment added',
-      deleted: 'Assessment deleted'
+      added: 'Valutazione aggiunta',
+      deleted: 'Valutazione eliminata',
     },
     errors: {
-      selectCourse: 'Please select a course for the assessment',
-      chooseDate: 'Please choose a date/time for the assessment',
-      createFailed: 'Failed to create assessment',
-      updateFailed: 'Failed to update'
-    }
+      selectCourse: 'Seleziona un corso per la valutazione',
+      chooseDate: 'Scegli una data/ora per la valutazione',
+      createFailed: 'Creazione della valutazione non riuscita',
+      updateFailed: 'Aggiornamento non riuscito',
+    },
   },
+
   calendar: {
-    title: 'Study Timetable',
-    subtitle: 'this timetable is for my exam week'
-  },
-  sessionCard: {
-    confirmDelete: 'Delete "{{name}}"?'
-  },
-  sessionTypes: {
-    reading: 'Reading',
-    revision: 'Revision',
-    practice: 'Practice',
-    break: 'Break',
-    lecture: 'Lecture',
-    assignment: 'Assignment',
-    test: 'Test',
-    exam: 'Exam'
-  },
-  sessionDialog: {
-    add: {
-      title: 'Add Study Session',
-      description: 'Fill in the details to add a new study session to your timetable.'
-    },
-    edit: {
-      title: 'Edit Session',
-      description: 'Update the details of your study session.'
-    },
-    fields: {
-      subject: 'Subject',
-      day: 'Day',
-      startTime: 'Start Time',
-      endTime: 'End Time',
-      type: 'Type',
-      deadline: 'Deadline Date'
-    },
-    placeholders: {
-      subject: 'e.g., Mathematics, Physics'
+    title: 'Orario',
+    subtitle: 'Pianifica e organizza le sessioni di studio; ogni settimana ha il suo orario',
+    add: 'Aggiungi',
+    aiPlan: 'Piano IA',
+    import: 'Importa',
+    copyWeek: 'Copia settimana',
+    google: 'Google',
+    pdf: 'PDF',
+    excel: 'Excel',
+    deleteAll: 'Elimina tutto',
+    currentWeek: 'Vai alla settimana corrente',
+    importTimetable: 'Importa orario',
+    importTargetPrompt: 'Dove vuoi importare?',
+    myTimetable: 'Il mio orario',
+    showDetails: 'Mostra dettagli',
+    hideDetails: 'Nascondi dettagli',
+    weeklyView: 'Vista settimanale',
+    time: 'Ora',
+    conflict: 'Conflitto',
+    loading: 'Caricamento...',
+    loadingStatuses: 'Caricamento stati...',
+    dismiss: 'Chiudi',
+    copy: 'Copia',
+    view: 'Vedi',
+    deadlineCount: '{{count}} scadenza',
+    deadlineCount_other: '{{count}} scadenze',
+    status: {
+      completed: 'completate',
+      missed: 'perse',
+      skipped: 'saltate',
+      planned: 'pianificate',
     },
     actions: {
-      add: 'Add',
-      update: 'Update',
-      session: 'Session'
-    },
-    errors: {
-      subjectRequired: 'Please enter a subject',
-      endTimeAfterStart: 'End time must be after start time'
+      markCompleted: 'Segna come completata',
+      markMissed: 'Segna come persa',
+      markSkipped: 'Segna come saltata',
+      resetPlanned: 'Ripristina come pianificata',
     },
     confirm: {
-      noDeadline: "You're creating a {{type}} without a deadline. Are you sure you want to continue?"
-    },
-    deadlineHelp: 'This deadline will appear in your Upcoming Deadlines section',
-    days: {
-      monday: 'Monday',
-      tuesday: 'Tuesday',
-      wednesday: 'Wednesday',
-      thursday: 'Thursday',
-      friday: 'Friday',
-      saturday: 'Saturday',
-      sunday: 'Sunday'
-    }
-  },
-  reminders: {
-    title: 'Reminders & Notifications',
-    subtitle: 'Set up reminders for your study sessions and important tasks',
-    actions: {
-      add: 'Add Reminder',
-      create: 'Create Reminder'
-    },
-    dialog: {
-      title: 'Create Reminder',
-      description: 'Set up a new reminder to stay on top of your study schedule.'
-    },
-    form: {
-      title: 'Title',
-      description: 'Description',
-      time: 'Time',
-      type: 'Type',
-      repeat: 'Repeat on',
-      required: '*',
-      placeholderTitle: 'e.g., Study Mathematics',
-      placeholderDescription: 'Additional details...',
-      error: 'Please fill in all required fields and select at least one day'
-    },
-    types: {
-      study: 'Study',
-      break: 'Break',
-      exam: 'Exam',
-      custom: 'Custom'
-    },
-    notifications: {
-      title: 'Notification Settings',
-      description: 'Enable browser notifications to receive reminders',
-      browser: 'Browser Notifications',
-      browserDesc: 'Get notified about your scheduled reminders',
-      enabled: 'Notifications enabled!',
-      denied: 'Notification permission denied',
-      notSupported: 'Notifications not supported in this browser'
-    },
-    presets: {
-      title: 'Quick Add Presets',
-      added: 'Preset reminder added!',
-      morning: {
-        title: 'Morning Study Session',
-        description: 'Time to start your morning study session!'
-      },
-      afternoon: {
-        title: 'Afternoon Study Session',
-        description: "Don't forget your afternoon study time!"
-      },
-      break: {
-        title: 'Take a Break',
-        description: 'Time for a well-deserved break!'
-      }
-    },
-    list: {
-      title: 'Your Reminders',
-      empty: 'No reminders set',
-      emptySub: 'Create your first reminder or add a preset'
-    },
-    toast: {
-      added: 'Reminder added successfully!',
-      deleted: 'Reminder deleted'
-    },
-    tip: {
-      title: 'Tip:',
-      description: 'Make sure to allow notifications in your browser settings for the best experience.',
-      extra: 'Reminders will work even when the app is running in the background.'
-    },
-    weekdays: {
-      monday: 'Monday',
-      tuesday: 'Tuesday',
-      wednesday: 'Wednesday',
-      thursday: 'Thursday',
-      friday: 'Friday',
-      saturday: 'Saturday',
-      sunday: 'Sunday'
-    }
-  },
-  viewTimetables: {
-    title: 'Saved Timetables',
-    description: 'Review, preview, launch, export, and manage your saved schedules.',
-    stats: {
-      sessions: 'Sessions',
-      subjects: 'Subjects',
-      hoursPerDay: 'Hours/day'
-    },
-    empty: {
-      title: 'No Saved Timetables',
-      description: 'You haven’t created any timetables yet.',
-      create: 'Create Timetable'
-    },
-    card: {
-      untitled: 'Untitled Timetable',
-      active: 'Active',
-      created: 'Created {{date}}',
-      breakEvery: 'Break every {{minutes}} min'
-    },
-    actions: {
-      view: 'View',
-      preview: 'Preview',
-      start: 'Start timetable',
-      merge: 'Merge',
-      overwrite: 'Overwrite',
-      duplicate: 'Duplicate',
-      delete: 'Delete',
-      exportCsv: 'Export CSV',
-      exportJson: 'Export JSON',
-      exportPdf: 'Export PDF'
-    },
-    confirm: {
-      delete: 'Are you sure you want to delete this timetable?'
-    },
-    dialog: {
-      useThisTimetable: 'Use this timetable?',
-      myTimetable: 'My Timetable',
-      description: {
-        before: 'You already have sessions in ',
-        after: ' You can merge this timetable into your current schedule or overwrite everything.'
-      }
+      confirm: 'Conferma',
+      deleteAllTitle: 'Elimina tutti i corsi',
+      deleteAllMessage: 'Vuoi davvero eliminare tutti i corsi e le sessioni di questa settimana?',
+      copyNextWeekTitle: 'Copia nella prossima settimana',
+      copyNextWeekMessage: 'Copiare {{count}} sessione/i da questa settimana alla prossima?',
+      googleOverwrite: 'Hai già esportato un orario su Google Calendar.\n\nOK = sovrascrivi (sostituisci esportazione precedente)\nAnnulla = aggiungi sopra (mantieni esportazione precedente)',
     },
     export: {
-      pdfTitle: 'Study Timetable',
-      csvTitle: 'Study Timetable',
-      createdOn: 'Created on {{date}}',
-      createdOnShort: 'Created on {{date}}',
-      generatedOn: 'Generated on {{date}}',
-      studyHoursPerDay: 'Study Hours per Day: {{value}}',
-      studyTime: 'Study Time: {{start}} - {{end}}',
-      sessionLength: 'Session Length: {{value}}',
-      breakDuration: 'Break Duration: {{value}}',
-      studyHoursPerDayLabel: 'Study Hours per Day:',
-      studyTimeLabel: 'Study Time:',
-      sessionLengthLabel: 'Session Length:',
-      breakDurationLabel: 'Break Duration:',
-      subjects: 'Subjects:',
-      weeklySchedule: 'Weekly Schedule:',
-      priority: 'priority'
-    },
-    days: {
-      monday: 'Monday',
-      tuesday: 'Tuesday',
-      wednesday: 'Wednesday',
-      thursday: 'Thursday',
-      friday: 'Friday',
-      saturday: 'Saturday',
-      sunday: 'Sunday'
+      page: 'Pagina {{page}}',
+      deadline: 'Scadenza: {{date}}',
+      noSessions: 'Nessuna sessione',
+      continued: 'Continua nella pagina successiva',
+      week: 'Settimana: {{range}}',
+      day: 'Giorno',
+      subject: 'Materia',
+      startTime: 'Inizio',
+      endTime: 'Fine',
+      type: 'Tipo',
+      deadlineHeader: 'Scadenza',
+      sheetName: 'Orario',
+      googleDescription: 'Sessione SmartStudy: {{type}}',
     },
     toasts: {
-      showingSubject: 'Showing “{{subject}}” in {{name}}',
-      deleted: 'Timetable deleted successfully',
-      started: 'Timetable started!',
-      startedOverwriteDescription: 'Your My Timetable has been replaced with this saved timetable',
-      startedMerged: 'Timetable started (merged)',
-      startedMergeDescription: 'Your saved timetable was merged into your current calendar',
-      sessionUnavailable: 'One or more sessions unavailable',
-      generatingPdf: 'Generating PDF...',
-      pdfDownloaded: 'PDF downloaded successfully!',
-      pdfFailed: 'Failed to generate PDF. Please try again.',
-      generatingCsv: 'Generating CSV file...',
-      csvDownloaded: 'CSV file downloaded successfully! (Open with Excel)',
-      exportFailed: 'Failed to export file. Please try again.',
-      jsonDownloaded: 'JSON downloaded successfully!',
-      jsonFailed: 'Failed to export JSON'
-    }
+      editAssessmentFromAssessments: 'Modifica da Valutazioni e scadenze',
+      deleteAssessmentFromAssessments: 'Elimina da Valutazioni e scadenze',
+      timeConflictDetected: 'Conflitto orario rilevato',
+      cannotAdd: 'Impossibile aggiungere "{{subject}}"',
+      alreadyScheduledOn: '"{{subject}}" è già programmata per {{day}}',
+      timeRange: 'Ora: {{start}} - {{end}}',
+      chooseDifferentTimeSlot: 'Scegli un orario diverso',
+      chooseDifferentSlot: 'Scegli uno slot diverso',
+      sessionDeadlineUpdated: 'Sessione e scadenza aggiornate.',
+      sessionUpdated: 'Sessione aggiornata',
+      sessionAddedWithDeadline: 'Sessione aggiunta con scadenza.',
+      sessionAdded: 'Sessione aggiunta',
+      sessionDeleted: 'Sessione eliminata',
+      allSessionsCleared: 'Tutte le sessioni sono state eliminate.',
+      emptyTimetable: 'Orario vuoto',
+      emptyBeforeCopy: 'Il tuo orario è vuoto. Aggiungi alcune sessioni prima di copiarlo alla prossima settimana.',
+      sessionsCopied: 'Sessioni copiate.',
+      sessionsCopiedDescription: '{{count}} sessione/i copiata/e alla prossima settimana (settimana {{week}})',
+      pdfLayoutFailed: 'PDF non riuscito: il contenuto è troppo grande per la pagina.',
+      exportedPdf: 'Orario esportato come PDF',
+      pdfExportFailed: 'Esportazione PDF non riuscita',
+      unknownError: 'Errore sconosciuto',
+      exportedExcel: 'Orario esportato come Excel',
+      backendUrlMissing: 'URL backend non configurato (VITE_API_BASE_URL)',
+      noSessionsToExport: 'Nessuna sessione da esportare',
+      notLoggedIn: 'Non hai effettuato l’accesso',
+      googleStatusFailed: 'Impossibile controllare lo stato di Google Calendar',
+      connectGoogleToExport: 'Collega Google Calendar per esportare...',
+      exportingGoogle: 'Esportazione su Google Calendar...',
+      reconnectingGoogle: 'Riconnessione a Google Calendar...',
+      exportFailedWithMessage: 'Esportazione non riuscita: {{message}}',
+      exportedGoogle: '{{count}} sessione/i esportata/e su Google Calendar',
+      exportFailed: 'Esportazione non riuscita',
+      importConflictsDetected: 'Conflitti di importazione rilevati',
+      conflictsFound: '{{count}} conflitto/i trovato/i',
+      importConflictPair: '"{{imported}}" è in conflitto con "{{existing}}"',
+      onDay: 'il {{day}}',
+      moreConflicts: 'e altri {{count}}...',
+      importedWithAvailability: '{{count}} sessione/i importata/e con impostazioni di disponibilità.',
+      imported: '{{count}} sessione/i importata/e.',
+      dragDropConflict: 'Conflitto di trascinamento',
+      cannotMove: 'Impossibile spostare "{{subject}}"',
+      alreadyInSlot: '"{{subject}}" è già in questo slot',
+      onDayTimeRange: 'il {{day}}: {{start}} - {{end}}',
+      anotherSessionExists: 'Esiste già un’altra sessione a quest’ora. Scegli uno slot diverso.',
+      sessionMoved: 'Sessione spostata',
+      sessionMovedDescription: 'Spostata a {{day}} alle {{time}}',
+      navigationUnavailable: 'Navigazione non disponibile',
+      importFromAutoGenerate: 'Gli utenti non admin importano da Generazione automatica.',
+      statusSaveFailed: 'Salvataggio degli stati delle sessioni dello spazio non riuscito',
+      onlyAdminsCanEdit: 'Solo gli admin dello spazio possono modificare questo orario',
+      selectWorkspaceImport: 'Seleziona lo spazio, poi carica/importa nella Generazione automatica dello spazio.',
+    },
   },
-  sharedTimetable: {
-    title: 'Shared Timetables',
-    subtitle: 'Collaborate on timetables with your team',
-    searchPlaceholder: 'Search timetables...',
-    noDescription: 'No description',
-    personal: {
-      description: 'Personal Timetable',
-      defaultName: 'My Timetable',
-      sharedSuffix: 'Shared',
-      copySuffix: 'Copy',
-      importedDescription: 'Imported from personal timetable'
+
+  sessionCard: {
+    confirmDelete: 'Eliminare "{{name}}"?',
+  },
+
+  sessionTypes: {
+    reading: 'Lettura',
+    revision: 'Ripasso',
+    practice: 'Esercizio',
+    break: 'Pausa',
+    lecture: 'Lezione',
+    assignment: 'Compito',
+    test: 'Test',
+    exam: 'Esame',
+  },
+
+  sessionDialog: {
+    add: {
+      title: 'Aggiungi una sessione di studio',
+      description:
+        'Inserisci i dettagli per aggiungere una nuova sessione di studio al tuo orario.',
     },
-    stats: {
-      total: 'Total Accessible',
-      owned: 'Owned by You',
-      editable: 'Can Edit',
-      viewOnly: 'View Only'
-    },
-    filters: {
-      all: 'All Timetables',
-      owner: 'Owned by Me',
-      editor: 'Can Edit',
-      viewer: 'View Only'
-    },
-    actions: {
-      importMyTimetable: 'Import My Timetable',
-      createShared: 'Create Shared Timetable',
-      copyToPersonal: 'Copy to Personal',
-      managePermissions: 'Manage Permissions',
-      viewSessions: 'View Sessions',
-      createTimetable: 'Create Timetable',
-      importTimetable: 'Import Timetable',
-      savePermissions: 'Save Permissions'
-    },
-    badges: {
-      owner: 'Owner',
-      canEdit: 'Can Edit',
-      viewOnly: 'View Only'
-    },
-    visibility: {
-      public: 'Public',
-      private: 'Private',
-      publicHelp: 'All workspace members can view',
-      privateHelp: 'Only selected members can view',
-      publicDescription: 'Public - All members can view',
-      privateDescription: 'Private - Limited access',
-      publicDialog: 'Public - All members can view',
-      privateDialog: 'Private - Only selected members'
+    edit: {
+      title: 'Modifica sessione',
+      description: 'Aggiorna i dettagli della tua sessione di studio.',
     },
     fields: {
-      name: 'Timetable Name',
-      description: 'Description',
-      visibility: 'Visibility',
-      editors: 'Who can edit? (Select members)',
-      editorsSimple: 'Editors',
-      sessions: 'Sessions'
+      subject: 'Materia',
+      day: 'Giorno',
+      startTime: 'Ora di inizio',
+      endTime: 'Ora di fine',
+      type: 'Tipo',
+      deadline: 'Data di scadenza',
     },
     placeholders: {
-      name: 'e.g., Spring 2025 Class Schedule',
-      description: 'Brief description of this timetable'
+      subject: 'es.: Matematica, Fisica',
+    },
+    actions: {
+      add: 'Aggiungi',
+      update: 'Aggiorna',
+      session: 'Sessione',
+    },
+    errors: {
+      subjectRequired: 'Inserisci una materia',
+      endTimeAfterStart:
+        "L'ora di fine deve essere successiva all'ora di inizio",
+    },
+    confirm: {
+      noDeadline:
+        'Stai creando un/una {{type}} senza data di scadenza. Sei sicuro di voler continuare?',
+    },
+    deadlineHelp:
+      'Questa scadenza apparirà nella sezione Prossime scadenze',
+    days: {
+      monday: 'Lunedì',
+      tuesday: 'Martedì',
+      wednesday: 'Mercoledì',
+      thursday: 'Giovedì',
+      friday: 'Venerdì',
+      saturday: 'Sabato',
+      sunday: 'Domenica',
+    },
+  },
+
+  reminders: {
+    title: 'Promemoria e notifiche',
+    subtitle:
+      'Configura promemoria per le tue sessioni di studio e le attività importanti',
+    actions: {
+      add: 'Aggiungi promemoria',
+      create: 'Crea promemoria',
+    },
+    dialog: {
+      title: 'Crea un promemoria',
+      description:
+        'Configura un nuovo promemoria per rimanere aggiornato sulla tua pianificazione.',
+    },
+    form: {
+      title: 'Titolo',
+      description: 'Descrizione',
+      time: 'Ora',
+      type: 'Tipo',
+      repeat: 'Ripeti il',
+      required: '*',
+      placeholderTitle: 'es.: Studiare matematica',
+      placeholderDescription: 'Dettagli aggiuntivi…',
+      error:
+        'Compila tutti i campi obbligatori e seleziona almeno un giorno',
+    },
+    types: {
+      study: 'Studio',
+      break: 'Pausa',
+      exam: 'Esame',
+      custom: 'Personalizzato',
+    },
+    notifications: {
+      title: 'Impostazioni notifiche',
+      description:
+        'Attiva le notifiche del browser per ricevere i tuoi promemoria',
+      browser: 'Notifiche browser',
+      browserDesc: 'Ricevi notifiche per i tuoi promemoria pianificati',
+      enabled: 'Notifiche attivate!',
+      denied: 'Permesso notifiche negato',
+      notSupported: 'Le notifiche non sono supportate da questo browser',
+    },
+    presets: {
+      title: 'Aggiunta rapida promemoria',
+      added: 'Promemoria predefinito aggiunto!',
+      morning: {
+        title: 'Sessione di studio del mattino',
+        description:
+          'È il momento di iniziare la tua sessione di studio mattutina!',
+      },
+      afternoon: {
+        title: 'Sessione di studio del pomeriggio',
+        description:
+          'Non dimenticare il tuo tempo di studio del pomeriggio!',
+      },
+      break: {
+        title: 'Fai una pausa',
+        description: 'È il momento di fare una pausa meritata!',
+      },
+    },
+    list: {
+      title: 'I tuoi promemoria',
+      empty: 'Nessun promemoria impostato',
+      emptySub:
+        'Crea il tuo primo promemoria o aggiungi un promemoria predefinito',
+    },
+    toast: {
+      added: 'Promemoria aggiunto con successo!',
+      deleted: 'Promemoria eliminato',
+    },
+    tip: {
+      title: 'Suggerimento:',
+      description:
+        'Assicurati di consentire le notifiche nelle impostazioni del browser per una migliore esperienza.',
+      extra:
+        "I promemoria funzioneranno anche quando l'app è in esecuzione in background.",
+    },
+    weekdays: {
+      monday: 'Lunedì',
+      tuesday: 'Martedì',
+      wednesday: 'Mercoledì',
+      thursday: 'Giovedì',
+      friday: 'Venerdì',
+      saturday: 'Sabato',
+      sunday: 'Domenica',
+    },
+  },
+
+  viewTimetables: {
+    title: 'Orari salvati',
+    description:
+      'Visualizza, anteprima, avvia, esporta e gestisci i tuoi piani salvati.',
+    stats: {
+      sessions: 'Sessioni',
+      subjects: 'Materie',
+      hoursPerDay: 'Ore/giorno',
+    },
+    empty: {
+      title: 'Nessun orario salvato',
+      description: 'Non hai ancora creato nessun orario.',
+      create: 'Crea un orario',
+    },
+    card: {
+      untitled: 'Orario senza titolo',
+      active: 'Attivo',
+      created: 'Creato il {{date}}',
+      breakEvery: 'Pausa ogni {{minutes}} min',
+    },
+    actions: {
+      view: 'Visualizza',
+      preview: 'Anteprima',
+      start: "Avvia l'orario",
+      merge: 'Unisci',
+      overwrite: 'Sovrascrivi',
+      duplicate: 'Duplica',
+      delete: 'Elimina',
+      exportCsv: 'Esporta CSV',
+      exportJson: 'Esporta JSON',
+      exportPdf: 'Esporta PDF',
+    },
+    confirm: {
+      delete: 'Sei sicuro di voler eliminare questo orario?',
+    },
+    dialog: {
+      useThisTimetable: 'Usare questo orario?',
+      myTimetable: 'Il mio orario',
+      description: {
+        before: 'Hai già delle sessioni in ',
+        after:
+          '. Puoi unire questo orario al tuo piano attuale oppure sovrascrivere tutto.',
+      },
+    },
+    export: {
+      pdfTitle: 'Orario',
+      csvTitle: 'Orario',
+      createdOn: 'Creato il {{date}}',
+      createdOnShort: 'Creato il {{date}}',
+      generatedOn: 'Generato il {{date}}',
+      studyHoursPerDay: 'Ore di studio al giorno: {{value}}',
+      studyTime: 'Fascia oraria: {{start}} - {{end}}',
+      sessionLength: 'Durata sessione: {{value}}',
+      breakDuration: 'Durata pausa: {{value}}',
+      studyHoursPerDayLabel: 'Ore di studio al giorno:',
+      studyTimeLabel: 'Fascia oraria:',
+      sessionLengthLabel: 'Durata sessione:',
+      breakDurationLabel: 'Durata pausa:',
+      subjects: 'Materie:',
+      weeklySchedule: 'Programma settimanale:',
+      priority: 'priorità',
+    },
+    days: {
+      monday: 'Lunedì',
+      tuesday: 'Martedì',
+      wednesday: 'Mercoledì',
+      thursday: 'Giovedì',
+      friday: 'Venerdì',
+      saturday: 'Sabato',
+      sunday: 'Domenica',
+    },
+    toasts: {
+      showingSubject: 'Visualizzazione di "{{subject}}" in {{name}}',
+      deleted: 'Orario eliminato con successo',
+      started: 'Orario avviato!',
+      startedOverwriteDescription:
+        'Il tuo orario è stato sostituito con questo orario salvato',
+      startedMerged: 'Orario avviato (unito)',
+      startedMergeDescription:
+        'Il tuo orario salvato è stato unito al calendario attuale',
+      sessionUnavailable: 'Una o più sessioni non sono disponibili',
+      generatingPdf: 'Generazione PDF in corso…',
+      pdfDownloaded: 'PDF scaricato con successo!',
+      pdfFailed: 'Generazione PDF non riuscita. Riprova.',
+      generatingCsv: 'Generazione del file CSV in corso…',
+      csvDownloaded:
+        'File CSV scaricato con successo! (Aprilo con Excel)',
+      exportFailed: 'Esportazione non riuscita. Riprova.',
+      jsonDownloaded: 'JSON scaricato con successo!',
+      jsonFailed: 'Esportazione JSON non riuscita',
+    },
+  },
+
+  sharedTimetable: {
+    title: 'Orari condivisi',
+    subtitle: 'Collabora sugli orari con il tuo team',
+    searchPlaceholder: 'Cerca orari…',
+    noDescription: 'Nessuna descrizione',
+    personal: {
+      description: 'Orario personale',
+      defaultName: 'Il mio orario',
+      sharedSuffix: 'Condiviso',
+      copySuffix: 'Copia',
+      importedDescription: 'Importato dall’orario personale',
+    },
+    stats: {
+      total: 'Totale accessibili',
+      owned: 'Di tua proprietà',
+      editable: 'Modificabile',
+      viewOnly: 'Sola lettura',
+    },
+    filters: {
+      all: 'Tutti gli orari',
+      owner: 'I miei orari',
+      editor: 'Modificabili',
+      viewer: 'Sola lettura',
+    },
+    actions: {
+      importMyTimetable: 'Importa il mio orario',
+      createShared: 'Crea un orario condiviso',
+      copyToPersonal: 'Copia nel personale',
+      managePermissions: 'Gestisci permessi',
+      viewSessions: 'Visualizza sessioni',
+      createTimetable: 'Crea un orario',
+      importTimetable: 'Importa un orario',
+      savePermissions: 'Salva permessi',
+    },
+    badges: {
+      owner: 'Proprietario',
+      canEdit: 'Può modificare',
+      viewOnly: 'Sola lettura',
+    },
+    visibility: {
+      public: 'Pubblico',
+      private: 'Privato',
+      publicHelp:
+        'Tutti i membri dello spazio di lavoro possono vedere',
+      privateHelp:
+        'Solo i membri selezionati possono vedere',
+      publicDescription: 'Pubblico - Tutti i membri possono vedere',
+      privateDescription: 'Privato - Accesso limitato',
+      publicDialog: 'Pubblico - Tutti i membri possono vedere',
+      privateDialog: 'Privato - Solo membri selezionati',
+    },
+    fields: {
+      name: "Nome dell'orario",
+      description: 'Descrizione',
+      visibility: 'Visibilità',
+      editors: 'Chi può modificare? (Seleziona membri)',
+      editorsSimple: 'Editor',
+      sessions: 'Sessioni',
+    },
+    placeholders: {
+      name: 'es.: Programma corsi Primavera 2025',
+      description: 'Breve descrizione di questo orario',
     },
     roles: {
       admin: 'Admin',
-      member: 'Member'
+      member: 'Membro',
     },
     createDialog: {
-      title: 'Create Shared Timetable',
-      description: 'Create a new timetable that can be edited by team members'
+      title: 'Crea un orario condiviso',
+      description:
+        'Crea un nuovo orario modificabile dai membri del team',
     },
     importDialog: {
-      title: 'Import Personal Timetable',
-      description: 'Import your current active timetable as a shared timetable',
-      alert: 'This will create a new shared timetable with all sessions from your active personal timetable. All workspace members will be able to edit it by default.'
+      title: 'Importa orario personale',
+      description:
+        'Importa il tuo orario attivo come orario condiviso',
+      alert:
+        'Questo creerà un nuovo orario condiviso con tutte le sessioni del tuo orario personale attivo. Tutti i membri dello spazio di lavoro potranno modificarlo per impostazione predefinita.',
     },
     permissionsDialog: {
-      title: 'Manage Permissions',
-      description: 'Control who can view and edit this timetable'
+      title: 'Gestisci permessi',
+      description: 'Controlla chi può vedere e modificare questo orario',
     },
     viewDialog: {
-      title: 'View Timetable',
-      description: 'View the sessions in this timetable'
+      title: "Visualizza l'orario",
+      description: 'Consulta le sessioni di questo orario',
     },
-    selectedEditorsInfo: 'Selected: {{count}} member(s). You (owner) can always edit.',
-    sessionsCount: '{{count}} sessions',
-    editorsCount: '{{count}} editors',
-    byOwner: 'by {{name}}',
-    modifiedAt: 'Modified {{date}}',
-    modifiedBy: 'by {{name}}',
+    selectedEditorsInfo:
+      'Selezionato/i: {{count}} membro/i. Tu (proprietario) puoi sempre modificare.',
+    sessionsCount: '{{count}} sessioni',
+    editorsCount: '{{count}} editor',
+    byOwner: 'da {{name}}',
+    modifiedAt: 'Modificato il {{date}}',
+    modifiedBy: 'da {{name}}',
     confirm: {
-      delete: 'Are you sure you want to delete "{{name}}"?'
+      delete: 'Sei sicuro di voler eliminare "{{name}}"?',
     },
     success: {
-      created: 'Shared timetable created successfully!',
-      importedWithCount: 'Imported timetable with {{count}} sessions!',
-      deleted: 'Timetable deleted successfully',
-      permissionsUpdated: 'Permissions updated successfully',
-      copiedToPersonal: 'Timetable copied to your personal timetables!'
+      created: 'Orario condiviso creato con successo!',
+      importedWithCount:
+        'Orario importato con {{count}} sessioni!',
+      deleted: 'Orario eliminato con successo',
+      permissionsUpdated: 'Permessi aggiornati con successo',
+      copiedToPersonal:
+        'Orario copiato nei tuoi orari personali!',
     },
     errors: {
-      enterName: 'Please enter a timetable name',
-      noPersonalToImport: 'No personal timetables found to import',
-      noActiveFound: 'No active timetable found',
-      deletePermission: 'Only the owner or admin can delete this timetable',
-      permissionsPermission: 'Only the owner or admin can change permissions'
+      enterName: "Inserisci un nome dell'orario",
+      noPersonalToImport:
+        'Nessun orario personale trovato da importare',
+      noActiveFound: 'Nessun orario attivo trovato',
+      deletePermission:
+        "Solo il proprietario o l'admin può eliminare questo orario",
+      permissionsPermission:
+        "Solo il proprietario o l'admin può modificare i permessi",
     },
     info: {
-      viewingWithCount: 'Viewing {{name}} - {{count}} sessions'
+      viewingWithCount: 'Visualizzazione di {{name}} - {{count}} sessioni',
+    },
+    confirmDelete: {
+      title: 'Elimina orario condiviso',
+      description: 'Questo elimina definitivamente "{{name}}" dagli orari condivisi dello spazio di lavoro.',
+      fallbackName: 'questo orario',
     },
     history: {
-      createdPersonal: 'Created personal timetable',
-      created: 'Created timetable',
-      importedFromPersonal: 'Imported from personal timetable',
-      updatedPermissions: 'Updated permissions'
-    }
+      createdPersonal: 'Orario personale creato',
+      created: 'Orario creato',
+      importedFromPersonal: 'Importato da orario personale',
+      updatedPermissions: 'Permessi aggiornati',
+    },
   },
+
   teamCollaboration: {
     defaults: {
-      member: 'Member'
+      member: 'Membro',
     },
     stats: {
-      sharedSchedules: 'Shared Schedules',
-      activeMembers: 'Active Members',
-      avgCompletion: 'Avg Completion',
-      recentUpdates: 'Recent Updates'
+      sharedSchedules: 'Piani condivisi',
+      activeMembers: 'Membri attivi',
+      avgCompletion: 'Completamento medio',
+      recentUpdates: 'Aggiornamenti recenti',
     },
     sharedSchedules: {
-      title: 'Shared Schedules',
-      description: 'Schedules shared with the team'
+      title: 'Piani condivisi',
+      description: 'Piani condivisi con il team',
     },
     progress: {
-      title: 'Team Progress',
-      description: 'Track completion rates across the team',
-      completedCount: '{{completed}}/{{total}} completed',
-      details: '{{hours}}h · Streak {{streak}}d · Goal {{goal}}%'
+      title: 'Progresso del team',
+      description: 'Monitora i tassi di completamento del team',
+      completedCount: '{{completed}}/{{total}} completato/i',
+      details: '{{hours}}h · Serie {{streak}}g · Obiettivo {{goal}}%',
     },
     activity: {
-      title: 'Recent Activity',
-      description: 'What your team has been up to'
+      title: 'Attività recente',
+      description: 'Cosa sta facendo il tuo team',
     },
     actions: {
-      shareSchedule: 'Share Schedule',
-      view: 'View',
-      import: 'Import'
+      shareSchedule: 'Condividi un piano',
+      view: 'Visualizza',
+      import: 'Importa',
     },
     empty: {
-      schedulesTitle: 'No shared schedules yet',
-      schedulesDescription: 'Share a schedule to collaborate with your team',
-      progress: 'No progress data yet',
-      activity: 'No recent activity'
+      schedulesTitle: 'Nessun piano condiviso',
+      schedulesDescription:
+        'Condividi un piano per collaborare con il tuo team',
+      progress: 'Nessun dato di progresso',
+      activity: 'Nessuna attività recente',
     },
     visibility: {
-      allMembers: 'All Members',
-      allMembersHelp: 'Everyone can view and use',
-      adminsOnly: 'Admins Only',
-      adminsOnlyHelp: 'Only admins can view'
+      allMembers: 'Tutti i membri',
+      allMembersHelp: 'Tutti possono vedere e usare',
+      adminsOnly: 'Solo admin',
+      adminsOnlyHelp: 'Solo gli admin possono vedere',
     },
     shareDialog: {
-      title: 'Share Schedule with Team',
-      description: 'Select a schedule to share with your workspace members',
-      selectSchedule: 'Select Schedule',
-      schedulePlaceholder: 'Choose a schedule to share',
-      noSchedules: 'No schedules available',
-      createFirst: 'Create a timetable first',
-      visibility: 'Visibility'
+      title: 'Condividi un piano con il team',
+      description:
+        'Seleziona un piano da condividere con i membri del tuo spazio di lavoro',
+      selectSchedule: 'Seleziona un piano',
+      schedulePlaceholder: 'Scegli un piano da condividere',
+      noSchedules: 'Nessun piano disponibile',
+      createFirst: 'Crea prima un orario',
+      visibility: 'Visibilità',
     },
     errors: {
-      selectSchedule: 'Please select a schedule to share',
-      scheduleNotFound: 'Schedule not found'
+      selectSchedule: 'Seleziona un piano',
+      scheduleNotFound: 'Piano non trovato',
     },
     success: {
-      shared: 'Schedule "{{name}}" shared successfully!',
-      progressUpdated: 'Progress updated successfully!'
+      shared: 'Piano "{{name}}" condiviso con successo!',
+      progressUpdated: 'Progresso aggiornato con successo!',
     },
     info: {
-      viewingDetails: 'Viewing schedule details...'
+      viewingDetails: 'Visualizzazione dettagli del piano…',
     },
     activities: {
-      scheduleShared: 'shared schedule "{{name}}" with the team',
-      progressUpdated: 'updated their progress to {{completed}}/{{total}} sessions completed'
+      scheduleShared:
+        'ha condiviso il piano "{{name}}" con il team',
+      progressUpdated:
+        'ha aggiornato il proprio progresso a {{completed}}/{{total}} sessioni completate',
     },
-    sessionsCount: '{{count}} sessions',
-    sharedBy: 'Shared by {{name}}',
+    sessionsCount: '{{count}} sessioni',
+    sharedBy: 'Condiviso da {{name}}',
     time: {
-      justNow: 'Just now',
-      minutesAgo: '{{count}}m ago',
-      hoursAgo: '{{count}}h ago',
-      daysAgo: '{{count}}d ago'
-    }
+      justNow: 'Proprio adesso',
+      minutesAgo: '{{count}} min fa',
+      hoursAgo: '{{count}} h fa',
+      daysAgo: '{{count}} g fa',
+    },
   },
+
   welcomeWalkthrough: {
-    greeting: 'Hi {{name}}. ',
-    stepCounter: 'Step {{current}} / {{total}}',
-    quickTips: 'Quick tips',
+    greeting: 'Ciao {{name}}. ',
+    stepCounter: 'Passaggio {{current}} / {{total}}',
+    quickTips: 'Suggerimenti rapidi',
     actions: {
-      skipWalkthrough: 'Skip walkthrough',
-      openThisPage: 'Open this page',
-      skip: 'Skip',
-      finish: 'Finish',
-      next: 'Next'
+      skipWalkthrough: 'Salta il tutorial',
+      openThisPage: 'Apri questa pagina',
+      skip: 'Salta',
+      finish: 'Fine',
+      next: 'Avanti',
     },
     steps: {
       welcome: {
-        title: 'Welcome to U PLAN',
-        description: 'This quick walkthrough shows you where the important stuff is. You can skip anytime and come back later.',
+        title: 'Benvenuto su U PLAN',
+        description:
+          'Questo rapido tutorial ti mostra dove si trovano gli elementi importanti. Puoi saltarlo in qualsiasi momento e tornarci più tardi.',
         tips: [
-          'Tip: you can refresh safely now — the app will keep your page.'
-        ]
+          "Suggerimento: puoi aggiornare senza preoccuparti — l'app conserva la tua pagina.",
+        ],
       },
       autoGenerate: {
-        title: 'Auto-generate a study timetable',
-        description: 'Use Auto-Generate to build a weekly plan. You can shuffle to get a different result, or keep a seed to reproduce it.',
+        title: 'Genera automaticamente un orario',
+        description:
+          'Usa la generazione automatica per creare un piano settimanale. Puoi mescolare per ottenere un risultato diverso oppure mantenere un seed per riprodurlo.',
         tips: [
-          'Try: Auto-Generate → Shuffle',
-          'Then: Save timetable → Apply to week'
-        ]
+          'Prova: Generazione automatica → Mescola',
+          "Poi: Salva orario → Applica alla settimana",
+        ],
       },
       assessments: {
-        title: 'Assessments & Deadlines',
-        description: 'Add deadlines/exams so the generator allocates more time to urgent courses — even when multiple exams happen in the same week.',
-        tips: [
-          'Try: add 2 exams in the same week and re-generate'
-        ]
+        title: 'Valutazioni e scadenze',
+        description:
+          'Aggiungi scadenze ed esami affinché il generatore assegni più tempo ai corsi urgenti, anche quando più esami cadono nella stessa settimana.',
+        tips: ['Prova: aggiungi 2 esami nella stessa settimana e rigenera'],
       },
       workspace: {
-        title: 'Workspace',
-        description: 'Workspaces let you collaborate with teammates using chat and shared planning.',
+        title: 'Spazio di lavoro',
+        description:
+          'Gli spazi di lavoro ti permettono di collaborare con i tuoi compagni tramite chat e pianificazione condivisa.',
         tips: [
-          'Chat updates live while you are on the chat page.'
-        ]
-      }
-    }
-  },
-  timetable: {
-    back: 'Back',
-    title: 'Timetable Results',
-    subtitle: 'Review, refine, and save your generated academic schedule.',
-    blocked: {
-      sleep: 'Sleep',
-      lunchBreak: 'Lunch Break',
-      dinnerBreak: 'Dinner Break',
-      default: 'Blocked Time'
+          'La chat si aggiorna in tempo reale quando ti trovi nella pagina chat.',
+        ],
+      },
     },
-    break: 'Break',
-    unavailable: 'Unavailable',
+  },
+
+  timetable: {
+    back: 'Indietro',
+    title: "Risultati dell'orario",
+    subtitle:
+      'Visualizza, perfeziona e salva il tuo piano accademico generato.',
+    blocked: {
+      sleep: 'Sonno',
+      lunchBreak: 'Pausa pranzo',
+      dinnerBreak: 'Pausa cena',
+      default: 'Fascia bloccata',
+    },
+    break: 'Pausa',
+    unavailable: 'Non disponibile',
     minutes: '{{count}} min',
     stats: {
-      sessions: 'Sessions',
-      hours: 'Hours',
-      courses: 'Courses'
+      sessions: 'Sessioni',
+      hours: 'Ore',
+      courses: 'Corsi',
     },
     summary: {
-      title: 'Schedule summary',
-      description: 'Your schedule was generated using course priority, preferred study windows, blocked time, and session/break settings.',
-      priorityLabel: 'Priority-based allocation:',
-      priorityText: 'higher-priority courses are placed in stronger study windows.',
-      timePreferencesLabel: 'Time preferences:',
-      timePreferencesText: 'courses are placed in preferred morning, afternoon, or evening windows where possible.',
-      conflictAvoidanceLabel: 'Conflict avoidance:',
-      conflictAvoidanceText: 'study sessions avoid {{count}} blocked slot(s).',
-      sessionStructureLabel: 'Session structure:',
-      sessionStructureText: '{{sessionDuration}} minute sessions with {{breakDuration}} minute breaks.'
+      title: 'Riepilogo del piano',
+      description:
+        'Il tuo piano è stato generato tenendo conto delle priorità dei corsi, delle fasce orarie preferite, degli intervalli bloccati e delle impostazioni di sessione/pausa.',
+      priorityLabel: 'Allocazione basata sulla priorità:',
+      priorityText:
+        'i corsi più prioritari vengono collocati nelle fasce orarie migliori.',
+      timePreferencesLabel: 'Preferenze orarie:',
+      timePreferencesText:
+        'i corsi vengono collocati nelle fasce preferite di mattina, pomeriggio o sera, se possibile.',
+      conflictAvoidanceLabel: 'Evitamento conflitti:',
+      conflictAvoidanceText:
+        'le sessioni di studio evitano {{count}} fascia/e bloccata/e.',
+      sessionStructureLabel: 'Struttura delle sessioni:',
+      sessionStructureText:
+        'sessioni di {{sessionDuration}} minuti con pause di {{breakDuration}} minuti.',
     },
     actions: {
-      save: 'Save Timetable',
-      editCourses: 'Edit Courses',
-      splitLongSessions: 'Split Long Sessions',
-      mergeAdjacentSessions: 'Merge Adjacent Sessions',
-      createNew: 'Create New'
+      save: "Salva l'orario",
+      editCourses: 'Modifica corsi',
+      splitLongSessions: 'Dividi sessioni lunghe',
+      mergeAdjacentSessions: 'Unisci sessioni adiacenti',
+      createNew: 'Creane uno nuovo',
     },
     unavailableTime: {
-      title: 'Unavailable time respected',
-      description: 'Study sessions were scheduled around {{count}} unavailable time slot(s).'
+      title: 'Tempi non disponibili rispettati',
+      description:
+        'Le sessioni di studio sono state pianificate tenendo conto di {{count}} fascia/e non disponibile/i.',
     },
     availability: {
-      title: 'Availability & Breaks Settings',
-      weekdayHours: 'Weekday Hours:',
-      weekendHours: 'Weekend Hours:',
-      sleepHours: 'Sleep Hours:',
-      lunchBreak: 'Lunch Break:',
-      dinnerBreak: 'Dinner Break:',
-      commuteBuffer: 'Commute Buffer:',
-      commuteMinutes: '{{count}} minutes',
-      noneFound: 'No availability settings found for this timetable.'
+      title: 'Disponibilità e impostazioni pause',
+      weekdayHours: 'Ore nei giorni feriali:',
+      weekendHours: 'Ore nel weekend:',
+      sleepHours: 'Ore di sonno:',
+      lunchBreak: 'Pausa pranzo:',
+      dinnerBreak: 'Pausa cena:',
+      commuteBuffer: 'Margine spostamenti:',
+      commuteMinutes: '{{count}} minuti',
+      noneFound:
+        'Nessuna impostazione di disponibilità trovata per questo orario.',
     },
     empty: {
-      title: 'No schedule generated',
-      description: 'There was an issue generating the schedule. Please check that you selected study days and added courses.'
+      title: 'Nessun piano generato',
+      description:
+        'Si è verificato un problema durante la generazione del piano. Verifica di aver selezionato giorni di studio e aggiunto corsi.',
     },
-    dayDescription: '{{count}} study session(s) • {{hours}}h total',
-    dayEmpty: 'No sessions scheduled for this day',
+    dayDescription: '{{count}} sessione/i di studio • {{hours}}h totali',
+    dayEmpty: 'Nessuna sessione pianificata per questo giorno',
     tips: {
-      title: 'Study tips',
-      followScheduleLabel: 'Follow the schedule:',
-      followScheduleText: 'the timetable was generated around your priorities and free time.',
-      useBreaksLabel: 'Use breaks well:',
-      useBreaksText: 'rest, hydrate, and reset between study blocks.',
-      adjustWhenNeededLabel: 'Adjust when needed:',
-      adjustWhenNeededText: 'regenerate if your courses or unavailable time change.',
-      stayConsistentLabel: 'Stay consistent:',
-      stayConsistentText: 'shorter repeatable sessions usually work better than overloading one day.'
+      title: 'Suggerimenti di studio',
+      followScheduleLabel: 'Segui il piano:',
+      followScheduleText:
+        'l’orario è stato generato in base alle tue priorità e al tuo tempo libero.',
+      useBreaksLabel: 'Usa bene le pause:',
+      useBreaksText:
+        'riposa, idratati e ricaricati tra i blocchi di studio.',
+      adjustWhenNeededLabel: 'Adatta quando necessario:',
+      adjustWhenNeededText:
+        'rigenera se i tuoi corsi o i tuoi tempi non disponibili cambiano.',
+      stayConsistentLabel: 'Sii costante:',
+      stayConsistentText:
+        'sessioni brevi e ripetute funzionano di solito meglio che concentrare tutto in un solo giorno.',
     },
     unsaved: {
-      title: 'Unsaved Timetable',
-      titleWithWarning: '⚠️ Unsaved Timetable',
-      backDescription: "You haven't saved your timetable yet. If you go back to the dashboard now, all your generated schedule will be lost.",
-      backQuestion: 'Would you like to stay and save your timetable, or discard it and go back?',
-      createNewDescription: "You haven't saved your timetable yet. If you create a new timetable now, all your generated schedule will be lost.",
-      createNewQuestion: 'Would you like to stay and save your timetable, or discard it and create a new one?',
-      discardAndGoBack: 'Discard & Go Back',
-      stayAndSave: 'Stay & Save',
-      discardAndCreateNew: 'Discard & Create New'
+      title: 'Orario non salvato',
+      titleWithWarning: '⚠️ Orario non salvato',
+      backDescription:
+        'Non hai ancora salvato il tuo orario. Se torni ora alla dashboard, tutto il piano generato andrà perso.',
+      backQuestion:
+        'Vuoi restare e salvare il tuo orario, oppure ignorarlo e tornare indietro?',
+      createNewDescription:
+        'Non hai ancora salvato il tuo orario. Se ne crei uno nuovo adesso, tutto il piano generato andrà perso.',
+      createNewQuestion:
+        'Vuoi restare e salvare il tuo orario, oppure ignorarlo e crearne uno nuovo?',
+      discardAndGoBack: 'Ignora e torna indietro',
+      stayAndSave: 'Resta e salva',
+      discardAndCreateNew: 'Ignora e crea nuovo',
     },
     courseDialog: {
-      title: 'Edit Course Settings',
-      description: 'Select a course to modify its details, change times, or delete it.',
-      courseMeta: '{{hours}}h/week • {{priority}} priority',
-      noCourses: 'No courses available'
+      title: 'Modifica impostazioni del corso',
+      description:
+        'Seleziona un corso per modificarne i dettagli, cambiare gli orari o eliminarlo.',
+      courseMeta: '{{hours}}h/settimana • priorità {{priority}}',
+      noCourses: 'Nessun corso disponibile',
     },
     toast: {
-      splitSuccess: 'Long sessions split into Pomodoros! Sessions over 90 minutes have been divided with breaks.',
-      mergeSuccess: 'Adjacent sessions merged! Same-subject sessions close together have been combined.',
-      savedWithWeek: 'Timetable saved! Sessions added to week {{weekId}}',
-      addedToMyTimetable: '{{count}} sessions added to My Timetable for week {{weekId}}!',
-      pdfComingSoon: 'PDF export feature coming soon!',
-      googleCalendarConnectFirst: 'Please connect to Google Calendar in Settings first',
-      exportingGoogleCalendar: 'Exporting to Google Calendar...',
-      exportedGoogleCalendar: 'Successfully exported {{count}} study sessions to Google Calendar!',
-      failedGoogleCalendar: 'Failed to export to Google Calendar',
-      courseUpdated: 'Course "{{name}}" updated! Schedule regenerated.',
-      cannotDeleteLastCourse: 'Cannot delete the last course. Please add another course first.',
-      courseDeleted: 'Course deleted! Schedule regenerated.'
-    }
+      splitSuccess:
+        'Sessioni lunghe divise in Pomodori! Le sessioni oltre 90 minuti sono state suddivise con pause.',
+      mergeSuccess:
+        'Sessioni adiacenti unite! Le sessioni della stessa materia vicine tra loro sono state combinate.',
+      savedWithWeek:
+        'Orario salvato! Sessioni aggiunte alla settimana {{weekId}}',
+      addedToMyTimetable:
+        '{{count}} sessione/i aggiunta/e al Mio orario per la settimana {{weekId}}!',
+      pdfComingSoon: 'Esportazione PDF in arrivo!',
+      googleCalendarConnectFirst:
+        'Collegati prima a Google Calendar nelle Impostazioni',
+      exportingGoogleCalendar:
+        'Esportazione su Google Calendar in corso…',
+      exportedGoogleCalendar:
+        '{{count}} sessione/i di studio esportata/e con successo su Google Calendar!',
+      failedGoogleCalendar:
+        'Esportazione su Google Calendar non riuscita',
+      courseUpdated:
+        'Corso "{{name}}" aggiornato! Piano rigenerato.',
+      cannotDeleteLastCourse:
+        'Impossibile eliminare l’ultimo corso. Aggiungine prima un altro.',
+      courseDeleted: 'Corso eliminato! Piano rigenerato.',
+    },
   },
+
   terms: {
-    back: 'Back',
-    title: 'Terms of Service',
-    lastUpdated: 'Last Updated: October 24, 2025',
+    back: 'Indietro',
+    title: 'Termini di utilizzo',
+    lastUpdated: 'Ultimo aggiornamento: 24 ottobre 2025',
     sections: {
       acceptance: {
-        title: '1. Acceptance of Terms',
-        content: 'By accessing and using U PLAN ("the Service"), you accept and agree to be bound by the terms and provision of this agreement. If you do not agree to these Terms of Service, please do not use the Service.'
+        title: '1. Accettazione dei termini',
+        content:
+          'Accedendo e utilizzando U PLAN ("il Servizio"), accetti di essere vincolato dai termini e dalle disposizioni di questo accordo. Se non accetti questi Termini di utilizzo, ti invitiamo a non usare il Servizio.',
       },
       service: {
-        title: '2. Description of Service',
-        description: 'U PLAN provides students with tools to create, manage, and optimize their study schedules. The Service includes:',
+        title: '2. Descrizione del Servizio',
+        description:
+          'U PLAN fornisce agli studenti strumenti per creare, gestire e ottimizzare i propri orari. Il Servizio include:',
         items: [
-          'Interactive weekly calendar for study session planning',
-          'Smart scheduling algorithms based on course priorities',
-          'Manual creation and editing of study sessions',
-          'Timetable saving and management features',
-          'Dark mode and customization options'
-        ]
+          'Calendario settimanale interattivo per pianificare sessioni di studio',
+          'Algoritmi di pianificazione intelligenti basati sulle priorità dei corsi',
+          'Creazione e modifica manuale delle sessioni di studio',
+          'Funzionalità di salvataggio e gestione degli orari',
+          'Modalità scura e opzioni di personalizzazione',
+        ],
       },
       accounts: {
-        title: '3. User Accounts',
-        description: 'To use certain features of the Service, you must register for an account. You agree to:',
+        title: '3. Account utente',
+        description:
+          'Per utilizzare alcune funzionalità del Servizio, devi creare un account. Accetti di:',
         items: [
-          'Provide accurate, current, and complete information during registration',
-          'Maintain the security of your password and account',
-          'Notify us immediately of any unauthorized use of your account',
-          'Accept responsibility for all activities that occur under your account'
-        ]
+          'Fornire informazioni accurate, aggiornate e complete durante la registrazione',
+          'Mantenere la sicurezza della tua password e del tuo account',
+          'Informarci immediatamente di qualsiasi utilizzo non autorizzato del tuo account',
+          'Assumerti la responsabilità di tutte le attività svolte con il tuo account',
+        ],
       },
       storage: {
-        title: '4. User Data and Local Storage',
-        content: 'The Service stores your data locally in your browser using localStorage. This includes your account information, timetables, study sessions, and preferences. You are responsible for maintaining backups of your data. We are not liable for any loss of data stored locally on your device.'
+        title: '4. Dati utente e archiviazione locale',
+        content:
+          'Il Servizio archivia i tuoi dati localmente nel browser tramite localStorage. Questo include informazioni sull’account, orari, sessioni di studio e preferenze. Sei responsabile del backup dei tuoi dati. Non siamo responsabili per eventuali perdite di dati archiviati localmente sul tuo dispositivo.',
       },
       use: {
-        title: '5. Acceptable Use',
-        description: 'You agree not to use the Service to:',
+        title: '5. Uso accettabile',
+        description: 'Accetti di non utilizzare il Servizio per:',
         items: [
-          'Violate any applicable laws or regulations',
-          'Infringe upon the rights of others',
-          'Transmit any harmful or malicious code',
-          'Attempt to gain unauthorized access to the Service',
-          'Use the Service for any commercial purposes without permission',
-          'Interfere with or disrupt the Service or servers'
-        ]
+          'Violare leggi o regolamenti applicabili',
+          'Ledere i diritti di altri',
+          'Trasmettere codice dannoso o malevolo',
+          'Tentare di ottenere accesso non autorizzato al Servizio',
+          'Usare il Servizio per scopi commerciali senza autorizzazione',
+          'Interferire con il Servizio o con i server',
+        ],
       },
       ip: {
-        title: '6. Intellectual Property',
-        content: 'The Service and its original content, features, and functionality are owned by U PLAN and are protected by international copyright, trademark, patent, trade secret, and other intellectual property laws. Your use of the Service does not grant you ownership of any intellectual property rights.'
+        title: '6. Proprietà intellettuale',
+        content:
+          'Il Servizio e i suoi contenuti originali, funzionalità e caratteristiche appartengono a U PLAN e sono protetti dalle leggi internazionali su copyright, marchi, brevetti, segreti commerciali e altri diritti di proprietà intellettuale. L’uso del Servizio non ti conferisce alcun diritto di proprietà intellettuale.',
       },
       disclaimer: {
-        title: '7. Disclaimer of Warranties',
-        content: 'THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. We do not warrant that the Service will be uninterrupted, timely, secure, or error-free.'
+        title: '7. Esclusione di garanzie',
+        content:
+          'IL SERVIZIO È FORNITO "COSÌ COM’È" E "COME DISPONIBILE" SENZA GARANZIE DI ALCUN TIPO, ESPRESSE O IMPLICITE, INCLUSE MA NON LIMITATE ALLE GARANZIE IMPLICITE DI COMMERCIABILITÀ, IDONEITÀ A UNO SCOPO PARTICOLARE E NON VIOLAZIONE. Non garantiamo che il Servizio sarà ininterrotto, puntuale, sicuro o privo di errori.',
       },
       liability: {
-        title: '8. Limitation of Liability',
-        content: 'IN NO EVENT SHALL U PLAN, ITS DIRECTORS, EMPLOYEES, OR AGENTS BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING WITHOUT LIMITATION, LOSS OF PROFITS, DATA, USE, OR OTHER INTANGIBLE LOSSES, RESULTING FROM YOUR ACCESS TO OR USE OF OR INABILITY TO ACCESS OR USE THE SERVICE.'
+        title: '8. Limitazione di responsabilità',
+        content:
+          'IN NESSUN CASO U PLAN, I SUOI DIRIGENTI, DIPENDENTI O AGENTI SARANNO RESPONSABILI PER DANNI INDIRETTI, INCIDENTALI, SPECIALI, CONSEQUENZIALI O PUNITIVI, INCLUSI SENZA LIMITAZIONE PERDITA DI PROFITTI, DATI, UTILIZZO O ALTRE PERDITE IMMATERIALI, DERIVANTI DAL TUO ACCESSO O USO O DALL’IMPOSSIBILITÀ DI ACCEDERE O USARE IL SERVIZIO.',
       },
       education: {
-        title: '9. Educational Purpose',
-        content: 'The Service is designed to assist with study planning and time management. It is not a substitute for professional academic advising. Study schedules generated by the Service are suggestions and should be adapted based on individual needs and circumstances.'
+        title: '9. Finalità educativa',
+        content:
+          'Il Servizio è progettato per aiutare nella pianificazione dello studio e nella gestione del tempo. Non sostituisce il supporto accademico professionale. Gli orari generati dal Servizio sono suggerimenti e devono essere adattati alle esigenze e circostanze individuali.',
       },
       modifications: {
-        title: '10. Modifications to Service',
-        content: 'We reserve the right to modify or discontinue, temporarily or permanently, the Service (or any part thereof) with or without notice. You agree that we shall not be liable to you or any third party for any modification, suspension, or discontinuance of the Service.'
+        title: '10. Modifiche al Servizio',
+        content:
+          'Ci riserviamo il diritto di modificare o interrompere, temporaneamente o definitivamente, il Servizio (o qualsiasi sua parte) con o senza preavviso. Accetti che non saremo responsabili verso di te o terzi per eventuali modifiche, sospensioni o interruzioni del Servizio.',
       },
       changes: {
-        title: '11. Changes to Terms',
-        content: 'We reserve the right to update or modify these Terms of Service at any time without prior notice. Your continued use of the Service after any such changes constitutes your acceptance of the new Terms of Service. We will update the "Last Updated" date at the top of this page when changes are made.'
+        title: '11. Modifiche ai termini',
+        content:
+          'Ci riserviamo il diritto di aggiornare o modificare questi Termini di utilizzo in qualsiasi momento senza preavviso. L’uso continuato del Servizio dopo tali modifiche costituisce accettazione dei nuovi Termini. Aggiorneremo la data di "Ultimo aggiornamento" in cima a questa pagina quando verranno apportate modifiche.',
       },
       termination: {
-        title: '12. Termination',
-        content: 'We may terminate or suspend your account and access to the Service immediately, without prior notice or liability, for any reason, including if you breach these Terms of Service. Upon termination, your right to use the Service will immediately cease.'
+        title: '12. Risoluzione',
+        content:
+          'Possiamo terminare o sospendere il tuo account e il tuo accesso al Servizio immediatamente, senza preavviso né responsabilità, per qualsiasi motivo, incluso il caso in cui tu violi questi Termini. Alla risoluzione, il tuo diritto di utilizzare il Servizio cesserà immediatamente.',
       },
       law: {
-        title: '13. Governing Law',
-        content: 'These Terms shall be governed and construed in accordance with applicable laws, without regard to its conflict of law provisions. Any disputes arising from these Terms or use of the Service shall be resolved through binding arbitration.'
+        title: '13. Legge applicabile',
+        content:
+          'Questi Termini sono regolati e interpretati in conformità con le leggi applicabili, senza considerare disposizioni sui conflitti di legge. Qualsiasi controversia derivante da questi Termini o dall’uso del Servizio sarà risolta tramite arbitrato vincolante.',
       },
       contact: {
-        title: '14. Contact Information',
-        content: "If you have any questions about these Terms of Service, please contact us through the app's support channels or settings page."
+        title: '14. Informazioni di contatto',
+        content:
+          'Se hai domande riguardo a questi Termini di utilizzo, contattaci tramite i canali di supporto dell’applicazione o la pagina impostazioni.',
       },
-      consent: 'By using U PLAN, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service.'
-    }
+      consent:
+        'Utilizzando U PLAN, riconosci di aver letto, compreso e accettato di essere vincolato da questi Termini di utilizzo.',
+    },
   },
+
   dashboard: {
     refresh: 'Aggiorna',
     tasksDone: 'Valutazioni completate in tempo',
@@ -1896,11 +2272,11 @@ const it = {
     studyHours: 'Ore di studio',
     sessions: 'Sessioni',
     upcoming: 'In arrivo',
-    focusTimer: 'Timer focus',
-    focus: 'Focus',
+    focusTimer: 'Timer concentrazione',
+    focus: 'Concentrazione',
     break: 'Pausa',
     longBreak: 'Pausa lunga',
-    timerRunning: 'Il timer è in esecuzione',
+    timerRunning: 'Timer in esecuzione',
     timerReady: 'Pronto per iniziare',
     start: 'Avvia',
     pause: 'Pausa',
@@ -1911,109 +2287,119 @@ const it = {
     weekGoal: 'Obiettivo settimanale',
     notSet: 'Non impostato',
     completedSessions: 'Sessioni completate',
-    currentSession: 'Sessione attuale',
+    currentSession: 'Sessione corrente',
     noActiveSession: 'Nessuna sessione attiva',
-    none: 'Nessuno',
+    none: 'Nessuna',
     today: 'Oggi',
     todayShort: 'Oggi',
     calendar: 'Calendario',
-    insights: 'Approfondimenti',
+    insights: 'Insight',
     fullView: 'Vista completa',
-    focusView: 'Vista focus',
+    focusView: 'Vista concentrazione',
     nextSession: 'Prossima sessione',
-    live: 'Live',
+    live: 'In diretta',
     startsAt: 'Inizia alle {{time}}',
     noMoreSessionsToday: 'Nessun’altra sessione oggi',
     todaysScheduleProgress: 'Programma e progresso di oggi',
     totalHours: 'Ore totali',
-    completed: 'Completato',
+    completed: 'Completate',
     minutesShort: 'min',
-    noSessionsToday: 'Nessuna sessione prevista per oggi',
+    noSessionsToday: 'Nessuna sessione pianificata per oggi',
     addSessions: 'Aggiungi sessioni',
-    studyProgressOverview: 'Panoramica del progresso di studio',
+    studyProgressOverview: 'Panoramica progresso studio',
     week: 'Settimana',
     month: 'Mese',
     completedHours: 'Ore completate',
     weeklyGoal: 'Obiettivo settimanale',
-    setWeeklyGoalHint: 'Imposta un obiettivo settimanale in Obiettivi e risultati',
-    noStudyDataWeek: 'Nessun dato di studio per questa settimana. Inizia a pianificare sessioni per monitorare i tuoi progressi.',
+    setWeeklyGoalHint:
+      'Imposta un obiettivo settimanale in Obiettivi e risultati',
+    noStudyDataWeek:
+      'Nessun dato di studio per questa settimana. Inizia a pianificare sessioni per monitorare i tuoi progressi.',
     deadlines: 'Scadenze',
     priority: {
-      high: 'High',
-      medium: 'Medium',
-      low: 'Low'
+      high: 'Alta',
+      medium: 'Media',
+      low: 'Bassa',
     },
     taskTypes: {
-      assignment: 'Assignment',
-      exam: 'Exam',
+      assignment: 'Compito',
+      exam: 'Esame',
       quiz: 'Quiz',
-      project: 'Project'
+      project: 'Progetto',
     },
-    calendarTag: 'Calendar',
-    tomorrow: 'Tomorrow',
-    overdue: 'Overdue',
-    daysCount: '{{count}} days',
-    markDone: 'Mark as done',
-    noUpcomingDeadlines: 'No upcoming deadlines',
-    smartInsights: 'Smart insights',
-    aiRecommendations: 'AI-powered recommendations',
-    todaysRecommendations: 'Today’s recommendations',
-    quickStats: 'Quick stats',
-    todaysHours: 'Today’s hours',
-    studyStreak: 'Study streak',
-    completedToday: 'Completed today',
-    nextFocusSession: 'Next focus session',
-    allDoneToday: 'All done for today',
-    nextSessionAt: 'Next session: {{subject}} at {{time}}',
-    considerBreak: 'You’ve been studying hard. Consider taking a short break.',
-    morningGreat: 'This is a great time for focused study.',
-    focusDeadline: 'Focus on {{subject}} — deadline approaching',
-    allCaughtUp: 'All caught up. Time to get ahead.',
-    thisIsBreak: 'This is a break session.',
-    sessionAlreadyMissed: 'This session was already marked missed.',
-    startingEarly: `You're starting "{{subject}}" early.`,
-    countTowardRecent: 'Count this time toward your most recent session "{{recent}}" instead?',
-    okCountsToward: 'OK = count toward "{{recent}}"',
-    cancelStartsEarly: 'Cancel = start "{{subject}}" early',
-    addNewTask: 'Add new task',
-    addTaskDescription: 'Create a new assignment, exam, quiz, or project deadline.',
-    taskTitle: 'Task title',
-    taskTitlePlaceholder: 'e.g., Math Assignment Chapter 5',
-    taskTitleHint: 'Optional — leave blank to auto-name (e.g., "{{example}}").',
-    subject: 'Subject',
-    selectCourse: 'Select a course',
-    fillClassScheduleFirst: 'Fill your class schedule first',
-    priorityLocked: 'Priority is locked from your class schedule',
-    type: 'Type',
-    dueDate: 'Due date',
-    cancel: 'Cancel',
-    addTask: 'Add task',
-    monthlyHours: 'Monthly hours',
-    activeDays: 'Active days',
-    dailyAverage: 'Daily average',
-    monthlyOverview: 'Monthly overview',
-    bestDay: 'Best day',
-    line: 'Line',
-    bar: 'Bar',
-    todayLabel: 'Today',
+    calendarTag: 'Calendario',
+    tomorrow: 'Domani',
+    overdue: 'In ritardo',
+    daysCount: '{{count}} giorni',
+    markDone: 'Segna come fatto',
+    noUpcomingDeadlines: 'Nessuna scadenza imminente',
+    smartInsights: 'Insight intelligenti',
+    aiRecommendations: "Raccomandazioni basate sull'IA",
+    todaysRecommendations: 'Raccomandazioni di oggi',
+    quickStats: 'Statistiche rapide',
+    todaysHours: 'Ore di oggi',
+    studyStreak: 'Serie di studio',
+    completedToday: 'Completate oggi',
+    nextFocusSession: 'Prossima sessione di concentrazione',
+    allDoneToday: 'Hai finito tutto per oggi',
+    nextSessionAt: 'Prossima sessione: {{subject}} alle {{time}}',
+    considerBreak:
+      'Hai studiato molto. Valuta di fare una breve pausa.',
+    morningGreat:
+      'Questo è un ottimo momento per uno studio concentrato.',
+    focusDeadline:
+      'Concentrati su {{subject}} — scadenza in avvicinamento',
+    allCaughtUp: 'Tutto aggiornato. Porta avanti qualcosa.',
+    thisIsBreak: 'Questa è una sessione di pausa.',
+    sessionAlreadyMissed:
+      'Questa sessione è già stata segnata come persa.',
+    startingEarly: 'Stai iniziando "{{subject}}" in anticipo.',
+    countTowardRecent:
+      'Conteggiare questo tempo per la tua sessione più recente "{{recent}}" invece?',
+    okCountsToward: 'OK = conta per "{{recent}}"',
+    cancelStartsEarly: 'Annulla = avvia "{{subject}}" in anticipo',
+    addNewTask: 'Aggiungi una nuova attività',
+    addTaskDescription:
+      'Crea un nuovo compito, esame, quiz o scadenza di progetto.',
+    taskTitle: "Titolo dell'attività",
+    taskTitlePlaceholder: 'es.: Compito di matematica capitolo 5',
+    taskTitleHint:
+      'Facoltativo — lascia vuoto per assegnare un nome automaticamente (es.: "{{example}}").',
+    subject: 'Materia',
+    selectCourse: 'Seleziona un corso',
+    fillClassScheduleFirst:
+      "Compila prima l'orario delle lezioni",
+    priorityLocked: "La priorità è bloccata dal tuo orario",
+    type: 'Tipo',
+    dueDate: 'Data di scadenza',
+    cancel: 'Annulla',
+    addTask: 'Aggiungi attività',
+    monthlyHours: 'Ore mensili',
+    activeDays: 'Giorni attivi',
+    dailyAverage: 'Media giornaliera',
+    monthlyOverview: 'Panoramica mensile',
+    bestDay: 'Giorno migliore',
+    line: 'Linea',
+    bar: 'Barra',
+    todayLabel: 'Oggi',
     shortDays: {
-      mon: 'Mon',
-      tue: 'Tue',
-      wed: 'Wed',
-      thu: 'Thu',
-      fri: 'Fri',
-      sat: 'Sat',
-      sun: 'Sun'
+      mon: 'Lun',
+      tue: 'Mar',
+      wed: 'Mer',
+      thu: 'Gio',
+      fri: 'Ven',
+      sat: 'Sab',
+      sun: 'Dom',
     },
-    study: 'Study',
-    skipped: 'Skipped',
-    missed: 'Missed',
+    study: 'Studio',
+    skipped: 'Saltate',
+    missed: 'Perse',
     success: {
-      taskAdded: 'Task added successfully',
-      taskUpdated: 'Task updated',
-      taskDeleted: 'Task deleted',
-      deadlineRemoved: 'Deadline removed from calendar session',
-      timetableActivated: 'Timetable activated successfully'
+      taskAdded: 'Attività aggiunta con successo',
+      taskUpdated: 'Attività aggiornata',
+      taskDeleted: 'Attività eliminata',
+      deadlineRemoved: 'Scadenza rimossa dalla sessione del calendario',
+      timetableActivated: 'Orario attivato con successo',
     },
     savedTimetables: 'Orari salvati',
     viewAll: 'Vedi tutto',
@@ -2021,104 +2407,113 @@ const it = {
     active: 'Attivo',
     activate: 'Attiva',
     noSavedTimetables: 'Nessun orario salvato',
-    createFirstTimetableHint: 'Create a timetable and activate it directly from your dashboard.',
-    createTimetable: 'Crea orario',
-    sessionsCount_one: '{{count}} session',
-    sessionsCount_other: '{{count}} sessions',
+    createFirstTimetableHint:
+      'Crea un orario e attivalo direttamente dalla tua dashboard.',
+    createTimetable: 'Crea un orario',
+    sessionsCount_one: '{{count}} sessione',
+    sessionsCount_other: '{{count}} sessioni',
     errors: {
-      missingUser: 'Missing user. Please log in again.',
-      missingSessionId: 'Session is missing an id.',
-      failedStartSession: 'Failed to start session',
-      loginToAddDeadline: 'Please log in to add deadlines',
-      failedAddTask: 'Failed to add task',
-      pleaseLogin: 'Please log in',
-      failedUpdateTask: 'Failed to update task',
-      failedDeleteTask: 'Failed to delete task',
-      fillRequired: 'Please fill in all required fields',
-      activateUnavailable: 'Timetable activation is not available here',
-      failedActivateTimetable: 'Failed to activate timetable'
+      missingUser: 'Utente mancante. Effettua nuovamente l’accesso.',
+      missingSessionId: "La sessione non ha un identificatore.",
+      failedStartSession: 'Avvio della sessione non riuscito',
+      loginToAddDeadline:
+        'Accedi per aggiungere scadenze',
+      failedAddTask: "Aggiunta dell'attività non riuscita",
+      pleaseLogin: 'Effettua l’accesso',
+      failedUpdateTask:
+        "Aggiornamento dell'attività non riuscito",
+      failedDeleteTask: "Eliminazione dell'attività non riuscita",
+      fillRequired: 'Compila tutti i campi obbligatori',
+      activateUnavailable:
+        "L'attivazione dell'orario non è disponibile qui",
+      failedActivateTimetable:
+        "Attivazione dell'orario non riuscita",
     },
     pages: {
       dashboard: 'Dashboard',
-      academicTimetable: 'Academic Timetable',
-      scheduleGenerator: 'Schedule Generator',
-      assessments: 'Assessments',
-      studyNotes: 'Study Notes',
-      collaboration: 'Collaboration',
-      performance: 'Performance',
-      createSchedule: 'Create Schedule',
-      savedSchedules: 'Saved Schedules'
+      academicTimetable: 'Orario accademico',
+      scheduleGenerator: 'Generatore di piani',
+      assessments: 'Valutazioni',
+      studyNotes: 'Note di studio',
+      collaboration: 'Collaborazione',
+      performance: 'Prestazioni',
+      createSchedule: 'Crea un piano',
+      savedSchedules: 'Piani salvati',
     },
     sections: {
-      planning: 'Planning',
-      academicWork: 'Academic Work',
-      performance: 'Performance',
-      system: 'System'
+      planning: 'Pianificazione',
+      academicWork: 'Lavoro accademico',
+      performance: 'Prestazioni',
+      system: 'Sistema',
     },
     search: {
-      placeholder: 'Search timetables, pages, subjects...',
-      short: 'Search...',
-      page: 'Page',
-      savedTimetable: 'Saved timetable',
+      placeholder: 'Cerca orari, pagine, materie…',
+      short: 'Cerca…',
+      page: 'Pagina',
+      savedTimetable: 'Orario salvato',
       inTimetable: 'in {{name}}',
-      noResults: 'No results found',
-      noResultsWithQuery: 'No results found for "{{query}}"',
-      tryDifferent: 'Try a different timetable or subject'
+      noResults: 'Nessun risultato trovato',
+      noResultsWithQuery: 'Nessun risultato per "{{query}}"',
+      tryDifferent: 'Prova un altro orario o un’altra materia',
     },
     actions: {
-      lightMode: 'Switch to Light Mode',
-      darkMode: 'Switch to Dark Mode',
-      pomodoro: 'Open Pomodoro Timer'
+      lightMode: 'Passa alla modalità chiara',
+      darkMode: 'Passa alla modalità scura',
+      pomodoro: 'Apri timer Pomodoro',
     },
     notifications: {
-      title: 'Notifications',
-      markAll: 'Mark all as read',
-      empty: 'No notifications'
+      title: 'Notifiche',
+      markAll: 'Segna tutto come letto',
+      empty: 'Nessuna notifica',
     },
     user: {
-      student: 'Student',
-      profile: 'Profile Settings',
-      planner: 'Student Planner'
+      student: 'Studente',
+      profile: 'Impostazioni profilo',
+      planner: 'Pianificatore studente',
     },
     sidebar: {
-      expand: 'Expand sidebar',
-      collapse: 'Collapse sidebar',
-      portal: 'Student Portal',
-      workspace: 'Academic Workspace'
+      expand: 'Espandi barra laterale',
+      collapse: 'Comprimi barra laterale',
+      portal: 'Portale studente',
+      workspace: 'Spazio di lavoro accademico',
     },
-    footer: 'Organize your learning'
+    footer: 'Organizza il tuo apprendimento',
   },
+
   workspace: {
-    title: 'Workspace',
-    loading: 'Loading workspace...',
-    switch: 'Switch workspace',
-    choose: 'Choose a workspace or open a subworkspace',
-    under: 'Under {{name}}',
-    subworkspaces: 'Subworkspaces',
-    loadingSubworkspaces: 'Loading subworkspaces...',
-    noSub: 'No subworkspaces yet.',
-    createSub: 'Create Subworkspace',
-    createNew: 'Create New Workspace',
-    new: 'New Workspace',
-    share: 'Share',
-    edit: 'Edit Workspace',
-    delete: 'Delete Workspace',
-    uploadAvatar: 'Upload workspace avatar',
-    searchMembers: 'Search members by name, email, or role...',
+    title: 'Spazio di lavoro',
+    loading: 'Caricamento dello spazio di lavoro…',
+    switch: 'Cambia spazio di lavoro',
+    choose:
+      'Scegli uno spazio di lavoro o apri un sottospazio',
+    under: 'Sotto {{name}}',
+    subworkspaces: 'Sottospazi di lavoro',
+    loadingSubworkspaces: 'Caricamento dei sottospazi…',
+    noSub: 'Nessun sottospazio di lavoro.',
+    createSub: 'Crea un sottospazio',
+    createNew: 'Crea un nuovo spazio di lavoro',
+    new: 'Nuovo spazio di lavoro',
+    share: 'Condividi',
+    edit: 'Modifica spazio di lavoro',
+    delete: 'Elimina spazio di lavoro',
+    uploadAvatar: 'Carica un avatar per lo spazio di lavoro',
+    searchMembers:
+      'Cerca membri per nome, email o ruolo…',
     defaults: {
-      name: 'My Study Workspace',
-      description: 'Collaborative study planning and scheduling'
+      name: 'Il mio spazio di studio',
+      description: 'Pianificazione collaborativa dello studio',
     },
     chat: {
-      welcome: 'Benvenuto in {{name}}! Inizia a collaborare con il tuo team.',
+      welcome:
+        'Benvenuto in {{name}}! Inizia a collaborare con il tuo team.',
       teamActivity: 'Attività del team',
       online: 'Online',
       onlineCount_one: '{{count}} online',
       onlineCount_other: '{{count}} online',
       activeNow: 'Attivo ora',
-      lastSeen: 'Visto l’ultima volta {{time}}',
-      justNow: 'Proprio ora',
-      emptyTitle: 'Nessun messaggio ancora',
+      lastSeen: 'Visto {{time}} fa',
+      justNow: 'Proprio adesso',
+      emptyTitle: 'Nessun messaggio',
       emptySubtitle: 'Inizia la conversazione',
       me: 'Io',
       edited: 'modificato',
@@ -2126,11 +2521,13 @@ const it = {
       newMessagesCount_one: '{{count}} nuovo messaggio',
       newMessagesCount_other: '{{count}} nuovi messaggi',
       quickEmojis: 'Emoji rapide',
-      placeholder: 'Scrivi il tuo messaggio...',
-      hint: 'Premi Invio per inviare, Shift+Invio per una nuova riga',
+      placeholder: 'Scrivi il tuo messaggio…',
+      hint:
+        'Premi Invio per inviare, Maiusc+Invio per una nuova riga',
       yesterdayAt: 'Ieri alle {{time}}',
       link: 'Link condiviso',
-      confirmDeleteMessage: 'Sei sicuro di voler eliminare questo messaggio?',
+      confirmDeleteMessage:
+        'Sei sicuro di voler eliminare questo messaggio?',
       actions: {
         send: 'Invia',
         save: 'Salva',
@@ -2138,468 +2535,989 @@ const it = {
         edit: 'Modifica',
         delete: 'Elimina',
         addEmoji: 'Aggiungi emoji',
-        attachFile: 'Allega file'
+        attachFile: 'Allega file',
       },
       success: {
         messageUpdated: 'Messaggio aggiornato',
         messageDeleted: 'Messaggio eliminato',
-        fileShared: 'File condiviso nella chat!'
+        fileShared: 'File condiviso nella chat!',
       },
       errors: {
-        loadMessages: 'Impossibile caricare i messaggi',
-        sendMessage: 'Impossibile inviare il messaggio',
-        updateMessage: 'Impossibile aggiornare il messaggio',
-        deleteMessage: 'Impossibile eliminare il messaggio',
-        fileTooLarge: 'La dimensione del file deve essere inferiore a 10 MB'
-      }
+        loadMessages: 'Caricamento dei messaggi non riuscito',
+        sendMessage: 'Invio del messaggio non riuscito',
+        updateMessage: 'Aggiornamento del messaggio non riuscito',
+        deleteMessage: 'Eliminazione del messaggio non riuscita',
+        fileTooLarge: 'La dimensione del file deve essere inferiore a 10 MB',
+      },
     },
     tabs: {
-      members: 'Members',
-      schedule: 'Schedule',
-      generate: 'Generate',
-      progress: 'Progress',
+      members: 'Membri',
+      schedule: 'Piano',
+      generate: 'Genera',
+      progress: 'Progresso',
       collab: 'Collab',
-      chat: 'Chat'
+      chat: 'Chat',
     },
     stats: {
-      total: 'Total members',
-      admins: 'Admins',
-      members: 'Members'
+      total: 'Totale membri',
+      admins: 'Admin',
+      members: 'Membri',
     },
     members: {
-      title: 'Team members',
-      description: 'Manage access, permissions, and workspace roles',
-      pendingRequests: 'Pending Requests',
-      searchPlaceholder: 'Search members by name, email, or role...',
-      none: 'No members found'
+      title: 'Membri del team',
+      description:
+        'Gestisci accessi, permessi e ruoli dello spazio di lavoro',
+      pendingRequests: 'Richieste in sospeso',
+      searchPlaceholder:
+        'Cerca membri per nome, email o ruolo…',
+      none: 'Nessun membro trovato',
     },
     roles: {
       admin: {
         label: 'Admin',
-        description: 'Can manage members and settings'
+        description: 'Può gestire membri, ruoli, impostazioni dello spazio di lavoro e qualsiasi attività, incluse quelle degli altri utenti',
       },
       member: {
-        label: 'Member',
-        description: 'Can view and edit content'
-      }
+        label: 'Membro',
+        description: 'Può creare, modificare, spostare e commentare le attività, e può archiviare o eliminare solo le proprie attività',
+      },
     },
     rolesGuide: {
-      title: 'Roles & Permissions',
-      description: 'Understanding workspace roles'
+      title: 'Ruoli e permessi',
+      description:
+        'Gli admin possono gestire tutto. I membri possono collaborare, ma non possono archiviare o eliminare le attività degli altri utenti.',
     },
     permissions: {
-      manage_members: 'Manage members',
-      delete_workspace: 'Delete workspace',
-      edit_workspace: 'Edit workspace',
-      manage_roles: 'Manage roles',
+      manage_members: 'Gestire membri',
+      delete_workspace: 'Eliminare spazio di lavoro',
+      edit_workspace: 'Modificare spazio di lavoro',
+      manage_roles: 'Gestire ruoli',
       chat: 'Chat',
-      edit_content: 'Edit content'
+      edit_content: 'Modificare contenuto',
     },
     presence: {
       online: 'Online',
-      never: 'Never',
-      justNow: 'Just now',
-      yesterday: 'Yesterday'
+      never: 'Mai',
+      justNow: 'Proprio adesso',
+      yesterday: 'Ieri',
     },
     errors: {
-      missingUser: 'Missing user ID. Please log in again.',
-      loadFailed: 'Failed to load workspaces',
-      workspaceNameRequired: 'Workspace name is required',
-      subworkspaceNameRequired: 'Please enter a subworkspace name',
-      createWorkspace: 'Failed to create workspace',
-      createSubworkspace: 'Failed to create subworkspace',
-      fillFields: 'Please fill in all fields',
-      invalidEmail: 'Please enter a valid email address',
-      invalidEmailDetailed: 'Please enter a valid email address (e.g., user@example.com)',
-      memberExists: 'A member with this email already exists',
-      memberExistsDetailed: 'A member with this email already exists in this workspace',
-      maxAdmins: 'Maximum 2 admins allowed per workspace',
-      maxAdminsDetailed: 'Maximum 2 admins allowed per workspace. Please select Member role instead.',
-      parentNotFound: 'Parent workspace not found. Please refresh and try again.',
-      addMember: 'Failed to add member',
-      removeMember: 'Failed to remove member',
-      notAuthenticated: 'User not authenticated',
-      updateRole: 'Failed to update member role',
-      updateRoleUnexpected: 'Something went wrong while updating the role',
-      approveRequest: 'Failed to approve request',
-      rejectRequest: 'Failed to reject request',
-      cannotDeleteLast: 'Cannot delete the last workspace',
-      deleteWorkspace: 'Failed to delete workspace',
-      deleteWorkspaceUnexpected: 'Something went wrong while deleting the workspace',
-      updateWorkspace: 'Failed to update workspace',
-      imageSize: 'Image size must be less than 5MB',
-      imageType: 'Please select an image file',
-      uploadAvatar: 'Failed to upload workspace image',
-      removeAvatar: 'Failed to remove workspace image',
-      shareFailed: 'Failed to generate share link',
-      shareUnexpected: 'Something went wrong while generating the link',
-      disableShare: 'Failed to disable share link',
-      copyFailed: 'Failed to copy link',
-      onlyAdminsGenerate: 'Only workspace admins can auto-generate'
+      missingUser:
+        'ID utente mancante. Effettua nuovamente l’accesso.',
+      loadFailed: 'Caricamento degli spazi di lavoro non riuscito',
+      workspaceNameRequired:
+        'Il nome dello spazio di lavoro è obbligatorio',
+      subworkspaceNameRequired:
+        'Inserisci un nome per il sottospazio di lavoro',
+      createWorkspace:
+        'Creazione dello spazio di lavoro non riuscita',
+      createSubworkspace:
+        'Creazione del sottospazio di lavoro non riuscita',
+      fillFields: 'Compila tutti i campi',
+      invalidEmail:
+        'Inserisci un indirizzo email valido',
+      invalidEmailDetailed:
+        'Inserisci un indirizzo email valido (es.: utente@esempio.com)',
+      memberExists:
+        'Esiste già un membro con questa email',
+      memberExistsDetailed:
+        'Esiste già un membro con questa email in questo spazio di lavoro',
+      maxAdmins:
+        'Massimo 2 admin per spazio di lavoro',
+      maxAdminsDetailed:
+        'Massimo 2 admin per spazio di lavoro. Seleziona invece il ruolo Membro.',
+      parentNotFound:
+        'Spazio di lavoro padre non trovato. Aggiorna e riprova.',
+      addMember: 'Aggiunta membro non riuscita',
+      removeMember: 'Rimozione membro non riuscita',
+      notAuthenticated: 'Utente non autenticato',
+      updateRole: 'Aggiornamento ruolo non riuscito',
+      updateRoleUnexpected:
+        'Si è verificato un errore durante l’aggiornamento del ruolo',
+      approveRequest:
+        'Approvazione della richiesta non riuscita',
+      rejectRequest: 'Rifiuto della richiesta non riuscito',
+      cannotDeleteLast:
+        'Impossibile eliminare l’ultimo spazio di lavoro',
+      deleteWorkspace:
+        'Eliminazione dello spazio di lavoro non riuscita',
+      deleteWorkspaceUnexpected:
+        'Si è verificato un errore durante l’eliminazione dello spazio di lavoro',
+      updateWorkspace:
+        'Aggiornamento dello spazio di lavoro non riuscito',
+      imageSize:
+        'La dimensione dell’immagine deve essere inferiore a 5 MB',
+      imageType: 'Seleziona un file immagine',
+      uploadAvatar:
+        "Caricamento dell'immagine dello spazio di lavoro non riuscito",
+      removeAvatar:
+        "Rimozione dell'immagine dello spazio di lavoro non riuscita",
+      shareFailed: 'Generazione del link di condivisione non riuscita',
+      shareUnexpected:
+        'Si è verificato un errore durante la generazione del link',
+      disableShare:
+        'Disattivazione del link di condivisione non riuscita',
+      copyFailed: 'Copia del link non riuscita',
+      onlyAdminsGenerate:
+        'Solo gli admin dello spazio di lavoro possono generare automaticamente',
     },
     actions: {
-      share: 'generate sharing link',
-      manageLink: 'Manage link'
+      share: 'Genera link di condivisione',
+      manageLink: 'Gestisci link',
     },
     success: {
-      workspaceCreated: 'Workspace created',
-      subworkspaceCreated: 'Subworkspace created',
-      switched: 'Switched to "{{name}}"',
-      memberAdded: 'Member added successfully',
-      memberRemoved: '{{name}} has been removed from the workspace',
-      requestApproved: '{{name}} has been approved and added to the workspace',
-      requestRejected: 'Request from {{name}} has been rejected',
-      deleted: 'Workspace has been deleted',
-      updated: 'Workspace updated successfully',
-      avatarUpdated: 'Workspace avatar updated successfully!',
-      avatarRemoved: 'Workspace avatar removed successfully!',
-      shareCreated: 'Sharing link generated successfully!',
-      shareDisabled: 'Sharing link disabled (revoked)',
-      linkCopied: 'Link copied to clipboard!',
-      accessOpen: 'Access type updated to Open to everyone',
-      accessRestricted: 'Access type updated to Domain-restricted'
+      workspaceCreated: 'Spazio di lavoro creato',
+      subworkspaceCreated: 'Sottospazio creato',
+      switched: 'Passato a "{{name}}"',
+      memberAdded: 'Membro aggiunto con successo',
+      memberRemoved:
+        '{{name}} è stato rimosso dallo spazio di lavoro',
+      requestApproved:
+        '{{name}} è stato approvato e aggiunto allo spazio di lavoro',
+      requestRejected:
+        'La richiesta di {{name}} è stata rifiutata',
+      deleted: 'Lo spazio di lavoro è stato eliminato',
+      updated: 'Spazio di lavoro aggiornato con successo',
+      avatarUpdated:
+        'Avatar dello spazio di lavoro aggiornato con successo!',
+      avatarRemoved:
+        'Avatar dello spazio di lavoro rimosso con successo!',
+      shareCreated:
+        'Link di condivisione generato con successo!',
+      shareDisabled:
+        'Link di condivisione disattivato (revocato)',
+      linkCopied: 'Link copiato negli appunti!',
+      accessOpen:
+        'Tipo di accesso aggiornato: Aperto a tutti',
+      accessRestricted:
+        'Tipo di accesso aggiornato: Limitato al dominio',
     },
     confirm: {
-      removeMember: 'Are you sure you want to remove {{name}} from the workspace?',
-      deleteWorkspace: '⚠️ Are you sure you want to delete this workspace? This action cannot be undone and will remove all members and data.',
-      disableShareLink: 'Are you sure you want to disable the sharing link? No one will be able to use it to join.'
+      removeMember:
+        'Sei sicuro di voler rimuovere {{name}} dallo spazio di lavoro?',
+      deleteWorkspace:
+        '⚠️ Sei sicuro di voler eliminare questo spazio di lavoro? Questa azione è irreversibile e rimuoverà tutti i membri e i dati.',
+      disableShareLink:
+        'Sei sicuro di voler disattivare il link di condivisione? Nessuno potrà usarlo per unirsi.',
     },
-    memberCount_one: '{{count}} member',
-    memberCount_other: '{{count}} members',
-    subworkspaceCount_one: '{{count}} subworkspace',
-    subworkspaceCount_other: '{{count}} subworkspaces'
+    memberCount_one: '{{count}} membro',
+    memberCount_other: '{{count}} membri',
+    subworkspaceCount_one: '{{count}} sottospazio',
+    subworkspaceCount_other: '{{count}} sottospazi',
   },
+
   board: {
-    title: 'Collaboration Board',
-    description: 'Plan, assign, and track work with your team',
+    title: 'Bacheca collaborativa',
+    description:
+      'Pianifica, assegna e monitora il lavoro con il tuo team',
     view: {
-      compact: 'Compact',
-      detailed: 'Detailed'
+      compact: 'Compatta',
+      detailed: 'Dettagliata',
     },
     sections: {
-      analytics: 'Task analytics',
-      filters: 'Filters'
+      analytics: 'Analisi attività',
+      filters: 'Filtri',
     },
     stats: {
-      total: 'Total tasks',
-      todo: 'To do',
-      inProgress: 'In progress',
-      review: 'In review',
-      done: 'Done',
-      overdue: 'Overdue'
+      total: 'Totale attività',
+      totalCount: '{{count}} attività',
+      todo: 'Da fare',
+      inProgress: 'In corso',
+      inProgressCount: '{{count}} in corso',
+      review: 'In revisione',
+      done: 'Completato',
+      doneCount: '{{count}} completate',
+      overdue: 'In ritardo',
     },
     actions: {
-      newTask: 'New task',
-      editTask: 'Edit task',
-      createTask: 'Create task',
-      updateTask: 'Update task',
-      cancel: 'Cancel',
-      archive: 'Archive task',
-      restore: 'Restore',
-      deletePermanent: 'Delete permanently'
+      newTask: 'Nuova attività',
+      editTask: 'Modifica attività',
+      createTask: 'Crea attività',
+      updateTask: 'Aggiorna attività',
+      cancel: 'Annulla',
+      processing: 'Elaborazione...',
+      archive: 'Archivia attività',
+      restore: 'Ripristina',
+      deletePermanent: 'Elimina definitivamente',
+    },
+    rules: {
+      description: 'Regole rapide del flusso di lavoro condiviso.',
+      ownership: {
+        title: 'Proprietà delle attività',
+        label: 'Condivise per impostazione predefinita',
+        body: 'Qualsiasi membro dello spazio di lavoro può creare attività, assegnare lavoro, commentare e spostare le attività tra le colonne.',
+      },
+      workflow: {
+        title: 'Fasi del flusso',
+        label: 'Da fare -> Completato',
+        body: 'Sposta il lavoro da Da fare a In corso, poi In revisione e infine Completato, così la bacheca riflette lo stato reale del progetto.',
+      },
+      archive: {
+        title: 'Archiviazione',
+        label: 'Solo attività proprie',
+        body: 'I membri possono archiviare o eliminare definitivamente solo le attività che hanno creato. Le attività archiviate possono ancora essere ripristinate.',
+      },
+      admin: {
+        title: 'Controllo admin',
+        label: 'Gestione dello spazio',
+        body: 'Gli admin dello spazio di lavoro possono ripulire la bacheca, archiviare tutte le attività, eliminare qualsiasi attività e gestire l\'accesso a livello di spazio.',
+      },
+    },
+    dialogs: {
+      archiveTaskTitle: 'Archivia attività',
+      archiveTaskDescription: 'Questa attività verrà spostata nell\'archivio. Per continuare, digita {{phrase}} qui sotto.',
+      deleteAllActiveTitle: 'Elimina tutte le attività attive',
+      deleteAllActiveDescription: 'Questo rimuove definitivamente tutte le attività attive in questo spazio di lavoro. Digita {{phrase}} per confermare.',
+      deleteArchivedTitle: 'Elimina attività archiviata',
+      deleteArchivedDescription: 'Questo elimina definitivamente l\'attività archiviata e non può essere annullato. Digita {{phrase}} per continuare.',
+      archiveAllTitle: 'Archivia tutte le attività',
+      archiveAllDescription: 'Tutte le attività attive verranno spostate nell\'archivio. Digita {{phrase}} per confermare questa azione massiva.',
+      deleteAllArchivedTitle: 'Elimina tutte le attività archiviate',
+      deleteAllArchivedDescription: 'Questo elimina definitivamente tutte le attività archiviate. Questa azione non può essere annullata. Digita {{phrase}} per continuare.',
+    },
+    delete: {
+      confirmationPhrase: 'Frase di conferma',
+      typePhraseToContinue: 'Digita la frase per continuare',
     },
     filters: {
-      search: 'Search tasks...',
-      allPriorities: 'All priorities',
-      allMembers: 'All members',
-      unassigned: 'Unassigned'
+      search: 'Cerca attività…',
+      allPriorities: 'Tutte le priorità',
+      allMembers: 'Tutti i membri',
+      unassigned: 'Non assegnato',
     },
     columns: {
-      todo: 'To do',
-      inProgress: 'In progress',
-      review: 'Review',
-      done: 'Done'
+      todo: 'Da fare',
+      inProgress: 'In corso',
+      review: 'Revisione',
+      done: 'Completato',
     },
     priority: {
-      low: 'Low',
-      medium: 'Medium',
-      high: 'High',
-      urgent: 'Urgent'
+      low: 'Bassa',
+      medium: 'Media',
+      high: 'Alta',
+      urgent: 'Urgente',
     },
     task: {
-      title: 'Title',
-      description: 'Description',
-      status: 'Status',
-      priority: 'Priority',
-      assignee: 'Assignee',
-      dueDate: 'Due date',
-      labels: 'Labels',
-      addLabel: 'Add a label...',
-      addHint: 'Add a task to get started',
-      noTasks: 'No tasks yet',
-      selectAssignee: 'Select assignee...',
-      you: 'You'
+      title: 'Titolo',
+      description: 'Descrizione',
+      status: 'Stato',
+      priority: 'Priorità',
+      assignee: 'Assegnato a',
+      dueDate: 'Data di scadenza',
+      labels: 'Etichette',
+      addLabel: 'Aggiungi etichetta…',
+      addHint: 'Aggiungi un’attività per iniziare',
+      noTasks: 'Nessuna attività',
+      selectAssignee: 'Seleziona un assegnatario…',
+      you: 'Tu',
+      deadlineLocked: 'Scadenza bloccata',
     },
     dates: {
-      today: 'Today',
-      tomorrow: 'Tomorrow',
-      yesterday: 'Yesterday',
-      overdue: 'Overdue'
+      today: 'Oggi',
+      tomorrow: 'Domani',
+      yesterday: 'Ieri',
+      overdue: 'In ritardo',
     },
     archive: {
-      title: 'Archived tasks',
-      empty: 'No archived tasks',
-      archiveAll: 'Archive all',
-      deleteAll: 'Delete all',
-      restore: 'Restore',
-      deletePermanent: 'Delete permanently',
-      archived: 'Task archived',
-      restored: 'Task restored to To do',
-      deleted: 'Task permanently deleted',
-      allArchived: 'All tasks archived',
-      allDeleted: 'All archived tasks deleted',
-      confirmDelete: 'Are you sure you want to delete this task permanently?',
-      confirmDeleteAll: 'Delete ALL archived tasks permanently?'
+      title: 'Attività archiviate',
+      empty: 'Nessuna attività archiviata',
+      archiveAll: 'Archivia tutto',
+      deleteAllActive: 'Elimina tutte le attività',
+      deleteAll: 'Elimina tutto',
+      restore: 'Ripristina',
+      deletePermanent: 'Elimina definitivamente',
+      archived: 'Attività archiviata',
+      restored: "Attività ripristinata in Da fare",
+      deleted: 'Attività eliminata definitivamente',
+      allActiveDeleted: 'Tutte le attività attive eliminate',
+      allArchived: 'Tutte le attività archiviate',
+      allDeleted: 'Tutte le attività archiviate eliminate',
+      confirmDelete:
+        'Sei sicuro di voler eliminare definitivamente questa attività?',
+      confirmDeleteAll:
+        'Eliminare definitivamente TUTTE le attività archiviate?',
     },
     messages: {
-      created: 'Task created successfully',
-      updated: 'Task updated successfully',
-      deleted: 'Task deleted successfully',
-      moved: 'Task moved successfully',
-      errorLoad: 'Failed to load tasks',
-      errorCreate: 'Failed to create task',
-      errorUpdate: 'Failed to update task',
-      errorMove: 'Failed to move task',
-      errorDelete: 'Failed to delete task',
-      errorRestore: 'Failed to restore task',
-      errorArchiveAll: 'Failed to archive all tasks',
-      errorDeletePermission: 'Only admins or creators can delete tasks'
-    }
+      created: 'Attività creata con successo',
+      updated: 'Attività aggiornata con successo',
+      deleted: 'Attività eliminata con successo',
+      moved: 'Attività spostata con successo',
+      errorLoad: 'Caricamento attività non riuscito',
+      errorCreate: 'Creazione attività non riuscita',
+      errorUpdate: 'Aggiornamento attività non riuscito',
+      errorMove: 'Spostamento attività non riuscito',
+      errorDelete: 'Eliminazione attività non riuscita',
+      errorRestore: 'Ripristino attività non riuscito',
+      errorArchiveAll:
+        'Archiviazione di tutte le attività non riuscita',
+      errorDeleteAllArchived:
+        'Eliminazione di tutte le attività archiviate non riuscita',
+      errorAdminOnly:
+        'Solo gli admin possono eseguire questa azione per tutto lo spazio di lavoro',
+      errorDeletePermission:
+        'Solo gli admin o i creatori possono archiviare o eliminare questa attività',
+      errorDeadlineLocked:
+        'Le attività con una scadenza possono essere archiviate o eliminate solo dopo che la data è passata.',
+    },
   },
+
   homepage: {
+    product: {
+      heading: 'Un modo piu chiaro per pianificare, adattarsi e progredire',
+      description:
+        'UPLAN e progettato come un sistema di produttivita moderno: strutturato, adattivo e focalizzato sui progressi reali.',
+    },
     hero: {
-      badge: 'Built for students who want clarity, not chaos',
-      titleLine1: 'Plan smarter.',
-      titleLine2: 'Study with less stress.',
-      description1: 'U PLAN automatically builds your study timetable around exams, classes, deadlines, and your real free time.',
-      description2: 'No more guessing when to study. No more overloaded days. Just a flexible, personalized plan that actually works.',
-      getStarted: 'Get Started',
-      seeFeatures: 'See Features',
-      studentStudyingAlt: 'Student studying',
+      badge:
+        'Progettato per studenti che vogliono chiarezza, non caos',
+      titleLine1: 'Pianifica in modo più intelligente.',
+      titleLine2: 'Studia con meno stress.',
+      description1:
+        'U PLAN crea automaticamente il tuo orario attorno a esami, lezioni, scadenze e al tuo vero tempo libero.',
+      description2:
+        'Niente più dubbi su quando studiare. Niente più giornate sovraccariche. Un piano flessibile e personalizzato che funziona davvero.',
+      getStarted: 'Inizia',
+      seeFeatures: 'Vedi funzionalità',
+      studentStudyingAlt: 'Studente che studia',
       cards: {
         autoTimetables: {
-          title: 'Auto Timetables',
-          description: 'Generated around your real schedule'
+          title: 'Orari automatici',
+          description: 'Generati attorno alla tua agenda reale',
         },
         deadlineAware: {
-          title: 'Deadline Aware',
-          description: 'Plans around exams and assignments'
+          title: 'Attento alle scadenze',
+          description: 'Pianifica attorno a esami e compiti',
         },
         flexible: {
-          title: 'Flexible',
-          description: 'Adjusts when life gets busy'
-        }
-      }
+          title: 'Flessibile',
+          description: 'Si adatta quando la vita si fa intensa',
+        },
+      },
     },
     mockup: {
-      todayPlan: "Today's Plan",
-      organizedAutomatically: 'Organized automatically',
-      smart: 'Smart',
-      mathRevision: 'Math Revision',
-      priorityHigh: 'Priority: High',
-      physicsQuizPrep: 'Physics Quiz Prep',
-      deadlineTomorrow: 'Deadline tomorrow',
-      thisWeek: 'This week',
-      sessions: 'Sessions',
-      deadlines: 'Deadlines',
-      planned: 'Planned',
-      phoneFirst: 'Designed to feel great on your phone first.'
+      todayPlan: 'Piano di oggi',
+      organizedAutomatically: 'Organizzato automaticamente',
+      smart: 'Intelligente',
+      mathRevision: 'Ripasso matematica',
+      priorityHigh: 'Priorità: Alta',
+      physicsQuizPrep: 'Preparazione quiz di fisica',
+      deadlineTomorrow: 'Scadenza domani',
+      thisWeek: 'Questa settimana',
+      sessions: 'Sessioni',
+      deadlines: 'Scadenze',
+      planned: 'Pianificato',
+      phoneFirst: 'Progettato per essere perfetto prima di tutto sul tuo telefono.',
     },
     about: {
-      title: 'About U PLAN',
-      subtitle: 'Helping students manage their time with clarity and confidence',
-      missionTitle: 'Our Mission',
-      missionParagraph1: 'We created U PLAN to make studying more organized, flexible, and realistic. Students already have enough pressure — your planning tool should reduce stress, not add to it.',
-      missionParagraph2: 'By combining smart automation with student-first design, U PLAN helps you fit studying around exams, classes, deadlines, and life outside school.',
-      startJourney: 'Start Your Journey',
-      studentsStudyingTogetherAlt: 'Students studying together'
+      title: 'Informazioni su U PLAN',
+      subtitle:
+        'Aiutare gli studenti a gestire il proprio tempo con chiarezza e sicurezza',
+      missionTitle: 'La nostra missione',
+      missionParagraph1:
+        'Abbiamo creato U PLAN per rendere lo studio più organizzato, flessibile e realistico. Gli studenti hanno già abbastanza pressione — il tuo strumento di pianificazione dovrebbe ridurre lo stress, non aumentarlo.',
+      missionParagraph2:
+        "Combinando automazione intelligente e design centrato sullo studente, U PLAN ti aiuta a integrare lo studio attorno a esami, lezioni, scadenze e vita fuori dalla scuola.",
+      startJourney: 'Inizia il tuo percorso',
+      studentsStudyingTogetherAlt: 'Studenti che studiano insieme',
     },
     values: {
-      title: 'What We Stand For',
-      subtitle: 'The principles behind every feature we build',
+      title: 'In cosa crediamo',
+      subtitle:
+        'I principi dietro ogni funzionalità che sviluppiamo',
+      phoneAlt: 'App mobile U PLAN',
+      mobilePreview: 'Anteprima mobile',
+      clearDailyPlan: 'La giornata chiara a colpo d’occhio',
       vision: {
-        title: 'Vision',
-        description: 'Smart time management for every student'
+        title: 'Visione',
+        description:
+          'Gestione intelligente del tempo per ogni studente',
       },
       team: {
         title: 'Team',
-        description: 'Built by people who understand student pressure firsthand'
+        description:
+          'Creato da persone che comprendono in prima persona la pressione della vita studentesca',
       },
       innovation: {
-        title: 'Innovation',
-        description: 'Practical AI that helps students take action'
+        title: 'Innovazione',
+        description:
+          'IA pratica che aiuta gli studenti a passare all’azione',
       },
       studentFirst: {
-        title: 'Student-First',
-        description: 'Every decision is designed around real student needs'
-      }
+        title: 'Lo studente prima di tutto',
+        description:
+          'Ogni decisione è progettata attorno ai bisogni reali degli studenti',
+      },
     },
     whyChoose: {
-      title: 'Why Students Choose U PLAN',
-      paragraph1: "U PLAN was built for the reality of student life: shifting deadlines, changing schedules, multiple subjects, and limited energy. Traditional planners don't adapt. We do.",
-      paragraph2: "Whether you're preparing for finals, balancing multiple courses, or trying to stay consistent without burning out, U PLAN helps you study with more structure and less guesswork."
+      title: 'Perché gli studenti scelgono U PLAN',
+      paragraph1:
+        'U PLAN è stato progettato per la realtà della vita studentesca: scadenze che cambiano, programmi variabili, più materie e energia limitata. I pianificatori tradizionali non si adattano. Noi sì.',
+      paragraph2:
+        'Che tu stia preparando esami finali, gestendo più corsi o cercando di essere costante senza esaurirti, U PLAN ti aiuta a studiare con più struttura e meno improvvisazione.',
     },
     featuresSection: {
-      title: 'Core Features',
-      subtitle: 'Everything you need to succeed academically'
+      title: 'Funzionalità principali',
+      subtitle:
+        'Tutto ciò di cui hai bisogno per avere successo accademico',
     },
     features: {
       smartScheduling: {
-        title: 'Smart Scheduling',
-        description: 'Automatically optimize your study time based on priorities and deadlines'
+        title: 'Pianificazione intelligente',
+        description:
+          'Ottimizza automaticamente il tuo tempo di studio in base a priorità e scadenze',
       },
       timeManagement: {
-        title: 'Time Management',
-        description: 'Track your study sessions and improve productivity'
+        title: 'Gestione del tempo',
+        description:
+          'Tieni traccia delle sessioni di studio e migliora la tua produttività',
       },
       progressTracking: {
-        title: 'Progress Tracking',
-        description: 'Monitor your learning journey with detailed analytics'
+        title: 'Monitoraggio dei progressi',
+        description:
+          'Monitora il tuo percorso di apprendimento con analisi dettagliate',
       },
       aiPowered: {
-        title: 'AI-Powered',
-        description: 'Intelligent recommendations based on your study patterns'
+        title: "Basato sull'IA",
+        description:
+          'Raccomandazioni intelligenti basate sulle tue abitudini di studio',
       },
       subjectBalance: {
-        title: 'Subject Balance',
-        description: 'Ensure equal focus across all your courses'
+        title: 'Equilibrio tra materie',
+        description:
+          'Assicura attenzione equa a tutti i tuoi corsi',
       },
       adaptiveLearning: {
-        title: 'Adaptive Learning',
-        description: 'Adjusts to your pace and learning style'
-      }
+        title: 'Apprendimento adattivo',
+        description:
+          'Si adatta al tuo ritmo e stile di apprendimento',
+      },
     },
     servicesSection: {
-      title: 'What You Can Do',
-      subtitle: 'Everything you need to plan, track, and improve your study routine',
-      ctaTitle: 'Ready to study with a better plan?',
-      ctaDescription: 'Join U PLAN and turn your schedule into a realistic, personalized study system.',
-      startNow: 'Start Now'
+      title: 'Cosa puoi fare',
+      subtitle:
+        'Tutto ciò di cui hai bisogno per pianificare, monitorare e migliorare la tua routine di studio',
+      ctaTitle: 'Pronto a studiare con un piano migliore?',
+      ctaDescription:
+        'Unisciti a U PLAN e trasforma il tuo programma in un sistema di studio realistico e personalizzato.',
+      startNow: 'Inizia ora',
     },
     services: {
       smartTimetableGeneration: {
-        title: 'Smart Timetable Generation',
-        description: 'Automatically create a personalized study plan based on your input (exam dates, free hours, goals, etc.). Our intelligent algorithm considers your schedule, priorities, and learning patterns to generate an optimal timetable.',
+        title: 'Generazione intelligente dell’orario',
+        description:
+          'Crea automaticamente un piano di studio personalizzato basato sui tuoi dati (date degli esami, ore libere, obiettivi, ecc.). Il nostro algoritmo intelligente considera il tuo programma, le tue priorità e le tue abitudini di apprendimento per generare un orario ottimale.',
         features: {
-          conflictFreeScheduling: 'Conflict-free scheduling',
-          priorityBasedPlanning: 'Priority-based planning',
-          customizableStudyBlocks: 'Customizable study blocks',
-          exportToCalendarApps: 'Export to calendar apps'
-        }
+          conflictFreeScheduling: 'Pianificazione senza conflitti',
+          priorityBasedPlanning:
+            'Pianificazione basata sulle priorità',
+          customizableStudyBlocks:
+            'Blocchi di studio personalizzabili',
+          exportToCalendarApps:
+            'Esporta nelle app calendario',
+        },
       },
       adaptiveUpdates: {
-        title: 'Adaptive Updates',
-        description: 'If you skip or complete sessions, the system adjusts your timetable automatically. Life happens — our platform understands that and makes real-time adjustments to keep you on track.',
+        title: 'Aggiornamenti adattivi',
+        description:
+          'Se salti o completi delle sessioni, il sistema adatta automaticamente il tuo orario. La vita succede — la nostra piattaforma lo capisce e si adatta in tempo reale per aiutarti a restare in carreggiata.',
         features: {
-          realTimeRescheduling: 'Real-time rescheduling',
-          automaticDeadlineAdjustments: 'Automatic deadline adjustments',
-          flexibleSessionManagement: 'Flexible session management',
-          smartRecoveryPlanning: 'Smart recovery planning'
-        }
+          realTimeRescheduling: 'Ripianificazione in tempo reale',
+          automaticDeadlineAdjustments:
+            'Adattamenti automatici delle scadenze',
+          flexibleSessionManagement:
+            'Gestione flessibile delle sessioni',
+          smartRecoveryPlanning:
+            'Pianificazione intelligente del recupero',
+        },
       },
       progressTracking: {
-        title: 'Progress Tracking',
-        description: 'Track your daily and weekly study progress to stay motivated. Visualize your achievements, identify patterns, and celebrate milestones as you work towards your goals.',
+        title: 'Monitoraggio dei progressi',
+        description:
+          'Monitora i tuoi progressi giornalieri e settimanali per restare motivato. Visualizza i tuoi risultati, individua le tendenze e celebra i traguardi mentre avanzi verso i tuoi obiettivi.',
         features: {
-          dailyStudyLogs: 'Daily study logs',
-          weeklyProgressReports: 'Weekly progress reports',
-          achievementBadges: 'Achievement badges',
-          productivityInsights: 'Productivity insights'
-        }
+          dailyStudyLogs: 'Registri di studio giornalieri',
+          weeklyProgressReports:
+            'Report settimanali dei progressi',
+          achievementBadges: 'Badge di risultato',
+          productivityInsights: 'Insight di produttività',
+        },
       },
       examClassIntegration: {
-        title: 'Exam & Class Integration',
-        description: 'Import your exam schedule and class timetable for a conflict-free plan. Seamlessly integrate your academic calendar to ensure optimal study time distribution.',
+        title: 'Integrazione esami e lezioni',
+        description:
+          'Importa il tuo calendario di esami e delle lezioni per un piano senza conflitti. Integra perfettamente il tuo calendario accademico per garantire una distribuzione ottimale del tempo di studio.',
         features: {
-          calendarSynchronization: 'Calendar synchronization',
-          examCountdownTimers: 'Exam countdown timers',
-          classConflictDetection: 'Class conflict detection',
-          automaticBufferTimes: 'Automatic buffer times'
-        }
-      }
+          calendarSynchronization:
+            'Sincronizzazione del calendario',
+          examCountdownTimers:
+            'Conto alla rovescia per gli esami',
+          classConflictDetection:
+            'Rilevamento conflitti con le lezioni',
+          automaticBufferTimes:
+            'Tempi cuscinetto automatici',
+        },
+      },
     },
     collaborationSection: {
-      badge: '🤝 Team Features',
-      title: 'Built for Team Collaboration',
-      subtitle: 'Create study groups, manage team members, and collaborate seamlessly in shared workspaces'
+      badge: '🤝 Funzionalità di squadra',
+      title: 'Progettato per la collaborazione di team',
+      subtitle:
+        'Crea gruppi di studio, gestisci membri e collabora facilmente in spazi di lavoro condivisi',
     },
     collaborationFeatures: {
       teamCollaborationWorkspaces: {
-        title: 'Team Collaboration Workspaces',
-        description: 'Create dedicated workspaces for study groups, project teams, or classes. Organize members with role-based access control (Admin/Member) and manage permissions effortlessly.'
+        title: 'Spazi di lavoro collaborativi',
+        description:
+          'Crea spazi dedicati per gruppi di studio, team di progetto o classi. Organizza i membri con controllo di accesso basato sui ruoli (Admin/Membro) e gestisci i permessi senza sforzo.',
       },
       smartMemberSharing: {
-        title: 'Smart Member Sharing',
-        description: 'Generate secure shareable links to invite team members. Control access with open or domain-restricted settings. Pending requests feature ensures controlled workspace growth.'
+        title: 'Condivisione intelligente dei membri',
+        description:
+          'Genera link di condivisione sicuri per invitare membri. Controlla l’accesso con impostazioni aperte o limitate al dominio. La funzione richieste in sospeso garantisce una crescita controllata dello spazio di lavoro.',
       },
       integratedTeamChat: {
-        title: 'Integrated Team Chat',
-        description: 'Communicate with team members directly within workspaces. Real-time messaging keeps discussions organized and contextual to your collaborative planning.'
+        title: 'Chat di team integrata',
+        description:
+          'Comunica con i membri del team direttamente negli spazi di lavoro. La messaggistica in tempo reale mantiene le discussioni organizzate e contestualizzate alla tua pianificazione collaborativa.',
       },
       hierarchicalSubworkspaces: {
-        title: 'Hierarchical Subworkspaces',
-        description: 'Organize complex team structures with subworkspaces. Create parent-child workspace hierarchies for departments, projects, or study groups with inherited member permissions.'
+        title: 'Sottospazi gerarchici',
+        description:
+          'Organizza strutture di team complesse con sottospazi. Crea gerarchie padre-figlio per dipartimenti, progetti o gruppi di studio con permessi membri ereditati.',
       },
       teamProgressDashboard: {
-        title: 'Team Progress Dashboard',
-        description: 'Monitor individual and collective progress. Track session completion rates, upcoming deadlines, and team productivity metrics in real-time.'
+        title: 'Dashboard del progresso del team',
+        description:
+          'Monitora il progresso individuale e collettivo. Tieni traccia del completamento delle sessioni, delle scadenze imminenti e delle metriche di produttività del team in tempo reale.',
       },
       workspaceCustomization: {
-        title: 'Workspace Customization',
-        description: 'Upload workspace avatars, set permissions, manage sharing settings, and configure timetable editing rights. Full control over your collaborative environment.'
-      }
+        title: 'Personalizzazione dello spazio di lavoro',
+        description:
+          'Carica avatar, imposta permessi, gestisci le impostazioni di condivisione e configura i diritti di modifica degli orari. Controllo totale del tuo ambiente collaborativo.',
+      },
     },
     testimonialsSection: {
-      badge: '⭐ Success Stories',
-      title: 'What Students Say',
-      subtitle: "Join thousands of students who've transformed their academic journey"
+      badge: '⭐ Testimonianze di successo',
+      title: 'Cosa dicono gli studenti',
+      subtitle:
+        'Unisciti a migliaia di studenti che hanno trasformato il loro percorso accademico',
     },
     testimonials: {
       emily: {
-        role: 'Engineering Student',
-        text: "U PLAN's workspace features transformed our study group. We went from chaotic email chains to organized collaboration. My GPA improved by 0.7 points!",
-        highlight: 'Best decision for group studying'
+        role: 'Studentessa di ingegneria',
+        text:
+          'Le funzionalità workspace di U PLAN hanno trasformato il nostro gruppo di studio. Siamo passati da email caotiche a una collaborazione organizzata. La mia media è aumentata di 0,7 punti!',
+        highlight:
+          'La migliore decisione per lo studio di gruppo',
       },
       james: {
-        role: 'Computer Science Major',
-        text: 'The AI-powered scheduling is incredible. It perfectly balances my workload and the team collaboration tools make group projects effortless. Highly recommended!',
-        highlight: 'Game-changer for academic management'
+        role: 'Studente di informatica',
+        text:
+          'La pianificazione basata sull’IA è incredibile. Bilancia perfettamente il mio carico di lavoro e gli strumenti di collaborazione rendono i progetti di gruppo semplicissimi. Lo consiglio vivamente!',
+        highlight:
+          'Una svolta per la gestione accademica',
       },
       sophia: {
-        role: 'Medical Student',
-        text: "Managing multiple study groups used to be a nightmare. With U PLAN's subworkspaces and real-time progress tracking, everything is seamless. I actually have time for social life!",
-        highlight: 'Perfect for complex schedules'
+        role: 'Studentessa di medicina',
+        text:
+          'Gestire più gruppi di studio era un incubo. Con i sottospazi di U PLAN e il monitoraggio dei progressi in tempo reale, tutto è fluido. Ho persino tempo per la mia vita sociale!',
+        highlight:
+          'Perfetto per programmi complessi',
       },
       marcus: {
-        role: 'Business School Student',
-        text: 'The workspace chat and collaboration board features are fantastic. Our study group productivity increased by 40%. The shared timetable keeps everyone accountable.',
-        highlight: 'Transformed team productivity'
+        role: 'Studente di economia aziendale',
+        text:
+          'La chat dello spazio di lavoro e le funzionalità della bacheca collaborativa sono fantastiche. La produttività del nostro gruppo di studio è aumentata del 40%. L’orario condiviso mantiene tutti responsabili.',
+        highlight:
+          'Ha trasformato la produttività del team',
       },
       lisa: {
-        role: 'Law Student',
-        text: 'U PLAN helped me organize my rigorous study schedule while maintaining my study group. The team dashboard is invaluable for tracking collective progress.',
-        highlight: 'Essential for group studying'
+        role: 'Studentessa di giurisprudenza',
+        text:
+          'U PLAN mi ha aiutata a organizzare il mio intenso programma di studio mantenendo attivo anche il mio gruppo di studio. La dashboard del team è preziosa per monitorare il progresso collettivo.',
+        highlight:
+          'Essenziale per lo studio di gruppo',
       },
       david: {
-        role: 'Economics Graduate',
-        text: "The most intelligent study planning tool I've used. Workspace automation saved me 10+ hours per week. Passed my economics qualifying exam with flying colors!",
-        highlight: 'Academically transformative'
-      }
+        role: 'Laureato in economia',
+        text:
+          'Lo strumento di pianificazione dello studio più intelligente che abbia mai usato. L’automazione dello spazio di lavoro mi ha fatto risparmiare oltre 10 ore a settimana. Ho superato con facilità il mio esame di qualificazione in economia!',
+        highlight:
+          'Trasformativo a livello accademico',
+      },
     },
     stats: {
-      activeStudents: 'Active Students',
-      hoursPlanned: 'Hours Planned',
-      successRate: 'Success Rate',
-      averageRating: 'Average Rating'
+      activeStudents: 'Studenti attivi',
+      hoursPlanned: 'Ore pianificate',
+      successRate: 'Tasso di successo',
+      averageRating: 'Valutazione media',
+    },
+    actions: {
+      seePlans: 'Vedi piani',
+    },
+    errors: {
+      planLinkMissing: 'Il link di pagamento/contatto non è ancora configurato. Aggiungilo in frontend/UPLAN/.env.',
+    },
+    phone: {
+      kicker: 'Orario di studio',
+      today: 'Oggi',
+      nextFocus: 'Prossimo focus',
+      chemistryReview: 'Ripasso chimica',
+      weekdays: {
+        mon: 'L',
+        tue: 'M',
+        wed: 'M',
+        thu: 'G',
+        fri: 'V',
+      },
+      sessions: {
+        math: {
+          title: 'Ripasso matematica',
+          label: 'Priorità alta',
+        },
+        physics: {
+          title: 'Preparazione fisica',
+          label: 'Scadenza domani',
+        },
+        essay: {
+          title: 'Bozza del saggio',
+          label: 'Blocco scrittura',
+        },
+      },
+      nav: {
+        plan: 'Piano',
+        progress: 'Progressi',
+        tasks: 'Attività',
+      },
+    },
+    demo: {
+      badge: 'Accesso demo premium',
+      title: 'Prenota la demo',
+      description1:
+        'Questa demo mostra l’esperienza completa di UPLAN, con una panoramica delle funzionalità principali, dei workflow premium e delle capacità avanzate.',
+      description2:
+        'Invece di un’anteprima limitata, la demo evidenzia il valore reale del prodotto per pianificazione, monitoraggio dei progressi, collaborazione e organizzazione accademica.',
+      includedTitle: 'Cosa include',
+      includes: {
+        walkthrough: 'Tour completo dell’applicazione',
+        premium: 'Esperienza premium guidata',
+        advanced: 'Funzionalità e workflow avanzati',
+        useCases: 'Casi d’uso accademici reali',
+      },
+      replyTime: 'Di solito rispondiamo entro 24 ore',
+      emailLabel: 'Email',
+      contactMeta: 'Nessun impegno. Risposta rapida. Accesso diretto.',
+      requestDemo: 'Richiedi demo',
+      contactNote:
+        'Puoi richiedere una demo personalizzata, fare domande sul prodotto o discutere direttamente opportunità di partnership.',
     },
     finalCta: {
-      title: 'Start Your Academic Transformation Today',
-      description: "Join successful students from top universities who've improved their grades, balanced their workload, and achieved their academic goals with U PLAN.",
-      startFreeTrial: 'Start Free Trial',
-      bookDemo: 'Book a Demo',
-      footer: 'No credit card required • Free for 14 days • Cancel anytime'
-    }
-  }
+      title: 'Inizia oggi la tua trasformazione accademica',
+      description:
+        'Unisciti a studenti delle migliori università che hanno migliorato i loro voti, bilanciato il carico di lavoro e raggiunto i loro obiettivi accademici con U PLAN.',
+      startFreeTrial: 'Inizia prova gratuita',
+      bookDemo: 'Prenota una demo',
+      footer:
+        'Nessuna carta di credito richiesta • Gratis per 14 giorni • Annulla in qualsiasi momento',
+    },
+  },
+  directMessages: {
+    title: 'Messaggi',
+    subtitle: 'Conversazioni private con gli amici.',
+    loading: {
+      conversations: 'Caricamento conversazioni...',
+      conversation: 'Caricamento conversazione...',
+      profile: 'Caricamento profilo...',
+    },
+    empty: {
+      noConversations: 'Apri il tuo profilo, copia il link del profilo e condividilo con la persona a cui vuoi scrivere.',
+      noMessages: 'Invia il primo messaggio privato.',
+      chooseConversation: 'Scegli una conversazione',
+      chooseConversationDescription: 'Gli amici accettati compaiono qui. Usa il link del tuo profilo per collegarti a qualcuno di nuovo.',
+    },
+    actions: {
+      profile: 'Profilo',
+      profileShort: 'Profilo',
+      info: 'Info',
+      pin: 'Fissa',
+      pinned: 'Fissato',
+      saveNickname: 'Salva soprannome',
+      addFriend: 'Aggiungi amico',
+      acceptRequest: 'Accetta richiesta',
+      accept: 'Accetta',
+      message: 'Messaggio',
+      copyProfileLink: 'Copia link profilo',
+      editSharedProfile: 'Modifica profilo condiviso',
+      copyAgain: 'Copia di nuovo',
+      saveSharedProfile: 'Salva profilo condiviso',
+    },
+    placeholders: {
+      nickname: 'Aggiungi un soprannome per questo amico',
+      message: 'Scrivi al tuo amico...',
+      fullName: 'Il tuo nome',
+      username: 'username',
+    },
+    quickReplies: {
+      label: 'Risposte rapide',
+      ok: 'OK',
+      nice: 'Bene',
+      done: 'Fatto',
+      thanks: 'Grazie',
+    },
+    templates: {
+      studyCheckIn: 'Possiamo rivedere il piano di questa settimana?',
+      meetup: 'Sei libero per studiare insieme piu tardi oggi?',
+      followUp: 'Un rapido seguito all ultimo messaggio.',
+    },
+    presence: {
+      online: 'Online',
+      offline: 'Offline',
+      justNow: 'Proprio ora',
+      minutesAgo: '{{count}} min fa',
+      hoursAgo: '{{count}} h fa',
+      daysAgo: '{{count}} g fa',
+    },
+    defaults: {
+      friend: 'Amico',
+      profileTitle: 'Pianificatore di studio',
+      username: 'uplan-user',
+      noSessions: 'Nessuna sessione completata',
+      recently: 'Di recente',
+    },
+    states: {
+      sending: 'Invio...',
+      saving: 'Salvataggio...',
+    },
+    status: {
+      self: 'Tu',
+      none: 'Non collegato',
+      friends: 'Amici',
+      pendingSent: 'Richiesta inviata',
+      pendingReceived: 'Richiesta ricevuta',
+    },
+    profile: {
+      title: 'Profilo',
+      description: 'Foto, sfondo, stato della connessione e produttivita di studio.',
+      joined: 'Iscritto a UPLAN',
+      hoursCompleted: 'Ore completate',
+      mostProductiveWeek: 'Settimana piu produttiva',
+      mostProductiveMonth: 'Mese piu produttivo',
+      connection: 'Connessione',
+    },
+    edit: {
+      title: 'Impostazioni del profilo condiviso con gli amici',
+      description: 'Questi dettagli appaiono quando gli amici aprono il tuo profilo dai messaggi.',
+      profileTitle: 'Titolo profilo',
+      backgroundTitle: 'Design dello sfondo',
+      backgroundDescription: 'Scegli un motivo creato a mano per la scheda profilo.',
+    },
+    backgrounds: {
+      blueprint: 'Scrivania tecnica',
+      constellation: 'Note notturne',
+      paperplane: 'Volo di carta',
+      rings: 'Anelli di studio',
+      lab: 'Pannello laboratorio',
+    },
+    friends: {
+      title: 'Amici',
+      description: 'Amici accettati e richieste in sospeso collegate a questo account.',
+      empty: 'Non hai ancora amici. Copia il link del tuo profilo e condividilo.',
+      since: 'Amici dal {{date}}',
+      requestSent: 'Richiesta inviata',
+      requestReceived: 'Richiesta ricevuta',
+    },
+    success: {
+      profileLinkCopied: 'Link del profilo copiato.',
+      friendRequestSent: 'Richiesta di amicizia inviata.',
+      friendRequestAccepted: 'Richiesta di amicizia accettata.',
+      profileUpdated: 'Profilo condiviso aggiornato.',
+      friendAdded: 'Amico aggiunto.',
+      chatHidden: 'Chat nascosta dal tuo elenco.',
+    },
+    errors: {
+      loginRequired: 'Accedi di nuovo per continuare.',
+      friendsOnly: 'I messaggi privati sono disponibili solo con amici accettati.',
+      loadMessages: 'Impossibile caricare i messaggi in questo momento.',
+      loadProfile: 'Impossibile aprire questo profilo in questo momento.',
+      createProfileLink: 'Impossibile creare il link del profilo in questo momento.',
+      sendFriendRequest: 'Impossibile inviare la richiesta di amicizia in questo momento.',
+      acceptFriendRequest: 'Impossibile accettare la richiesta di amicizia in questo momento.',
+      updateProfile: 'Impossibile salvare il profilo condiviso in questo momento.',
+      loadConversation: 'Impossibile caricare questa conversazione in questo momento.',
+      sendMessage: 'Impossibile inviare il messaggio in questo momento.',
+      updateConversation: 'Impossibile aggiornare questa conversazione in questo momento.',
+      acceptProfileLink: 'Impossibile usare questo link del profilo in questo momento.',
+    },
+  },
+  postSignupQuestionnaire: {
+    kicker: 'Configurazione profilo',
+    title: 'Completa il tuo profilo',
+    description: 'Benvenuto in U PLAN. Rispondi a poche domande rapide per avere un profilo curato fin dall\'inizio. Queste informazioni appariranno sul tuo profilo.',
+    noteTitle: 'Visibile sul tuo profilo',
+    noteBody: 'Il tuo nome completo resta fisso dopo la registrazione. Potrai aggiornare il resto piu tardi dal tuo profilo o dal profilo condiviso in Messaggi.',
+    questionsBadge: 'Domanda {{current}} di {{total}}',
+    inputTitle: 'La tua risposta',
+    actions: {
+      skipQuestion: 'Salta domanda',
+      skipQuestionnaire: 'Salta questionario',
+      nextQuestion: 'Domanda successiva',
+      saveAndContinue: 'Salva e continua',
+      saving: 'Salvataggio...',
+    },
+    questions: {
+      fullName: {
+        label: 'Nome completo',
+        helper: 'Benvenuto. Questo e il nome completo salvato durante la registrazione e mostrato nel tuo profilo. Non puo essere modificato dopo.',
+        placeholder: 'Il tuo nome completo',
+      },
+      profileTitle: {
+        label: 'Titolo del profilo',
+        helper: 'Aggiungi una breve riga per aiutare gli altri a capire chi sei quando aprono il tuo profilo.',
+        placeholder: 'Per esempio: Studente di informatica',
+      },
+      role: {
+        label: 'Ruolo',
+        helper: 'Scegli il ruolo che ti rappresenta meglio. Apparira nel tuo profilo.',
+        placeholder: 'Seleziona il tuo ruolo',
+      },
+      otherRoleInfo: {
+        label: 'Dicci di piu',
+        helper: 'Se nessun ruolo standard ti rappresenta, inserisci le informazioni del ruolo che vuoi mostrare nel profilo.',
+        placeholder: 'Per esempio: Assistente di ricerca',
+      },
+    },
+    roleOptions: {
+      student: 'Studente',
+      administrator: 'Amministratore',
+      teacher: 'Insegnante',
+      other: 'Altro',
+    },
+    preview: {
+      kicker: 'Anteprima profilo',
+      defaultName: 'Il tuo nome',
+      defaultTitle: 'Il tuo titolo del profilo',
+      defaultDepartment: 'Il tuo ruolo',
+      visibilityTitle: 'Come apparira',
+      visibilityBody: 'Questi dettagli vengono mostrati nella tua scheda profilo e nelle viste profilo dell\'app.',
+      editLaterTitle: 'Modificabile in seguito',
+      editLaterBody: 'Potrai aggiornare questi dettagli in seguito quando cambiera il tuo ruolo o il tuo titolo.',
+    },
+    success: {
+      saved: 'Dettagli profilo salvati.',
+    },
+    errors: {
+      notLoggedIn: 'Devi effettuare l\'accesso per salvare i dettagli del profilo.',
+      otherRoleRequired: 'Inserisci le informazioni del ruolo che vuoi mostrare nel tuo profilo.',
+      saveFailed: 'Impossibile salvare i dettagli del profilo in questo momento.',
+    },
+  },
+  welcomeOverlay: {
+    alt: 'Benvenuto',
+    close: 'Chiudi benvenuto',
+    badge: 'Configurazione guidata',
+    headline: 'Configura il tuo spazio di studio in meno di un minuto.',
+    step: 'Passaggio',
+    body: 'Ti guideremo attraverso l\'essenziale con un tour rapido cosi potrai generare un orario di studio chiaro in pochi minuti.',
+    cards: {
+      profile: 'Profilo pronto',
+      schedule: 'Orario configurato',
+      progress: 'Monitoraggio progressi',
+    },
+  },
+  tourOverlay: {
+    title: 'Introduzione',
+    note: 'L\'area evidenziata e l\'azione da esaminare prima di continuare.',
+    success: 'Tour completato. Sei pronto per usare U PLAN.',
+    actions: {
+      close: 'Chiudi tour',
+      skip: 'Salta',
+      done: 'Fine',
+    },
+    pages: {
+      dashboard: 'Dashboard',
+      settings: 'Impostazioni',
+      autoGenerate: 'Generazione automatica',
+      myTimetable: 'Il mio orario',
+      goals: 'Obiettivi',
+      workspace: 'Spazio di lavoro',
+      default: 'U PLAN',
+    },
+    steps: {
+      profile: {
+        title: 'Il tuo profilo e le impostazioni',
+        body: 'Apri il menu del tuo nome e avatar per accedere alle impostazioni del profilo e mantenere aggiornate le informazioni del tuo account.',
+      },
+      settings: {
+        title: 'Modifica il tuo profilo',
+        body: 'Apri **Impostazioni** dalla barra laterale, poi usa **Modifica profilo** per aggiornare nome, dettagli professionali, foto e informazioni dell\'account.',
+      },
+      studyWindow: {
+        title: 'Finestra di studio',
+        body: 'Definisci le ore in cui puoi studiare in modo che l\'orario generato segua la tua routine reale e i periodi d\'esame.',
+      },
+      classSchedule: {
+        title: 'Orario lezioni e priorita',
+        body: 'Aggiungi le tue lezioni e assegna priorita cosi i corsi piu importanti ricevano una copertura di studio migliore.',
+      },
+      busyTime: {
+        title: 'Tempo occupato',
+        body: 'Blocca lavoro, commissioni e impegni personali cosi il generatore non inserira sessioni di studio sopra di essi.',
+      },
+      generate: {
+        title: 'Genera il tuo piano',
+        body: 'Genera crea le sessioni di studio della settimana usando le regole e le preferenze impostate sopra.',
+      },
+      timetable: {
+        title: 'Il mio orario',
+        body: 'Questo e il tuo piano di studio settimanale. Puoi spostare le sessioni, rifinire i blocchi orari e mantenere la settimana coerente con la tua routine.',
+      },
+      today: {
+        title: 'Sessioni di oggi',
+        body: 'La vista giornaliera ti mantiene concentrato. Avvia la sessione corrente e gestisci cio che viene dopo senza perdere ritmo.',
+      },
+      assessments: {
+        title: 'Valutazioni e scadenze',
+        body: 'Gestisci qui esami, test e compiti cosi le scadenze influenzano la pianificazione durante le settimane piu intense.',
+      },
+      goalsWeek: {
+        title: 'Questa settimana',
+        body: 'Controlla quante sessioni sono programmate questa settimana in base al tuo orario.',
+      },
+      deadlines: {
+        title: 'Prossime scadenze',
+        body: 'Usa quest\'area per vedere cosa sta per arrivare e restare in anticipo sulla prossima consegna o sul prossimo esame importante.',
+      },
+      progress: {
+        title: 'Progresso e serie',
+        body: 'Monitora le ore completate e la tua serie per mantenere visibile l\'andamento nel tempo.',
+      },
+      todaySession: {
+        title: 'Sessione di oggi',
+        body: 'Controlla le sessioni di oggi ed espandile quando ti servono piu dettagli o azioni rapide.',
+      },
+      weeklyGoals: {
+        title: 'Obiettivi settimanali e completamenti',
+        body: 'Imposta obiettivi settimanali, proteggi la tua serie e monitora le scadenze completate man mano che avanzi.',
+      },
+      workspace: {
+        title: 'Intestazione dello spazio di lavoro',
+        body: 'Questa intestazione mostra lo spazio attivo, i membri e le azioni rapide. Cambia spazio qui e usa le schede sotto per navigare all\'interno dello spazio.',
+      },
+    },
+  },
+  app: {
+    toasts: {
+      signedInWithGoogle: 'Accesso con Google completato',
+      freePlanSelected: 'Piano gratuito selezionato',
+      paymentLinkMissing: 'Il link di pagamento non e ancora configurato. Aggiungilo in frontend/UPLAN/.env.',
+      noAdminAccess: "Non hai accesso all'area amministrazione.",
+    },
+    welcome: {
+      title: 'Benvenuto in U PLAN',
+      body:
+        "Pronto a trasformare lo stress scolastico in un piano chiaro?\n\nNei prossimi 60 secondi ti mostreremo dove:\n- aggiornare il profilo\n- generare un orario ordinato\n- seguire le sessioni di oggi\n\nTocca Avanti per iniziare.",
+    },
+  },
 };
 
 export default it;

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CheckCircle2, XCircle, ArrowLeft, Eye, EyeOff, Calendar, HelpCircle } from 'lucide-react';
+import { CheckCircle2, XCircle, ArrowLeft, Eye, EyeOff, Calendar, HelpCircle, CreditCard } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { toast } from 'sonner';
 import logoImage from 'figma:asset/0550e77f773f70cb0e6201f9400b3cccad8c1d9b.png';
@@ -11,13 +11,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Checkbox } from './ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import SubscriptionPrompt, { SubscriptionPlan } from './SubscriptionPrompt';
 
 interface AuthPageProps {
   onLogin: (name: string, email: string) => void;
   onNavigate: (page: string) => void;
+  onBack?: () => void;
 }
 
-export default function AuthPage({ onLogin, onNavigate }: AuthPageProps) {
+export default function AuthPage({ onLogin, onNavigate, onBack }: AuthPageProps) {
   const { t } = useTranslation();
 
   const [loginEmail, setLoginEmail] = useState('');
@@ -57,6 +59,7 @@ export default function AuthPage({ onLogin, onNavigate }: AuthPageProps) {
   const [signupVerified, setSignupVerified] = useState(false);
   const [signupVerificationLoading, setSignupVerificationLoading] = useState(false);
   const [signupSubmitting, setSignupSubmitting] = useState(false);
+  const [plansOpen, setPlansOpen] = useState(false);
 
   const usernameRequirements = {
     validLength: signupName.length >= 3 && signupName.length <= 20,
@@ -163,6 +166,7 @@ export default function AuthPage({ onLogin, onNavigate }: AuthPageProps) {
 
       const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
       const inviteToken = new URLSearchParams(window.location.search).get('invite_token');
+      const normalizedSignupEmail = signupEmail.trim().toLowerCase();
 
       const response = await fetch(`${API_BASE_URL}/auth/signup`, {
         method: 'POST',
@@ -171,7 +175,7 @@ export default function AuthPage({ onLogin, onNavigate }: AuthPageProps) {
         },
         body: JSON.stringify({
           username: signupName,
-          email: signupEmail,
+          email: normalizedSignupEmail,
           password: signupPassword,
           full_name: signupName,
           date_of_birth: signupDateOfBirth,
@@ -187,9 +191,12 @@ export default function AuthPage({ onLogin, onNavigate }: AuthPageProps) {
         throw new Error(data.detail || t('auth.errors.signupFailed'));
       }
 
-      localStorage.setItem('currentUserEmail', signupEmail);
+      localStorage.setItem('currentUserEmail', normalizedSignupEmail);
       if (data.user_id) localStorage.setItem('currentUserId', data.user_id);
       if (data.full_name) localStorage.setItem('currentUserName', data.full_name);
+      if (data.user_id) {
+        localStorage.setItem(`uplan_profile_questionnaire_pending_${data.user_id}`, 'true');
+      }
 
       toast.success(t('auth.success.accountCreated', { name: signupName }));
 
@@ -197,12 +204,12 @@ export default function AuthPage({ onLogin, onNavigate }: AuthPageProps) {
       setSignupVerificationCode('');
       setShowSignupVerification(false);
 
-      onLogin(data.full_name || signupName, signupEmail);
+      onLogin(data.full_name || signupName, normalizedSignupEmail);
 
       await acceptInviteIfPresent();
       onNavigate('workspace');
     } catch (err: any) {
-      toast.error( t('auth.errors.signupFailed'));
+      toast.error(err?.message || t('auth.errors.signupFailed'));
     } finally {
       setSignupSubmitting(false);
     }
@@ -271,12 +278,13 @@ export default function AuthPage({ onLogin, onNavigate }: AuthPageProps) {
 
     try {
       const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+      const normalizedSignupEmail = signupEmail.trim().toLowerCase();
 
       const response = await fetch(`${API_BASE_URL}/auth/verify-signup-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: signupEmail,
+          email: normalizedSignupEmail,
           code: signupVerificationCode,
         }),
       });
@@ -375,11 +383,12 @@ export default function AuthPage({ onLogin, onNavigate }: AuthPageProps) {
     try {
       setSignupVerificationLoading(true);
       const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+      const normalizedSignupEmail = signupEmail.trim().toLowerCase();
 
       const response = await fetch(`${API_BASE_URL}/auth/request-signup-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: signupEmail }),
+        body: JSON.stringify({ email: normalizedSignupEmail }),
       });
 
       const data = await response.json();
@@ -544,6 +553,27 @@ export default function AuthPage({ onLogin, onNavigate }: AuthPageProps) {
     window.location.href = `${API_BASE_URL}/login`;
   };
 
+  const handleSelectPlan = (plan: SubscriptionPlan) => {
+    if (plan === 'free') {
+      setPlansOpen(false);
+      setActiveTab('signup');
+      return;
+    }
+
+    const targetUrl =
+      plan === 'pro'
+        ? import.meta.env.VITE_STRIPE_CHECKOUT_URL
+        : import.meta.env.VITE_UNIVERSITY_PLAN_CONTACT_URL || import.meta.env.VITE_STRIPE_CHECKOUT_URL;
+
+    if (targetUrl) {
+      window.location.href = targetUrl;
+      return;
+    }
+
+    setPlansOpen(false);
+    toast.error('Payment/contact link is not configured yet. Add it in frontend/UPLAN/.env.');
+  };
+
   const handleSocialLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -666,11 +696,24 @@ export default function AuthPage({ onLogin, onNavigate }: AuthPageProps) {
             <div className="animate-fade-up mb-5 flex items-center justify-between">
               <Button
                 variant="ghost"
-                onClick={() => onNavigate('home')}
+                onClick={() => {
+                  if (onBack) onBack();
+                  else onNavigate('home');
+                }}
                 className="rounded-2xl text-slate-600 transition-all duration-300 hover:-translate-x-0.5 hover:bg-white/70 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 {t('auth.actions.backToHome')}
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setPlansOpen(true)}
+                className="rounded-2xl border-blue-200 bg-white/80 text-blue-700 shadow-sm hover:bg-blue-50 dark:border-blue-900/60 dark:bg-slate-900/80 dark:text-blue-300 dark:hover:bg-slate-800"
+              >
+                <CreditCard className="mr-2 h-4 w-4" />
+                See plans
               </Button>
 
               <div className="lg:hidden flex items-center gap-3 rounded-2xl bg-white/70 px-3 py-2 shadow-sm ring-1 ring-slate-200/70 backdrop-blur dark:bg-slate-900/70 dark:ring-slate-800">
@@ -980,15 +1023,15 @@ export default function AuthPage({ onLogin, onNavigate }: AuthPageProps) {
                     </CardContent>
                   </Card>
                 ) : showForgotPassword ? (
-                  <Card className="border-0 bg-transparent shadow-none animate-panel-in">
-                    <CardHeader className="px-0 pt-0">
+                  <Card className=" border-0 bg-transparent shadow-none animate-panel-in">
+                    <CardHeader className="px-1 pt-1">
                       <CardTitle>{t('auth.titles.resetPassword')}</CardTitle>
                       <CardDescription>
                         {t('auth.descriptions.resetPasswordHelp')}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="px-0">
-                      <form onSubmit={handleForgotPassword} className="space-y-4">
+                      <form onSubmit={handleForgotPassword} className="space-y-3">
                         <div className="space-y-2">
                           <Label htmlFor="reset-email">{t('auth.labels.email')}</Label>
                           <Input
@@ -998,7 +1041,7 @@ export default function AuthPage({ onLogin, onNavigate }: AuthPageProps) {
                             value={resetEmail}
                             onChange={(e) => setResetEmail(e.target.value)}
                             required
-                            className="h-12 rounded-2xl transition-all duration-300 focus:scale-[1.01]"
+                            className="h-12 rounded-xl transition-all duration-300 focus:scale-[1.01]"
                           />
                         </div>
 
@@ -1041,7 +1084,7 @@ export default function AuthPage({ onLogin, onNavigate }: AuthPageProps) {
                     </TabsList>
 
                     <TabsContent value="login" className="animate-tab-in">
-                      <Card className="border-0 bg-transparent shadow-none">
+                      
                         <CardHeader className="px-0 pt-0">
                           <CardTitle>{t('auth.titles.welcomeBackCard')}</CardTitle>
                           <CardDescription>
@@ -1148,11 +1191,11 @@ export default function AuthPage({ onLogin, onNavigate }: AuthPageProps) {
                             </div>
                           </form>
                         </CardContent>
-                      </Card>
+                      
                     </TabsContent>
 
                     <TabsContent value="signup" className="animate-tab-in">
-                      <Card className="border-0 bg-transparent shadow-none">
+                      
                         <CardHeader className="px-0 pt-0">
                           <CardTitle>{t('auth.titles.createAccountCard')}</CardTitle>
                           <CardDescription>
@@ -1441,7 +1484,7 @@ export default function AuthPage({ onLogin, onNavigate }: AuthPageProps) {
                             </p>
                           </form>
                         </CardContent>
-                      </Card>
+                      
                     </TabsContent>
                   </Tabs>
                 )}
@@ -1565,10 +1608,11 @@ export default function AuthPage({ onLogin, onNavigate }: AuthPageProps) {
                     e.preventDefault();
                     try {
                       const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+                      const normalizedSignupEmail = signupEmail.trim().toLowerCase();
                       const response = await fetch(`${API_BASE_URL}/auth/request-signup-code`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email: signupEmail }),
+                        body: JSON.stringify({ email: normalizedSignupEmail }),
                       });
 
                       const data = await response.json();
@@ -1743,6 +1787,11 @@ export default function AuthPage({ onLogin, onNavigate }: AuthPageProps) {
           }
         }
       `}</style>
+      <SubscriptionPrompt
+        open={plansOpen}
+        onClose={() => setPlansOpen(false)}
+        onSelectPlan={handleSelectPlan}
+      />
     </div>
   );
 }

@@ -271,16 +271,16 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
     setUserItem('pomodoroHistory', JSON.stringify(history));
   }, [history]);
 
-  // Apply theme
+  // Apply the Pomodoro-only theme without controlling the app-wide light/dark mode.
+  // The global dark class is owned by useDarkMode so refreshes keep the saved app theme.
   useEffect(() => {
     const root = document.documentElement;
-    root.setAttribute('data-theme', theme);
-    
-    // Apply theme classes
-    if (theme === 'dark') {
-      root.classList.add('dark');
+    root.setAttribute('data-pomodoro-theme', theme);
+
+    if (theme === 'muted' || theme === 'focus') {
+      root.setAttribute('data-theme', theme);
     } else {
-      root.classList.remove('dark');
+      root.removeAttribute('data-theme');
     }
   }, [theme]);
 

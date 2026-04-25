@@ -585,7 +585,7 @@ export default function CreateTimetable({ onGenerate }: CreateTimetableProps) {
         </div>
       </div>
 
-      <Card className="rounded-2xl border border-border bg-card shadow-sm">
+      <Card data-tour="create-timetable-details" className="rounded-2xl border border-border bg-card shadow-sm">
         <CardHeader className="rounded-t-2xl border-b border-border bg-muted/30">
           <div>
             <CardTitle className="flex items-center gap-2 text-foreground">
@@ -613,7 +613,7 @@ export default function CreateTimetable({ onGenerate }: CreateTimetableProps) {
         </CardContent>
       </Card>
 
-      <Card className="rounded-2xl border border-border bg-card shadow-sm">
+      <Card data-tour="create-course-setup" className="rounded-2xl border border-border bg-card shadow-sm">
         <CardHeader className="rounded-t-2xl border-b border-border bg-muted/30">
           <div>
             <CardTitle className="flex items-center gap-2 text-foreground">
@@ -926,7 +926,7 @@ export default function CreateTimetable({ onGenerate }: CreateTimetableProps) {
           )}
 
           {subjects.length > 0 && (
-            <div className="rounded-xl border border-border bg-muted/20 p-4">
+            <div data-tour="create-timetable-summary" className="rounded-xl border border-border bg-muted/20 p-4">
               <p className="mb-3 text-sm font-medium text-foreground">
                 <strong>{t('createTimetable.summaryCard.title')}</strong>
               </p>
@@ -954,6 +954,7 @@ export default function CreateTimetable({ onGenerate }: CreateTimetableProps) {
           {t('createTimetable.actions.resetAll')}
         </Button>
         <Button
+          data-tour="create-generate"
           onClick={handleGenerate}
           disabled={subjects.length === 0}
           className="h-10 rounded-xl bg-blue-700 px-6 text-white hover:bg-blue-700"
