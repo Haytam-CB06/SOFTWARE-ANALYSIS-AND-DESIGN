@@ -8,11 +8,11 @@ from uuid import UUID
 import json
 from urllib.parse import quote
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends
 from fastapi.responses import Response
 from pydantic import BaseModel, field_validator
 
-from app.db import get_db
+from app.db import get_db, session_scope
 from sqlalchemy.orm import Session
 
 from google.oauth2.credentials import Credentials
@@ -21,6 +21,7 @@ from googleapiclient.discovery import build
 
 from app.models.google_calendar_link import GoogleCalendarLink
 from app.models.user import User
+from app.services.jobs import create_job, get_job, run_job
 
 
 router = APIRouter(prefix="/calendar", tags=["Calendar"])
@@ -157,20 +158,21 @@ def _creds_from_link(link: GoogleCalendarLink) -> Credentials:
     return creds
 
 
-@router.post("/google/export/{user_id}")
-def export_google_calendar(
+@router.get("/jobs/{job_id}")
+def get_calendar_job(job_id: str):
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
+
+
+def _export_google_calendar_sync(
+    *,
     user_id: UUID,
     payload: ExportRequest,
-    overwrite: bool = False,
-    db: Session = Depends(get_db),
-):
-    """Export the timetable directly into the user's Google Calendar.
-
-    Behavior:
-      - If `overwrite=true` and a previous export exists, delete the previous
-        exported calendar and recreate it.
-      - If `overwrite=false`, append events to the existing exported calendar.
-    """
+    overwrite: bool,
+    db: Session,
+) -> dict:
     link = db.query(GoogleCalendarLink).filter(GoogleCalendarLink.user_id == user_id).first()
     if not link:
         raise HTTPException(status_code=401, detail="Google Calendar not linked. Please connect first.")
@@ -254,3 +256,41 @@ def export_google_calendar(
         "calendar_url": calendar_url,
         "overwrite": overwrite,
     }
+
+
+@router.post("/google/export/{user_id}")
+def export_google_calendar(
+    user_id: UUID,
+    payload: ExportRequest,
+    background_tasks: BackgroundTasks,
+    overwrite: bool = False,
+    async_job: bool = True,
+    db: Session = Depends(get_db),
+):
+    """Export the timetable directly into the user's Google Calendar.
+
+    Behavior:
+      - If `overwrite=true` and a previous export exists, delete the previous
+        exported calendar and recreate it.
+      - If `overwrite=false`, append events to the existing exported calendar.
+    """
+    if async_job:
+        job_id = create_job("google-calendar-export")
+
+        def _job() -> dict:
+            with session_scope() as job_db:
+                return _export_google_calendar_sync(
+                    user_id=user_id,
+                    payload=payload,
+                    overwrite=overwrite,
+                    db=job_db,
+                )
+
+        background_tasks.add_task(run_job, job_id, _job)
+        return {
+            "accepted": True,
+            "job_id": job_id,
+            "status_url": f"/calendar/jobs/{job_id}",
+        }
+
+    return _export_google_calendar_sync(user_id=user_id, payload=payload, overwrite=overwrite, db=db)

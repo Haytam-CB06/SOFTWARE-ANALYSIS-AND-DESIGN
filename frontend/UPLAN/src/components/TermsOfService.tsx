@@ -21,7 +21,7 @@ export default function TermsOfService({ onBack }: TermsOfServiceProps) {
           {t('terms.back')}
         </Button>
 
-        <div className="bg-card rounded-lg shadow-sm border border-border p-8">
+        <div className="rounded-[28px] border border-border bg-card p-8 shadow-sm">
           <h1 className="text-4xl text-foreground mb-4">{t('terms.title')}</h1>
           <p className="text-muted-foreground mb-8">
             {t('terms.lastUpdated')}

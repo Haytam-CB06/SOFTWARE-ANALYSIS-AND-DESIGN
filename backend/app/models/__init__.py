@@ -19,6 +19,8 @@ from app.models.oauth import OAuthAccount
 from app.models.google_calendar_link import GoogleCalendarLink
 from app.models.study_timetable import StudyTimetable
 from app.models.user_profile import UserProfile
+from app.models.friendship import Friendship
+from app.models.direct_message import DirectConversationPreference, DirectMessage
 from app.models.study_window_setting import StudyWindowSetting
 from app.models.user_busy_block import UserBusyBlock
 from app.models.user_week_study_schedule import UserWeekStudySchedule
@@ -26,6 +28,7 @@ from app.models.workspace_week_study_schedule import WorkspaceWeekStudySchedule
 from app.models.workspace_auto_generate_config import WorkspaceAutoGenerateConfig
 from app.models.workspace_session_status_log import WorkspaceSessionStatusLog
 from app.models.chat import ChatRoom, ChatMember, ChatMessage
+from app.models.board import BoardTask, BoardComment
 __all__ = [
     "User", "LoginHistory",
     "Subject",
@@ -40,10 +43,11 @@ __all__ = [
     "ActivityLog",
     "Notification",
     "SessionFeedback",
-    "Workspace", "WorkspaceMember", "MemberPermission", "Message", "WorkspaceDeleteLog", "MemberDeleteLog",
+    "Workspace", "WorkspaceMember", "MemberPermission", "Message", "DirectMessage", "DirectConversationPreference", "WorkspaceDeleteLog", "MemberDeleteLog",
     "GoogleCalendarLink",
     "StudyTimetable",
     "UserProfile",
+    "Friendship",
     "StudyWindowSetting",
     "UserBusyBlock",
     "UserWeekStudySchedule",
@@ -51,4 +55,5 @@ __all__ = [
     "WorkspaceAutoGenerateConfig",
     "WorkspaceSessionStatusLog",
     "ChatRoom", "ChatMember", "ChatMessage",
+    "BoardTask", "BoardComment",
 ]

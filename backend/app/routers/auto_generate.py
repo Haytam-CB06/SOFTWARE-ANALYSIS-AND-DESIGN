@@ -575,10 +575,19 @@ def auto_generate(
 
     if not courses:
         raise HTTPException(status_code=400, detail="No valid courses found")
+    MAX_TOTAL_MINUTES = 600
+    MAX_SESSIONS = 10
+    PER_SUBJECT_MAX_MINUTES = {
+        "high": 180,
+        "medium": 120,
+        "low": 90,
+    }
 
-    # Session colors are assigned by COURSE (subject title), not by priority.
-    # Priority still drives allocation (weights/chunk sizes), but we avoid the
-    # red/yellow/green priority palette for the calendar UI.
+    sessions_created = 0
+    total_minutes_used = 0
+    subject_minutes: dict[str, int] = {}
+    subject_day_seen: set[tuple[str, int]] = set()
+  
     COURSE_COLOR_PALETTE = [
         "#3B82F6",  # blue
         "#A855F7",  # purple
@@ -691,11 +700,34 @@ def auto_generate(
 
     # Total available minutes across the week (study window minus busy blocks).
     total_available_minutes_week = 0
+    free_minutes_by_day: List[int] = [0 for _ in range(7)]
     for d in range(7):
         if d in (5, 6) and not include_weekends:
             continue
         for s, e in free_by_day[d]:
-            total_available_minutes_week += int(e) - int(s)
+            mins = int(e) - int(s)
+            total_available_minutes_week += mins
+            free_minutes_by_day[d] += mins
+
+    # IMPORTANT: do not try to fill the user's entire free week.
+    # The old logic allocated the whole free-time budget across courses, which
+    # created far too many generated study sessions. Instead, cap the total
+    # study budget to a realistic weekly amount based on the number of courses,
+    # while still respecting available time.
+    base_target_by_priority = {"low": 45, "medium": 75, "high": 105}
+    desired_study_minutes_week = 0
+    for c in courses:
+        desired_study_minutes_week += int(base_target_by_priority.get(c["priority"], 75))
+
+    # Keep the generator conservative. Even with many courses, avoid flooding
+    # the calendar; deadlines can still boost individual course weights later.
+    desired_study_minutes_week = min(desired_study_minutes_week, 12 * 60)
+
+    # Never exceed the actual free time, and never be less than one minimum
+    # session per course if the user has enough free time.
+    if total_available_minutes_week >= 20 * len(courses):
+        desired_study_minutes_week = max(desired_study_minutes_week, 20 * len(courses))
+    desired_study_minutes_week = min(desired_study_minutes_week, total_available_minutes_week)
 
     now_utc = datetime.now(timezone.utc)
     week_end_utc = now_utc + timedelta(days=7)
@@ -775,31 +807,34 @@ def auto_generate(
         for c in courses:
             effective_weight_by_title[c["title"]] = 1.0
 
-    # Convert weights -> target minutes per course/week.
+    # Convert weights -> target minutes per course/week, but use the capped
+    # study budget instead of the full free-time budget.
     min_floor = 0
-    if total_available_minutes_week >= 20 * len(courses):
-        # If we have enough time, try to give every course at least one minimum session.
+    if desired_study_minutes_week >= 20 * len(courses):
         min_floor = 20
 
     target_minutes_by_title: dict[str, int] = {}
-    remaining_budget = int(total_available_minutes_week)
     # First pass: proportional allocation
     for c in courses:
         title = c["title"]
         share = effective_weight_by_title[title] / total_effective_weight
-        target = int(round(share * total_available_minutes_week))
+        target = int(round(share * desired_study_minutes_week))
+
+        # Hard upper bounds keep a single course from taking over the whole week.
+        pr = c["priority"]
+        per_course_cap = {"low": 90, "medium": 150, "high": 210}[pr]
+        target = min(target, per_course_cap)
+
         if min_floor:
             target = max(target, min_floor)
         target_minutes_by_title[title] = max(0, target)
 
-    # Second pass: normalize to match available minutes exactly (within reason)
+    # Second pass: normalize to match the capped weekly budget.
     allocated = sum(target_minutes_by_title.values())
-    if allocated > 0 and total_available_minutes_week > 0:
-        # Scale down if we overshot.
-        if allocated > total_available_minutes_week:
-            scale = total_available_minutes_week / float(allocated)
-            for k in list(target_minutes_by_title.keys()):
-                target_minutes_by_title[k] = int(round(target_minutes_by_title[k] * scale))
+    if allocated > 0 and desired_study_minutes_week > 0 and allocated > desired_study_minutes_week:
+        scale = desired_study_minutes_week / float(allocated)
+        for k in list(target_minutes_by_title.keys()):
+            target_minutes_by_title[k] = int(round(target_minutes_by_title[k] * scale))
 
     # =====================
     # CP-07f: RNG seed support
@@ -838,8 +873,10 @@ def auto_generate(
     low_courses = [c for c in courses if c["priority"] == "low"]
     counts_by_title: dict[str, int] = {c["title"]: 0 for c in courses}
 
-    # Per-day per-subject cap ("feel human").
-    CAP_SESSIONS_PER_DAY_PER_SUBJECT = 2
+    # Stronger caps make the result feel much more realistic.
+    CAP_SESSIONS_PER_DAY_PER_SUBJECT = 1
+    MAX_SESSIONS_PER_WEEK_PER_SUBJECT = 3
+    MAX_TOTAL_GENERATED_SESSIONS = max(6, min(18, len(courses) * 2))
     sessions_by_day_by_title: List[dict[str, int]] = [{c["title"]: 0 for c in courses} for _ in range(7)]
 
     last_subject: Optional[str] = None
@@ -932,6 +969,8 @@ def auto_generate(
             # Respect per-day cap when possible.
             if sessions_by_day_by_title[day].get(title, 0) >= CAP_SESSIONS_PER_DAY_PER_SUBJECT:
                 return False
+            if counts_by_title.get(title, 0) >= MAX_SESSIONS_PER_WEEK_PER_SUBJECT:
+                return False
             # Prefer to schedule only if there is remaining budget, unless it's for unmet low quota.
             if remaining_minutes_by_title.get(title, 0) > 0:
                 return True
@@ -967,6 +1006,11 @@ def auto_generate(
         return rng.choices(candidates, weights=weights, k=1)[0]
 
     while segments:
+        if len(generated) >= MAX_TOTAL_GENERATED_SESSIONS:
+            break
+        if sum(max(0, int(v)) for v in remaining_minutes_by_title.values()) < MIN_SESSION:
+            break
+
         seg = segments.pop(0)
         d, seg_start, seg_end = seg
         if seg_end - seg_start < MIN_SESSION:
@@ -979,7 +1023,19 @@ def auto_generate(
         sess, rem = schedule_in_segment(seg, course)
         if sess is None:
             continue
+        if len(generated) >= MAX_SESSIONS:
+            break
 
+        if total_minutes_used >= MAX_TOTAL_MINUTES:
+            break
+
+        course_id = str(course["id"])
+
+        if subject_minutes.get(course_id, 0) >= PER_SUBJECT_MAX_MINUTES.get(course["priority"], 120):
+            continue
+
+        if (course_id, d) in subject_day_seen:
+            continue
         # Update trackers
         generated.append(sess)
         counts_by_title[sess.subject] = counts_by_title.get(sess.subject, 0) + 1
@@ -990,6 +1046,10 @@ def auto_generate(
             length_mins = _to_minutes(_parse_hhmm(sess.endTime)) - _to_minutes(_parse_hhmm(sess.startTime))
         except Exception:
             length_mins = 0
+        total_minutes_used += int(length_mins)
+        subject_minutes[course_id] = subject_minutes.get(course_id, 0) + int(length_mins)
+        subject_day_seen.add((course_id, d))
+        sessions_created += 1
         remaining_minutes_by_title[sess.subject] = int(remaining_minutes_by_title.get(sess.subject, 0)) - int(length_mins)
 
         last_subject, last_day = sess.subject, sess.day
@@ -1010,6 +1070,7 @@ def auto_generate(
             "allocation": {
                 "horizon_days": 7,
                 "total_available_minutes_week": int(total_available_minutes_week),
+                "desired_study_minutes_week": int(desired_study_minutes_week),
                 "targets_minutes_by_course": dict(target_minutes_by_title),
                 "effective_weight_by_course": {k: round(float(v), 4) for k, v in effective_weight_by_title.items()},
                 "urgency_score_by_course": {k: round(float(v), 4) for k, v in urgency_by_title.items()},
@@ -1018,6 +1079,8 @@ def auto_generate(
             # CP-09: distribution controls
             "distribution": {
                 "cap_sessions_per_day_per_subject": CAP_SESSIONS_PER_DAY_PER_SUBJECT,
+                "max_sessions_per_week_per_subject": MAX_SESSIONS_PER_WEEK_PER_SUBJECT,
+                "max_total_generated_sessions": MAX_TOTAL_GENERATED_SESSIONS,
                 "avoid_back_to_back_same_subject": True,
             },
             "low_priority_min_quota": 1,

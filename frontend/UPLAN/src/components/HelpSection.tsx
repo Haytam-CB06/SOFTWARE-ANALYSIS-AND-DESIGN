@@ -241,7 +241,7 @@ export default function HelpSection() {
                     {t('help.sections.smart.intro')}
                   </p>
 
-                  <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                  <div className="rounded-2xl border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950/30">
                     <p className="text-sm text-foreground mb-1">
                       <strong>{t('help.sections.smart.highTitle')}</strong>
                     </p>
@@ -250,7 +250,7 @@ export default function HelpSection() {
                     </p>
                   </div>
 
-                  <div className="bg-white-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                  <div className="bg-white-50 rounded-2xl border border-yellow-200 p-3 dark:border-yellow-800 dark:bg-yellow-950/30">
                     <p className="text-sm text-foreground mb-1">
                       <strong>{t('help.sections.smart.mediumTitle')}</strong>
                     </p>
@@ -259,7 +259,7 @@ export default function HelpSection() {
                     </p>
                   </div>
 
-                  <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-3">
+                  <div className="rounded-2xl border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950/30">
                     <p className="text-sm text-foreground mb-1">
                       <strong>{t('help.sections.smart.lowTitle')}</strong>
                     </p>
@@ -268,7 +268,7 @@ export default function HelpSection() {
                     </p>
                   </div>
 
-                  <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                  <div className="rounded-2xl border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-950/30">
                     <p className="text-sm text-foreground mb-1">
                       <strong>{t('help.sections.smart.optimalTitle')}</strong>
                     </p>

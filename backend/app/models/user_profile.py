@@ -17,6 +17,8 @@ class UserProfile(Base):
 
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), primary_key=True)
     department = Column(Text, nullable=True)
+    profile_title = Column(Text, nullable=True)
+    background_theme = Column(Text, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

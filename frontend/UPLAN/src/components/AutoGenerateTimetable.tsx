@@ -30,6 +30,7 @@ type Priority = 'low' | 'medium' | 'high';
 
 interface AutoGenerateTimetableProps {
   onNavigate?: (page: string) => void;
+  onBack?: () => void;
   scope?: 'user' | 'workspace';
   workspaceId?: string;
   embedded?: boolean;
@@ -59,6 +60,7 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 
 export default function AutoGenerateTimetable({
   onNavigate,
+  onBack,
   scope,
   workspaceId: workspaceIdProp,
   embedded,
@@ -72,13 +74,13 @@ export default function AutoGenerateTimetable({
 
   const days = useMemo(
     () => [
-      { id: 0, label: t('autoGenerate.days.mon') },
-      { id: 1, label: t('autoGenerate.days.tue') },
-      { id: 2, label: t('autoGenerate.days.wed') },
-      { id: 3, label: t('autoGenerate.days.thu') },
-      { id: 4, label: t('autoGenerate.days.fri') },
-      { id: 5, label: t('autoGenerate.days.sat') },
-      { id: 6, label: t('autoGenerate.days.sun') },
+      { id: 0, label: t('days.monday') },
+      { id: 1, label: t('days.tuesday') },
+      { id: 2, label: t('days.wednesday') },
+      { id: 3, label: t('days.thursday') },
+      { id: 4, label: t('days.friday') },
+      { id: 5, label: t('days.saturday') },
+      { id: 6, label: t('days.sunday') },
     ],
     [t]
   );
@@ -539,98 +541,137 @@ export default function AutoGenerateTimetable({
       toast.error(t('autoGenerate.errors.saveClass'));
     }
   };
+  const looksLikeRealCourse = (value: string) => {
+    const s = (value || '').trim().toUpperCase();
+    if (!s) return false;
 
+    // reject very short junk
+    if (s.length < 3) return false;
+
+    // reject generic labels / room-only noise
+    if (/^(ROOM|LAB|SECTION|SEC|TIME|DAY|COURSE|SUBJECT|CLASS|LECTURE)$/.test(s)) {
+      return false;
+    }
+
+    // reject pure numbers / punctuation
+    if (/^[\d\W_]+$/.test(s)) return false;
+
+    // reject obvious OCR garbage like 1-2 random chars mixed with symbols
+    const compact = s.replace(/[^A-Z0-9]/g, '');
+    if (compact.length < 3) return false;
+
+    return true;
+  };
+
+  const isValidTimeRange = (start: string, end: string) => {
+    if (!start || !end) return false;
+    if (start.length < 5 || end.length < 5) return false;
+    return start < end;
+  };
   const handleUploadTimetable = async (file: File) => {
-    if (!API_BASE_URL || !userId) return;
+  if (!API_BASE_URL || !userId) return;
 
-    const lower = file.name.toLowerCase();
-    const isCsv = lower.endsWith('.csv') || file.type.includes('csv');
-    const isExcel = lower.endsWith('.xlsx') || lower.endsWith('.xlsm');
-    const isImage = file.type.startsWith('image/');
+  const lower = file.name.toLowerCase();
+  const isCsv = lower.endsWith('.csv') || file.type.includes('csv');
+  const isExcel = lower.endsWith('.xlsx') || lower.endsWith('.xls');
+  const isImage = file.type.startsWith('image/');
 
-    if (!isCsv && !isImage && !isExcel) {
-      toast.error(t('autoGenerate.errors.uploadCsvOrImage'));
+  if (!isCsv && !isImage && !isExcel) {
+    toast.error(t('autoGenerate.errors.uploadCsvOrImage'));
+    return;
+  }
+
+  const form = new FormData();
+  form.append('file', file);
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/timetable/import-preview`, {
+      method: 'POST',
+      body: form,
+      headers: { 'X-User-Id': userId },
+    });
+
+    if (!res.ok) {
+      toast.error(t('autoGenerate.errors.uploadFailed'));
       return;
     }
 
-    const form = new FormData();
-    form.append('file', file);
+    const data = await res.json();
+    const items: any[] = Array.isArray(data?.items) ? data.items : [];
+    const warnings: string[] = Array.isArray(data?.warnings) ? data.warnings : [];
+    const errors: string[] = Array.isArray(data?.errors) ? data.errors : [];
 
-    try {
-      const res = await fetch(`${API_BASE_URL}/timetable/import-preview`, {
-        method: 'POST',
-        body: form,
-        headers: { 'X-User-Id': userId },
-      });
+    setImportWarnings(warnings);
+    setImportErrors(errors);
 
-      if (!res.ok) {
-        toast.error(t('autoGenerate.errors.uploadFailed'));
-        return;
-      }
-
-      const data = await res.json();
-      const items: any[] = Array.isArray(data?.items) ? data.items : [];
-      const warnings: string[] = Array.isArray(data?.warnings) ? data.warnings : [];
-      const errors: string[] = Array.isArray(data?.errors) ? data.errors : [];
-
-      setImportWarnings(warnings);
-      setImportErrors(errors);
-
-      if (items.length === 0) {
-        toast.error(t('autoGenerate.errors.noClassesDetected'));
-        return;
-      }
-
-      const backendToFrontendDay = (d: number) => ((d - 1 + 7) % 7);
-
-      const grouped = new Map<string, CourseRow>();
-
-      for (const it of items) {
-        const title = (it.subject_title || '').toString().trim().toUpperCase();
-        const start = (it.start_time || '').toString().slice(0, 5);
-        const end = (it.end_time || '').toString().slice(0, 5);
-        const dayBackend = typeof it.day_of_week === 'number' ? it.day_of_week : null;
-        const day = dayBackend !== null ? backendToFrontendDay(dayBackend) : null;
-
-        if (!title || !start || !end || day === null) continue;
-        if (start >= end) continue;
-
-        const key = `${title}__${start}__${end}`;
-        if (!grouped.has(key)) {
-          grouped.set(key, {
-            id: uid(),
-            title,
-            days: [day],
-            startTime: start,
-            endTime: end,
-            priority: 'medium',
-          });
-        } else {
-          const existing = grouped.get(key)!;
-          existing.days = Array.from(new Set([...existing.days, day])).sort((a, b) => a - b);
-        }
-      }
-
-      const imported = Array.from(grouped.values());
-
-      if (imported.length === 0) {
-        toast.error(t('autoGenerate.errors.invalidImportFormat'));
-        return;
-      }
-
-      setCourses(imported);
-      setCourseMode('upload');
-
-      if (warnings.length > 0) {
-        toast.success(`${t('autoGenerate.success.importedRows', { count: imported.length })} (${warnings.length} ${t('autoGenerate.warningsLabel')})`);
-      } else {
-        toast.success(t('autoGenerate.success.importedRows', { count: imported.length }));
-      }
-    } catch (e) {
-      console.error(e);
-      toast.error(t('autoGenerate.errors.uploadFailedGeneric'));
+    if (items.length === 0) {
+      toast.error(t('autoGenerate.errors.noClassesDetected'));
+      return;
     }
-  };
+
+    // IMPORTANT:
+    // keep this as identity mapping only if backend preview now returns Monday-first (0=Mon..6=Sun)
+    const backendToFrontendDay = (d: number) => d;
+
+    const grouped = new Map<string, CourseRow>();
+
+for (const it of items) {
+  const rawTitle = (it.subject_title || '').toString().trim();
+  const title = rawTitle.toUpperCase();
+  const start = (it.start_time || '').toString().slice(0, 5);
+  const end = (it.end_time || '').toString().slice(0, 5);
+  const dayBackend = typeof it.day_of_week === 'number' ? it.day_of_week : null;
+  const day = dayBackend !== null ? backendToFrontendDay(dayBackend) : null;
+
+  if (!title || day === null) continue;
+  if (!looksLikeRealCourse(title)) continue;
+  if (!isValidTimeRange(start, end)) continue;
+  if (day < 0 || day > 6) continue;
+
+  const key = `${title}__${start}__${end}`;
+  if (!grouped.has(key)) {
+    grouped.set(key, {
+      id: uid(),
+      title,
+      days: [day],
+      startTime: start,
+      endTime: end,
+      priority: 'medium',
+    });
+  } else {
+    const existing = grouped.get(key)!;
+    existing.days = Array.from(new Set([...existing.days, day])).sort((a, b) => a - b);
+  }
+}
+
+    const imported = Array.from(grouped.values());
+
+    if (imported.length === 0) {
+      toast.error(t('autoGenerate.errors.invalidImportFormat'));
+      return;
+    }
+
+    // stricter protection for image OCR imports
+    if (isImage && imported.length > 8) {
+      toast.error('Too many courses detected from the image. Remove wrong rows or use CSV/Excel.');
+      return;
+    }
+
+    setCourses(imported);
+    setCourseMode('upload');
+
+    if (warnings.length > 0) {
+      toast.success(
+        `${t('autoGenerate.success.importedRows', { count: imported.length })} (${warnings.length} ${t('autoGenerate.warningsLabel')})`
+      );
+    } else {
+      toast.success(t('autoGenerate.success.importedRows', { count: imported.length }));
+    }
+  } catch (e) {
+    console.error(e);
+    toast.error(t('autoGenerate.errors.uploadFailedGeneric'));
+  }
+};
 
   const addCourseFromDraft = () => {
     const title = (courseDraft.title || '').trim();
@@ -688,7 +729,10 @@ export default function AutoGenerateTimetable({
       toast.error(t('autoGenerate.errors.fillOrUploadFirst'));
       return;
     }
-
+    if (courses.length > 8) {
+    toast.error('Too many imported courses. Please remove incorrect rows before generating.');
+    return;
+  }
     setIsGenerating(true);
     try {
       await Promise.allSettled([saveStudyWindow(), saveBusyBlocks(), saveClassSchedule()]);
@@ -846,7 +890,9 @@ export default function AutoGenerateTimetable({
                     } catch {
                       // ignore
                     }
-                    if (isWorkspaceContext) {
+                    if (onBack) {
+                      onBack();
+                    } else if (isWorkspaceContext) {
                       try {
                         localStorage.setItem('workspaceOpenTab', 'timetable');
                       } catch {
@@ -865,7 +911,7 @@ export default function AutoGenerateTimetable({
           </div>
         )}
 
-        <Card className="rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#0b0b0b]">
+        <Card data-tour="auto-study-window" className="rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#0b0b0b]">
           <CardHeader className="rounded-t-[28px] border-b border-slate-100 bg-slate-50/70 dark:border-white/10 dark:bg-white/[0.03]">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400">
@@ -948,7 +994,7 @@ export default function AutoGenerateTimetable({
           </CardContent>
         </Card>
 
-        <Card className="rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#0b0b0b]">
+        <Card data-tour="auto-class-schedule" className="rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#0b0b0b]">
           <CardHeader className="rounded-t-[28px] border-b border-slate-100 bg-slate-50/70 dark:border-white/10 dark:bg-white/[0.03]">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400">
@@ -1003,12 +1049,12 @@ export default function AutoGenerateTimetable({
                     <div className="flex flex-wrap gap-2 pt-1">
                       <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
                         <FileSpreadsheet className="h-3.5 w-3.5" />
-                        CSV
+                        CSV / XLSX
                       </div>
 
                       <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
                         <FileImage className="h-3.5 w-3.5" />
-                        PNG / JPG / JPEG
+                        PNG / JPG / JPEG (review required)
                       </div>
                     </div>
                   </div>
@@ -1250,7 +1296,7 @@ export default function AutoGenerateTimetable({
           </CardContent>
         </Card>
 
-        <Card className="rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#0b0b0b]">
+        <Card data-tour="auto-busy-time" className="rounded-[28px] border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#0b0b0b]">
           <CardHeader className="rounded-t-[28px] border-b border-slate-100 bg-slate-50/70 dark:border-white/10 dark:bg-white/[0.03]">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400">
@@ -1437,6 +1483,7 @@ export default function AutoGenerateTimetable({
 
         <div className="sticky bottom-4 z-10 flex justify-end gap-2">
           <Button
+            data-tour="auto-generate"
             onClick={() => handleGenerate({ shuffle: false })}
             disabled={isGenerating}
             className="rounded-2xl bg-blue-700 px-5 text-white shadow-lg hover:bg-blue-700"

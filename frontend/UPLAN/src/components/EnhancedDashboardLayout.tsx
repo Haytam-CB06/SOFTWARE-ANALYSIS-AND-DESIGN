@@ -25,6 +25,7 @@ import {
   Trophy,
   Save,
   Brain,
+  MessageSquare,
 } from 'lucide-react';
 import logoImage from 'figma:asset/0550e77f773f70cb0e6201f9400b3cccad8c1d9b.png';
 import { Button } from './ui/button';
@@ -43,6 +44,7 @@ import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { Input } from './ui/input';
 import type { Timetable } from '../src/types';
 import { apiJsonAuthed, API_BASE_URL } from '../lib/api';
+import { useInlineText } from '../i18n/inlineText';
 
 interface EnhancedDashboardLayoutProps {
   children: React.ReactNode;
@@ -53,6 +55,8 @@ interface EnhancedDashboardLayoutProps {
   userEmail: string;
   onShowPomodoroWidget?: () => void;
   isGlobalAdmin?: boolean;
+  darkMode: boolean;
+  onToggleDarkMode: (darkMode: boolean) => void;
 }
 
 export default function EnhancedDashboardLayout({
@@ -64,47 +68,73 @@ export default function EnhancedDashboardLayout({
   userEmail,
   onShowPomodoroWidget,
   isGlobalAdmin,
+  darkMode,
+  onToggleDarkMode,
 }: EnhancedDashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarHoverOpen, setSidebarHoverOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [highlightIndex, setHighlightIndex] = useState<number>(-1);
   const [profilePicture, setProfilePicture] = useState<string>('');
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [suggestions, setSuggestions] = useState<SearchItem[]>([]);
-  const [workspaceUnreadCount, setWorkspaceUnreadCount] = useState(0);
+  const [workspaceNotifications, setWorkspaceNotifications] = useState({
+    chat: 0,
+    board: 0,
+    activity: 0,
+    messages: 0,
+    total: 0,
+  });
   const { t } = useTranslation();
+  const tt = useInlineText();
 
   type SearchItem =
     | { kind: 'page'; label: string; page: string }
     | { kind: 'timetable'; label: string; timetableId: string; weekStartDate?: string; isActive?: boolean }
     | { kind: 'subject'; label: string; timetableId: string; timetableName: string };
 
-  const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem('darkMode');
-    return saved === 'true';
-  });
-
   const { notifications, markAllAsRead, clearNotification, unreadCount } = useNotifications();
-
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    localStorage.setItem('darkMode', darkMode.toString());
-  }, [darkMode]);
+  const workspaceUnreadCount = workspaceNotifications.chat + workspaceNotifications.board + workspaceNotifications.activity;
+  const workspaceNotificationSources = useMemo(() => {
+    const sources: string[] = [];
+    if (workspaceNotifications.chat > 0) sources.push('chat');
+    if (workspaceNotifications.board > 0) sources.push('board');
+    if (workspaceNotifications.activity > 0) sources.push('activity');
+    return sources;
+  }, [workspaceNotifications]);
+  const workspaceNotificationSummary =
+    workspaceUnreadCount > 0 && workspaceNotificationSources.length > 0
+      ? `${workspaceUnreadCount > 9 ? '9+' : workspaceUnreadCount} new: ${workspaceNotificationSources.join(', ')}`
+      : workspaceUnreadCount > 0
+        ? `${workspaceUnreadCount > 9 ? '9+' : workspaceUnreadCount} new`
+      : 'Tasks, files, chat, activity';
 
   const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
+    onToggleDarkMode(!darkMode);
   };
 
   useEffect(() => {
     const handleStorageChange = () => {
-      const count = parseInt(localStorage.getItem('workspaceUnreadCount') || '0', 10);
-      setWorkspaceUnreadCount(count);
+      try {
+        const rawCounts = localStorage.getItem('workspaceNotificationCounts');
+        if (rawCounts) {
+          const parsed = JSON.parse(rawCounts);
+          const chat = Number(parsed?.chat || 0);
+          const board = Number(parsed?.board || 0);
+          const activity = Number(parsed?.activity || 0);
+          const messages = Number(parsed?.messages || 0);
+          const total = Number(parsed?.total ?? chat + board + activity + messages);
+          setWorkspaceNotifications({ chat, board, activity, messages, total });
+          return;
+        }
+      } catch {
+        // Fall back to the legacy total-only badge below.
+      }
+
+      const total = parseInt(localStorage.getItem('workspaceUnreadCount') || '0', 10);
+      setWorkspaceNotifications({ chat: 0, board: 0, activity: 0, messages: 0, total });
     };
 
     handleStorageChange();
@@ -115,6 +145,40 @@ export default function EnhancedDashboardLayout({
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('workspaceUnreadCountChanged', handleStorageChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    const refreshDirectMessages = async () => {
+      try {
+        const userId = localStorage.getItem('currentUserId');
+        if (!userId) return;
+        const conversations = await apiJsonAuthed<any[]>(`/user/${encodeURIComponent(userId)}/conversations`, 'GET');
+        const messages = Array.isArray(conversations)
+          ? conversations.reduce((sum, conversation) => sum + Number(conversation?.unread_count || 0), 0)
+          : 0;
+        setWorkspaceNotifications((prev) => {
+          const total = prev.chat + prev.board + prev.activity + messages;
+          const next = { ...prev, messages, total };
+          try {
+            localStorage.setItem('workspaceNotificationCounts', JSON.stringify(next));
+            localStorage.setItem('workspaceUnreadCount', String(total));
+          } catch {
+            // ignore
+          }
+          return next;
+        });
+      } catch {
+        // Presence and messages should never block layout rendering.
+      }
+    };
+
+    refreshDirectMessages();
+    const id = window.setInterval(refreshDirectMessages, 45000);
+    window.addEventListener('focus', refreshDirectMessages);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener('focus', refreshDirectMessages);
     };
   }, []);
 
@@ -240,6 +304,7 @@ export default function EnhancedDashboardLayout({
       { label: t('dashboard.pages.assessments'), page: 'assessments-deadlines' },
       { label: t('dashboard.pages.studyNotes'), page: 'notebook' },
       { label: t('dashboard.pages.collaboration'), page: 'workspace' },
+      { label: 'Messages', page: 'messages' },
       { label: t('dashboard.pages.performance'), page: 'goals-achievements' },
       { label: t('dashboard.pages.createSchedule'), page: 'create-timetable' },
       { label: t('dashboard.pages.savedSchedules'), page: 'view-timetables' },
@@ -383,6 +448,7 @@ export default function EnhancedDashboardLayout({
   const toggleSidebarCollapse = () => {
     const newState = !sidebarCollapsed;
     setSidebarCollapsed(newState);
+    if (newState) setSidebarHoverOpen(false);
     localStorage.setItem('sidebarCollapsed', JSON.stringify(newState));
   };
 
@@ -404,6 +470,7 @@ export default function EnhancedDashboardLayout({
           { id: 'assessments-deadlines', icon: FileText, label: t('dashboard.pages.assessments') },
           { id: 'notebook', icon: NotebookPen, label: t('dashboard.pages.studyNotes') },
           { id: 'workspace', icon: Users, label: t('dashboard.pages.collaboration') },
+          { id: 'messages', icon: MessageSquare, label: 'Messages' },
         ],
       },
       {
@@ -429,14 +496,155 @@ export default function EnhancedDashboardLayout({
   const mobilePrimaryItems = [
     { id: 'dashboard', icon: LayoutDashboard, label: t('common.home') },
     { id: 'my-timetable', icon: Calendar, label: t('common.timetable') },
-    { id: 'workspace', icon: Users, label: t('common.workspace') },
+    { id: 'messages', icon: MessageSquare, label: 'Messages' },
     { id: 'view-timetables', icon: BookMarked, label: t('common.saved') },
     { id: 'settings', icon: Settings2, label: t('common.settings') },
   ];
 
+  const renderSidebarContent = (floating = false) => (
+    <div className="flex h-full flex-col">
+      <div className="border-b border-slate-200 px-3 py-3 dark:border-slate-800">
+        <button
+          onClick={() => {
+            setSidebarCollapsed((current) => {
+              const next = !current;
+              localStorage.setItem('sidebarCollapsed', JSON.stringify(next));
+              if (!next) setSidebarHoverOpen(false);
+              return next;
+            });
+          }}
+          className="group flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition-all duration-200 hover:bg-slate-50 dark:hover:bg-slate-900"
+          title={floating ? t('dashboard.sidebar.expand') : t('dashboard.sidebar.collapse')}
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+            <img
+              src={logoImage}
+              alt="U PLAN"
+              className="h-7 w-7 object-contain transition-transform duration-200 group-hover:scale-[1.03]"
+            />
+          </div>
+
+          <div className="min-w-0 text-left">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+              {t('dashboard.sidebar.portal')}
+            </p>
+            <h2 className="truncate text-sm font-semibold text-slate-900 dark:text-white">U PLAN</h2>
+          </div>
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-3 py-4">
+        <button
+          onClick={() => {
+            onNavigate('workspace');
+            if (floating) setSidebarHoverOpen(false);
+          }}
+          className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-blue-100 bg-blue-50 px-3 py-3 text-left text-blue-900 transition hover:bg-blue-100 dark:border-blue-900/40 dark:bg-blue-950/25 dark:text-blue-100 dark:hover:bg-blue-950/40"
+        >
+          <Users className="h-5 w-5 shrink-0 text-blue-700 dark:text-blue-300" />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-semibold">Workspace hub</span>
+            <span className="block truncate text-xs text-blue-700/75 dark:text-blue-200/75">
+              {workspaceNotificationSummary}
+            </span>
+            {workspaceNotificationSources.length > 0 && (
+              <span className="mt-2 flex flex-wrap gap-1">
+                {workspaceNotificationSources.map((source) => (
+                  <span
+                    key={source}
+                    className="inline-flex items-center rounded-md bg-white/80 px-1.5 py-0.5 text-[10px] font-semibold capitalize text-blue-800 ring-1 ring-blue-200 dark:bg-blue-950/60 dark:text-blue-100 dark:ring-blue-800"
+                  >
+                    {source}
+                  </span>
+                ))}
+              </span>
+            )}
+          </span>
+          {workspaceUnreadCount > 0 && (
+            <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-semibold text-white">
+              {workspaceUnreadCount > 9 ? '9+' : workspaceUnreadCount}
+            </span>
+          )}
+        </button>
+
+        <nav className="space-y-5">
+          {menuSections.map((section) => (
+            <div key={section.title}>
+              <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+                {section.title}
+              </p>
+
+              <div className="space-y-1.5">
+                {section.items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = currentPage === item.id;
+
+                  return (
+                    <button
+                      key={item.id}
+                      data-tour={`sidebar-${item.id}`}
+                      onClick={() => {
+                        onNavigate(item.id);
+                        if (floating) setSidebarHoverOpen(false);
+                      }}
+                      className={`group relative flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-all duration-200 ${
+                        isActive
+                          ? 'bg-blue-700 text-white shadow-sm dark:bg-blue-600 dark:text-white'
+                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      {isActive && (
+                        <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-blue-700 dark:bg-blue-400" />
+                      )}
+
+                      <Icon
+                        className={`h-5 w-5 flex-shrink-0 ${
+                          isActive
+                            ? 'text-white'
+                            : 'text-slate-400 group-hover:text-slate-700 dark:text-slate-500 dark:group-hover:text-slate-200'
+                        }`}
+                      />
+
+                      <span className="flex min-w-0 flex-1 items-center gap-2">
+                        <span className="truncate text-[14px] font-medium tracking-[-0.01em]">{item.label}</span>
+                        {item.id === 'workspace' && workspaceUnreadCount > 0 && (
+                          <span className="ml-auto inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-semibold text-white">
+                            {workspaceUnreadCount > 9 ? '9+' : workspaceUnreadCount}
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </nav>
+      </div>
+
+      <div className="border-t border-slate-200 px-3 py-3 dark:border-slate-800">
+        <button
+          onClick={onLogout}
+          className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
+        >
+          <LogOut className="h-5 w-5 flex-shrink-0" />
+          <span className="text-sm font-medium">{t('common.logout')}</span>
+        </button>
+
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+          <div className="flex items-center gap-2">
+            <Brain className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <p className="font-semibold text-slate-800 dark:text-slate-100">{t('AI Study Planner')}</p>
+          </div>
+          <p className="mt-1">v1.0 â€¢ {t('dashboard.footer')}</p>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-      <nav className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/85">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_16%_0%,rgba(37,99,235,0.13),transparent_27%),linear-gradient(180deg,#f8fbff_0%,#eef4fb_48%,#f8fafc_100%)] text-slate-900 dark:bg-[radial-gradient(circle_at_16%_0%,rgba(59,130,246,0.18),transparent_26%),linear-gradient(180deg,#05070b_0%,#07111f_52%,#020617_100%)] dark:text-slate-100">
+      <nav className="sticky top-0 z-50 border-b border-white/70 bg-white/86 shadow-[0_12px_35px_rgba(15,23,42,0.06)] backdrop-blur-2xl dark:border-white/10 dark:bg-slate-950/82 dark:shadow-[0_12px_35px_rgba(0,0,0,0.30)]">
         <div className="flex h-14 items-center justify-between px-3 sm:px-4 lg:px-6">
           <div className="flex min-w-0 items-center gap-2">
             <Button
@@ -679,19 +887,27 @@ export default function EnhancedDashboardLayout({
                         onSelect={(e) => e.preventDefault()}
                       >
                         <div className="flex w-full items-start justify-between gap-2">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
+                          <div className="flex min-w-0 flex-1 items-start gap-3">
+                            {notification.avatarUrl ? (
+                              <Avatar className="mt-0.5 h-9 w-9 border border-slate-200 dark:border-slate-800">
+                                <AvatarImage src={notification.avatarUrl} alt={notification.senderName || notification.title} />
+                                <AvatarFallback>{(notification.senderName || notification.title).slice(0, 2).toUpperCase()}</AvatarFallback>
+                              </Avatar>
+                            ) : null}
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
                               <p className="text-sm font-medium text-slate-800 dark:text-slate-100">
                                 {notification.title}
                               </p>
                               {!notification.read && (
                                 <div className="h-2 w-2 rounded-full bg-blue-700 dark:bg-blue-400" />
                               )}
+                              </div>
+                              <p className="mt-1 line-clamp-2 text-xs text-slate-500 dark:text-slate-400">
+                                {notification.message}
+                              </p>
+                              <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{notification.time}</p>
                             </div>
-                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                              {notification.message}
-                            </p>
-                            <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{notification.time}</p>
                           </div>
                           <Button
                             variant="ghost"
@@ -805,8 +1021,10 @@ export default function EnhancedDashboardLayout({
 
       <div className="flex min-h-[calc(100vh-3.5rem)]">
         <aside
-          className={`hidden lg:fixed lg:bottom-0 lg:left-0 lg:top-14 lg:flex lg:flex-col border-r border-slate-200 bg-white/95 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95 transition-all duration-300 z-40 ${
-            sidebarCollapsed ? 'lg:w-20' : 'lg:w-80'
+          className={`hidden lg:fixed lg:bottom-0 lg:left-0 lg:top-14 lg:z-40 lg:flex lg:flex-col border-r border-slate-200 bg-white shadow-sm transition-all duration-300 dark:border-slate-800 dark:bg-slate-950 ${
+            sidebarCollapsed
+              ? 'lg:w-0 -translate-x-full opacity-0 pointer-events-none'
+              : 'lg:w-72 translate-x-0 opacity-100'
           }`}
         >
           <div className="flex h-full flex-col">
@@ -840,6 +1058,37 @@ export default function EnhancedDashboardLayout({
             </div>
 
             <div className="flex-1 overflow-y-auto px-3 py-4">
+              {!sidebarCollapsed && (
+                <button
+                  onClick={() => onNavigate('workspace')}
+                  className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-blue-100 bg-blue-50 px-3 py-3 text-left text-blue-900 transition hover:bg-blue-100 dark:border-blue-900/40 dark:bg-blue-950/25 dark:text-blue-100 dark:hover:bg-blue-950/40"
+                >
+                  <Users className="h-5 w-5 shrink-0 text-blue-700 dark:text-blue-300" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold">Workspace hub</span>
+                      <span className="block truncate text-xs text-blue-700/75 dark:text-blue-200/75">
+                        {workspaceNotificationSummary}
+                      </span>
+                      {workspaceNotificationSources.length > 0 && (
+                        <span className="mt-2 flex flex-wrap gap-1">
+                          {workspaceNotificationSources.map((source) => (
+                            <span
+                              key={source}
+                              className="inline-flex items-center rounded-md bg-white/80 px-1.5 py-0.5 text-[10px] font-semibold capitalize text-blue-800 ring-1 ring-blue-200 dark:bg-blue-950/60 dark:text-blue-100 dark:ring-blue-800"
+                            >
+                              {source}
+                            </span>
+                          ))}
+                        </span>
+                      )}
+                    </span>
+                  {workspaceUnreadCount > 0 && (
+                    <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-semibold text-white">
+                      {workspaceUnreadCount > 9 ? '9+' : workspaceUnreadCount}
+                    </span>
+                  )}
+                </button>
+              )}
               <nav className="space-y-5">
                 {menuSections.map((section) => (
                   <div key={section.title}>
@@ -859,12 +1108,18 @@ export default function EnhancedDashboardLayout({
                             key={item.id}
                             data-tour={`sidebar-${item.id}`}
                             onClick={() => onNavigate(item.id)}
-                            className={`group relative flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition-all duration-200 ${
+                            className={`group relative flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-all duration-200 ${
                               isActive
-                                ? 'bg-blue-50 text-blue-700 dark:bg-slate-900 dark:text-blue-400'
-                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-white'
+                                ? 'bg-blue-700 text-white shadow-sm dark:bg-blue-600 dark:text-white'
+                                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-white'
                             } ${sidebarCollapsed ? 'justify-center px-2' : ''}`}
-                            title={sidebarCollapsed ? item.label : ''}
+                            title={
+                              sidebarCollapsed && item.id === 'workspace' && workspaceUnreadCount > 0
+                                ? `${item.label} (${workspaceNotificationSummary})`
+                                : sidebarCollapsed
+                                  ? item.label
+                                  : ''
+                            }
                           >
                             {isActive && !sidebarCollapsed && (
                               <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-blue-700 dark:bg-blue-400" />
@@ -873,7 +1128,7 @@ export default function EnhancedDashboardLayout({
                             <Icon
                               className={`h-5 w-5 flex-shrink-0 ${
                                 isActive
-                                  ? 'text-blue-700 dark:text-blue-400'
+                                  ? 'text-white'
                                   : 'text-slate-400 group-hover:text-slate-700 dark:text-slate-500 dark:group-hover:text-slate-200'
                               }`}
                             />
@@ -889,12 +1144,22 @@ export default function EnhancedDashboardLayout({
                                     {workspaceUnreadCount > 9 ? '9+' : workspaceUnreadCount}
                                   </span>
                                 )}
+                                {item.id === 'messages' && workspaceNotifications.messages > 0 && (
+                                  <span className="ml-auto inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-semibold text-white">
+                                    {workspaceNotifications.messages > 9 ? '9+' : workspaceNotifications.messages}
+                                  </span>
+                                )}
                               </span>
                             )}
 
                             {sidebarCollapsed && item.id === 'workspace' && workspaceUnreadCount > 0 && (
                               <span className="absolute right-1 top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-semibold text-white">
                                 {workspaceUnreadCount > 9 ? '9+' : workspaceUnreadCount}
+                              </span>
+                            )}
+                            {sidebarCollapsed && item.id === 'messages' && workspaceNotifications.messages > 0 && (
+                              <span className="absolute right-1 top-1 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-semibold text-white">
+                                {workspaceNotifications.messages > 9 ? '9+' : workspaceNotifications.messages}
                               </span>
                             )}
                           </button>
@@ -922,7 +1187,7 @@ export default function EnhancedDashboardLayout({
                 <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-xs text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
                   <div className="flex items-center gap-2">
                     <Brain className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                    <p className="font-semibold text-slate-800 dark:text-slate-100">AI Study Planner</p>
+                    <p className="font-semibold text-slate-800 dark:text-slate-100">{t('AI Study Planner')}</p>
                   </div>
                   <p className="mt-1">v1.0 • {t('dashboard.footer')}</p>
                 </div>
@@ -931,20 +1196,49 @@ export default function EnhancedDashboardLayout({
           </div>
         </aside>
 
+        {sidebarCollapsed && (
+          <div
+            className="hidden lg:block"
+            onMouseEnter={() => setSidebarHoverOpen(true)}
+            onMouseLeave={() => setSidebarHoverOpen(false)}
+          >
+            <button
+              type="button"
+              onFocus={() => setSidebarHoverOpen(true)}
+              onClick={() => setSidebarCollapsed(false)}
+              className="fixed left-0 top-[6.5rem] z-50 flex h-16 w-3 items-center justify-center rounded-r-lg border border-l-0 border-slate-200 bg-white/95 text-slate-400 shadow-[0_10px_24px_rgba(15,23,42,0.14)] transition-all duration-200 hover:w-5 hover:text-blue-700 dark:border-slate-800 dark:bg-slate-950/95 dark:text-slate-500 dark:hover:text-blue-400"
+              aria-label={t('dashboard.sidebar.expand')}
+              title={t('dashboard.sidebar.expand')}
+            >
+              <span className="h-8 w-1 rounded-full bg-current" />
+            </button>
+
+            <aside
+              className={`fixed bottom-4 left-3 top-[4.25rem] z-50 w-72 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.22)] ring-1 ring-white/70 backdrop-blur-xl transition-all duration-200 dark:border-slate-800 dark:bg-slate-950 dark:ring-white/10 ${
+                sidebarHoverOpen
+                  ? 'translate-x-0 opacity-100'
+                  : '-translate-x-4 pointer-events-none opacity-0'
+              }`}
+            >
+              {renderSidebarContent(true)}
+            </aside>
+          </div>
+        )}
+
         {sidebarOpen && (
           <>
             <div
               className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-[1px] lg:hidden"
               onClick={() => setSidebarOpen(false)}
             />
-            <aside className="fixed inset-y-0 left-0 z-50 flex w-[86vw] max-w-[320px] flex-col border-r border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950 lg:hidden">
+            <aside className="fixed inset-y-0 left-0 z-50 flex w-[92vw] max-w-[360px] flex-col border-r border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950 lg:hidden">
               <div className="flex h-16 items-center justify-between border-b border-slate-200 px-4 dark:border-slate-800">
                 <div className="flex min-w-0 items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
                     <img src={logoImage} alt="U PLAN" className="h-7 w-7 object-contain" />
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">AI Study Planner</p>
+                    <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">{t('AI Study Planner')}</p>
                     <p className="truncate text-[11px] text-slate-500 dark:text-slate-400">
                       {t('dashboard.user.planner')}
                     </p>
@@ -990,12 +1284,22 @@ export default function EnhancedDashboardLayout({
                       }}
                       className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition-all ${
                         isActive
-                          ? 'bg-blue-50 text-blue-700 dark:bg-slate-900 dark:text-blue-400'
-                          : 'text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900'
+                          ? 'bg-blue-700 text-white shadow-sm dark:bg-blue-600'
+                          : 'text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-900'
                       }`}
                     >
                       <Icon className="h-5 w-5 flex-shrink-0" />
                       <span className="truncate text-sm font-medium">{item.label}</span>
+                      {item.id === 'workspace' && workspaceUnreadCount > 0 && (
+                        <span className="ml-auto inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-semibold text-white">
+                          {workspaceUnreadCount > 9 ? '9+' : workspaceUnreadCount}
+                        </span>
+                      )}
+                      {item.id === 'messages' && workspaceNotifications.messages > 0 && (
+                        <span className="ml-auto inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-semibold text-white">
+                          {workspaceNotifications.messages > 9 ? '9+' : workspaceNotifications.messages}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -1020,16 +1324,16 @@ export default function EnhancedDashboardLayout({
 
         <main
           className={`min-w-0 flex-1 overflow-x-hidden transition-[margin] duration-300 ${
-            sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-80'
+            sidebarCollapsed ? 'lg:ml-0' : 'lg:ml-72'
           }`}
         >
-          <div className="mx-auto w-full max-w-[1560px] px-3 pb-24 pt-4 sm:px-4 md:px-5 lg:px-8 lg:pb-8 lg:pt-5">
+          <div className="mx-auto w-full max-w-[1560px] animate-[uplan-page-in_420ms_ease-out] px-3 pb-24 pt-5 sm:px-4 md:px-5 lg:px-8 lg:pb-10 lg:pt-7">
             {children}
           </div>
         </main>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur-xl lg:hidden dark:border-slate-800 dark:bg-slate-950/95">
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden dark:border-slate-800 dark:bg-slate-950/95">
         <div className="grid grid-cols-5">
           {mobilePrimaryItems.map((item) => {
             const Icon = item.icon;
@@ -1039,11 +1343,21 @@ export default function EnhancedDashboardLayout({
               <button
                 key={item.id}
                 onClick={() => onNavigate(item.id)}
-                className={`flex min-h-[64px] flex-col items-center justify-center gap-1 px-1 py-2 text-[11px] transition-all ${
+                className={`relative flex min-h-[68px] flex-col items-center justify-center gap-1 px-1 py-2 text-[11px] transition-all ${
                   isActive ? 'text-blue-700 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400'
                 }`}
               >
                 <Icon className={`h-4 w-4 ${isActive ? 'scale-110' : ''}`} />
+                {item.id === 'workspace' && workspaceUnreadCount > 0 && (
+                  <span className="absolute right-[22%] top-2 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+                    {workspaceUnreadCount > 9 ? '9+' : workspaceUnreadCount}
+                  </span>
+                )}
+                {item.id === 'messages' && workspaceNotifications.messages > 0 && (
+                  <span className="absolute right-[22%] top-2 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+                    {workspaceNotifications.messages > 9 ? '9+' : workspaceNotifications.messages}
+                  </span>
+                )}
                 <span className="max-w-[60px] truncate">{item.label}</span>
               </button>
             );

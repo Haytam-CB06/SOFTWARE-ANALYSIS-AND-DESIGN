@@ -8,6 +8,7 @@ from random import randint
 from email.mime.text import MIMEText
 import smtplib
 from app.routers import workspaces, permission, chat
+from app.routers import bff
 from app.routers import workspace_session_status
 from app.routers import workspace_auto_generate_config
 from app.routers import admin
@@ -50,6 +51,7 @@ from sqlalchemy.engine import Engine
 from passlib.context import CryptContext
 # backend/app/main.py
 from app.db import init_engine, get_db
+from app.platform import add_platform_middleware
 from . import schemas
 # backend/app/main.py  (add/keep these)
 import os
@@ -68,9 +70,6 @@ def cors_check():
 def _startup():
     # Initialize SQLAlchemy engine / session factory
     init_engine()
-    from app.models.base import Base
-    from app.db import _ENGINE
-    Base.metadata.create_all(bind=_ENGINE)
 
     # CP-13: optional lightweight notification poller (dev-friendly).
     # In production, prefer CP-15 (proper job infra) instead.
@@ -119,6 +118,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+add_platform_middleware(app, service_name="legacy")
 
 # Allow HTTP for local dev (don't use in production)
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = os.getenv(
@@ -434,9 +434,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
 
     except Exception as e:
         db.rollback()
-        print("GOOGLE CALLBACK ERROR:", repr(e))
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
 
 # ---------------------------------------------------------------------
 # INCLUDE ROUTER (DO NOT FORGET)
@@ -688,8 +686,10 @@ def verify_invite_token(token: str, max_age: int = 600) -> dict:
 
 @auth_router.post("/signup")
 def signup(payload: SignUpIn, db: Session = Depends(get_db)):
+    email = payload.email.strip().lower()
+
     verification = db.query(EmailVerification).filter(
-        EmailVerification.email == payload.email
+        EmailVerification.email == email
     ).first()
 
     if not verification:
@@ -715,7 +715,7 @@ def signup(payload: SignUpIn, db: Session = Depends(get_db)):
 
         exists = conn.execute(
             text("SELECT id FROM users WHERE email = :e OR full_name = :u LIMIT 1"),
-            {"e": payload.email, "u": payload.full_name},
+            {"e": email, "u": payload.full_name},
         ).fetchone()
 
         if exists:
@@ -729,7 +729,7 @@ def signup(payload: SignUpIn, db: Session = Depends(get_db)):
 
         data: Dict[str, Any] = {
             "id": user_id,
-            "email": payload.email,
+            "email": email,
             "password_hash": hash_password(payload.password),
         }
 
@@ -766,7 +766,7 @@ def signup(payload: SignUpIn, db: Session = Depends(get_db)):
             workspace_id = invite["workspace_id"]
             invited_email = invite["email"]
 
-            if invited_email.lower() != payload.email.lower():
+            if invited_email.lower() != email:
                 raise HTTPException(
                     status_code=403,
                     detail="Invite token does not match email"
@@ -800,7 +800,7 @@ def signup(payload: SignUpIn, db: Session = Depends(get_db)):
     return {
         "message": "Signup successful",
         "user_id": user_id,
-        "email": payload.email,
+        "email": email,
         "full_name": payload.full_name,
         "joined_workspace": bool(payload.invite_token),
     }
@@ -899,6 +899,12 @@ def login(payload: LoginIn, request: Request):
     }
 
 
+@auth_router.get("/login")
+def login_page_redirect():
+    frontend_origin = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000").rstrip("/")
+    return RedirectResponse(url=f"{frontend_origin}/?page=auth", status_code=302)
+
+
 
 # domain routers
 app.include_router(timetable.router)
@@ -920,6 +926,7 @@ app.include_router(admin.router)
 app.include_router(boards.router)
 app.include_router(subworkspaces.router)
 app.include_router(Notebook.router)
+app.include_router(bff.router)
 # --- MCP (Model Context Protocol) server ---
 # Exposes your FastAPI routes as MCP tools at /mcp so AI agents can call them
 # (e.g., for timetable image extraction).
@@ -1121,7 +1128,10 @@ U Plan
             detail="Failed to send reset email. Please try again later."
         )
 # 1️⃣ REQUEST CODE
-@app.post("/request_reset")
+password_router = APIRouter(tags=["auth"])
+
+
+@password_router.post("/request_reset")
 def request_reset(data: ResetRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == data.email).first()
     if not user:
@@ -1137,7 +1147,7 @@ def request_reset(data: ResetRequest, db: Session = Depends(get_db)):
         raise
     except Exception as e:
         db.rollback()
-        print(f"❌ Unexpected error sending reset email: {e}")
+        print(f"Unexpected error sending reset email: {e}")
         raise HTTPException(status_code=500, detail="Failed to process reset request.")
 
     # Only update DB if email was sent successfully
@@ -1147,14 +1157,14 @@ def request_reset(data: ResetRequest, db: Session = Depends(get_db)):
         db.commit()
     except Exception as e:
         db.rollback()
-        print(f"❌ Database error in request_reset: {e}")
+        print(f"Database error in request_reset: {e}")
         raise HTTPException(status_code=500, detail="Failed to save reset code.")
 
     return {"message": "Reset code sent to your email"}
 
 
 # 2️⃣ VERIFY CODE
-@app.post("/verify_code")
+@password_router.post("/verify_code")
 def verify_code(data: VerifyCode, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == data.email).first()
     if not user:
@@ -1171,7 +1181,7 @@ def verify_code(data: VerifyCode, db: Session = Depends(get_db)):
 
 # 3️⃣ RESET PASSWORD
 
-@app.post("/reset_password")
+@password_router.post("/reset_password")
 def reset_password(data: ResetPassword, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == data.email).first()
     if not user:
@@ -1200,31 +1210,24 @@ class ChangePasswordRequest(BaseModel):
     confirm_password: str 
 
 
-@app.put("/change-password")
+@password_router.put("/change-password")
 def change_password(data: ChangePasswordRequest, db: Session = Depends(get_db)):
-    print("CHANGE PASSWORD HIT:", data.email)
-
     user = db.query(User).filter((User.email == data.email) | (User.full_name == data.email)).first()
     if not user:
-        print("❌ USER NOT FOUND")
         raise HTTPException(status_code=404, detail="User not found. Please try again.")
 
     if not verify_password(data.current_password, user.password_hash):
-        print("❌ WRONG CURRENT PASSWORD")
         raise HTTPException(status_code=400, detail="Current password is incorrect")
 
     if data.current_password == data.new_password:
-        print("❌ SAME PASSWORD")
         raise HTTPException(status_code=400, detail="New password must be different")
 
     if data.new_password != data.confirm_password:
-        print("❌ PASSWORDS DO NOT MATCH")
         raise HTTPException(status_code=400, detail="Passwords do not match")
 
     user.password_hash = hash_password(data.new_password)
     db.commit()
 
-    print("PASSWORD UPDATED SUCCESSFULLY")
     return {"message": "Password changed successfully"}
 
 
@@ -1579,6 +1582,7 @@ def signup(payload: SignUpIn, db: Session = Depends(get_db)):
         db.rollback()
         print("Signup error:", repr(e))
         raise HTTPException(status_code=500, detail="Failed to complete signup")
+app.include_router(password_router)
 app.include_router(auth_router)
 # ------------------------------
 # Validation-only endpoints (for your Sprint-1 tasks)

@@ -6,19 +6,20 @@ import html as _html
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, field_validator
 from sqlalchemy.orm import Session
 
 import json
 
-from app.db import get_db
+from app.db import get_db, session_scope
 from app.models.notification import Notification
 from app.models.study_session import StudySession
 from app.models.user import User
 from app.services.email_sender import send_email
 from app.services.session_reminders import rebuild_upcoming_session_email_reminders
 from app.services.notification_processor import process_due_email_notifications_core
+from app.services.jobs import create_job, get_job, run_job
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
@@ -267,6 +268,7 @@ def create_session_alarm(payload: SessionAlarmCreate, db: Session = Depends(get_
 def list_notifications(
     user_id: Optional[UUID] = Query(default=None),
     status: Optional[str] = Query(default=None),
+    due_only: bool = Query(default=False, description="Only return notifications whose send time has arrived."),
     limit: int = Query(default=50, ge=1, le=200),
     db: Session = Depends(get_db),
 ):
@@ -276,6 +278,8 @@ def list_notifications(
         q = q.filter(Notification.user_id == user_id)
     if status is not None:
         q = q.filter(Notification.status == status)
+    if due_only:
+        q = q.filter(Notification.send_at <= _utcnow())
 
     # Most recent first
     q = q.order_by(Notification.send_at.desc())
@@ -318,9 +322,19 @@ def delete_notification(notification_id: UUID, db: Session = Depends(get_db)):
     return {"detail": "Deleted"}
 
 
-@router.post("/process-email", response_model=ProcessNotificationsOut)
+@router.get("/jobs/{job_id}")
+def get_notification_job(job_id: str):
+    job = get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
+
+
+@router.post("/process-email", response_model=None)
 def process_due_email_notifications(
+    background_tasks: BackgroundTasks,
     limit: int = Query(default=50, ge=1, le=500),
+    async_job: bool = Query(default=True),
     db: Session = Depends(get_db),
 ):
     """Process due email notifications.
@@ -332,6 +346,20 @@ def process_due_email_notifications(
 
     Sends the email and marks status 'sent' or 'failed' with error_message.
     """
+    if async_job:
+        job_id = create_job("process-email-notifications")
+
+        def _job() -> dict:
+            with session_scope() as job_db:
+                return process_due_email_notifications_core(db=job_db, limit=limit)
+
+        background_tasks.add_task(run_job, job_id, _job)
+        return {
+            "accepted": True,
+            "job_id": job_id,
+            "status_url": f"/notifications/jobs/{job_id}",
+        }
+
     res = process_due_email_notifications_core(db=db, limit=limit)
     return ProcessNotificationsOut(**res)
 

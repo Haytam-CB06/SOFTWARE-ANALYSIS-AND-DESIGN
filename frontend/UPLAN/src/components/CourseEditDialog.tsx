@@ -7,6 +7,7 @@ import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { BookOpen, Trash2 } from 'lucide-react';
 import { Badge } from './ui/badge';
+import ConfirmDeleteDialog from './ConfirmDeleteDialog';
 
 interface Subject {
   id: string;
@@ -34,6 +35,7 @@ const weekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Satur
 export default function CourseEditDialog({ isOpen, onClose, course, onSave, onDelete }: CourseEditDialogProps) {
   const { t } = useTranslation();
   const [formData, setFormData] = useState<Subject | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   useEffect(() => {
     if (course) {
@@ -64,23 +66,17 @@ export default function CourseEditDialog({ isOpen, onClose, course, onSave, onDe
   };
 
   const handleDelete = () => {
-    if (
-      window.confirm(
-        t('courseEdit.confirmDelete', { name: formData.name })
-      )
-    ) {
-      onDelete(formData.id);
-      onClose();
-    }
+    setDeleteDialogOpen(true);
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+    <>
+      <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 ${formData.color} rounded-lg flex items-center justify-center`}>
+              <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${formData.color}`}>
                 <BookOpen className="h-5 w-5 text-white" />
               </div>
               <div>
@@ -241,7 +237,20 @@ export default function CourseEditDialog({ isOpen, onClose, course, onSave, onDe
             </Button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+      <ConfirmDeleteDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete course"
+        description={`This permanently deletes "${formData.name}" from this timetable.`}
+        confirmLabel={t('courseEdit.actions.delete')}
+        onConfirm={() => {
+          onDelete(formData.id);
+          setDeleteDialogOpen(false);
+          onClose();
+        }}
+      />
+    </>
   );
 }

@@ -31,6 +31,7 @@ import { convertScheduleToSessions } from '../src/utils/scheduleUtils';
 import { getWeekIdentifier } from '../src/utils/dateUtils';
 import { getUserWeekKey } from '../utils/userStorage';
 import { API_BASE_URL } from '../lib/api';
+import ConfirmDeleteDialog from './ConfirmDeleteDialog';
 
 interface ViewTimetablesProps {
   timetables: any[];
@@ -42,6 +43,8 @@ interface ViewTimetablesProps {
   onApplyToWeek?: (id: string, mode: 'overwrite' | 'merge') => void;
   onNavigate?: (page: string) => void;
 }
+
+const TIMETABLE_PAGE_SIZE = 6;
 
 export default function ViewTimetables({
   timetables,
@@ -56,6 +59,12 @@ export default function ViewTimetables({
   const { t } = useTranslation();
   const [startDialogOpen, setStartDialogOpen] = useState(false);
   const [pendingStart, setPendingStart] = useState<any | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [visibleCount, setVisibleCount] = useState(TIMETABLE_PAGE_SIZE);
+  const totalTimetables = timetables.length;
+  const visibleTimetables = timetables.slice(0, Math.min(visibleCount, totalTimetables));
+  const hiddenTimetableCount = Math.max(totalTimetables - visibleTimetables.length, 0);
+  const hasMoreTimetables = hiddenTimetableCount > 0;
 
   useEffect(() => {
     const openId = localStorage.getItem('searchOpenTimetableId');
@@ -75,6 +84,10 @@ export default function ViewTimetables({
     }
   }, [timetables, onView, t]);
 
+  useEffect(() => {
+    setVisibleCount((count) => Math.min(Math.max(count, TIMETABLE_PAGE_SIZE), Math.max(timetables.length, TIMETABLE_PAGE_SIZE)));
+  }, [timetables.length]);
+
   const timeToMinutes = (time: string) => {
     const [h, m] = (time || '0:0').split(':').map((n) => parseInt(n, 10));
     return (Number.isFinite(h) ? h : 0) * 60 + (Number.isFinite(m) ? m : 0);
@@ -90,10 +103,15 @@ export default function ViewTimetables({
   };
 
   const handleDelete = (id: string) => {
-    if (confirm(t('viewTimetables.confirm.delete'))) {
-      onDelete(id);
-      toast.success(t('viewTimetables.toasts.deleted'));
-    }
+    const timetable = timetables.find((item) => item.id === id) || { id, name: t('viewTimetables.card.untitled') };
+    setDeleteTarget(timetable);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    await Promise.resolve(onDelete(deleteTarget.id) as any);
+    toast.success(t('viewTimetables.toasts.deleted'));
+    setDeleteTarget(null);
   };
 
   const startTimetableOverwrite = async (timetable: any) => {
@@ -452,8 +470,8 @@ export default function ViewTimetables({
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-5xl space-y-6 px-4 py-8">
+    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6 lg:p-8">
+      <div className="mx-auto max-w-7xl space-y-6 px-4 py-8">
         <AlertDialog open={startDialogOpen} onOpenChange={setStartDialogOpen}>
           <AlertDialogContent className="w-[92vw] max-w-sm rounded-[28px] border border-slate-200 bg-white shadow-xl dark:border-white/10 dark:bg-[#0b0b0b]">
             <AlertDialogHeader className="space-y-2 text-left">
@@ -546,157 +564,202 @@ export default function ViewTimetables({
               </div>
             ) : (
               <div className="space-y-3">
-                {timetables.map((timetable) => {
-                  const createdDate = new Date(timetable.createdAt).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  });
-
-                  const sessionCount = (timetable.calendarSessions || timetable.schedule || []).length;
-                  const subjectCount = timetable.subjects?.length || 0;
-
-                  return (
-                    <div
-                      key={timetable.id}
-                      className={`rounded-3xl border bg-white p-4 dark:bg-[#111] ${
-                        timetable.isActive
-                          ? 'border-blue-200 dark:border-blue-900/40'
-                          : 'border-slate-200 dark:border-white/10'
-                      }`}
+                <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300 sm:flex-row sm:items-center sm:justify-between">
+                  <span>
+                    {t('viewTimetables.paging.showing', {
+                      shown: visibleTimetables.length,
+                      total: totalTimetables,
+                      defaultValue: `Showing ${visibleTimetables.length} of ${totalTimetables} saved timetables`,
+                    })}
+                  </span>
+                  {visibleTimetables.length > TIMETABLE_PAGE_SIZE && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setVisibleCount(TIMETABLE_PAGE_SIZE)}
+                      className="h-8 self-start rounded-xl px-2 text-xs sm:self-auto"
                     >
-                      <div className="flex flex-col gap-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <h3 className="truncate font-semibold text-slate-900 dark:text-white">
-                                {timetable.name || t('viewTimetables.card.untitled')}
-                              </h3>
+                      {t('viewTimetables.paging.reset', 'Show less')}
+                    </Button>
+                  )}
+                </div>
 
-                              {timetable.isActive && (
-                                <Badge className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-300">
-                                  <CheckCircle className="mr-1 h-3.5 w-3.5" />
-                                  {t('viewTimetables.card.active')}
-                                </Badge>
-                              )}
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {visibleTimetables.map((timetable) => {
+                    const createdDate = new Date(timetable.createdAt).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    });
+
+                    const sessionCount = (timetable.calendarSessions || timetable.schedule || []).length;
+                    const subjectCount = timetable.subjects?.length || 0;
+
+                    return (
+                      <div
+                        key={timetable.id}
+                        className={`h-full rounded-3xl border bg-white p-4 dark:bg-[#111] ${
+                          timetable.isActive
+                            ? 'border-blue-200 dark:border-blue-900/40'
+                            : 'border-slate-200 dark:border-white/10'
+                        }`}
+                      >
+                        <div className="flex h-full flex-col gap-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h3 className="truncate font-semibold text-slate-900 dark:text-white">
+                                  {timetable.name || t('viewTimetables.card.untitled')}
+                                </h3>
+
+                                {timetable.isActive && (
+                                  <Badge className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-300">
+                                    <CheckCircle className="mr-1 h-3.5 w-3.5" />
+                                    {t('viewTimetables.card.active')}
+                                  </Badge>
+                                )}
+                              </div>
+
+                              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                {t('viewTimetables.card.created', { date: createdDate })}
+                              </p>
                             </div>
 
-                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                              {t('viewTimetables.card.created', { date: createdDate })}
-                            </p>
-                          </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="rounded-xl">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
 
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="rounded-xl">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-
-                            <DropdownMenuContent align="end" className="w-52 rounded-2xl">
-                              <DropdownMenuItem onClick={() => onView(timetable)} className="rounded-xl">
-                                <Eye className="mr-2 h-4 w-4" />
-                                {t('viewTimetables.actions.view')}
-                              </DropdownMenuItem>
-
-                              <DropdownMenuItem onClick={() => handleExport(timetable, 'csv')} className="rounded-xl">
-                                <FileText className="mr-2 h-4 w-4" />
-                                {t('viewTimetables.actions.exportCsv')}
-                              </DropdownMenuItem>
-
-                              <DropdownMenuItem onClick={() => handleExport(timetable, 'json')} className="rounded-xl">
-                                <FileJson className="mr-2 h-4 w-4" />
-                                {t('viewTimetables.actions.exportJson')}
-                              </DropdownMenuItem>
-
-                              <DropdownMenuItem onClick={() => handleExport(timetable, 'pdf')} className="rounded-xl">
-                                <Download className="mr-2 h-4 w-4" />
-                                {t('viewTimetables.actions.exportPdf')}
-                              </DropdownMenuItem>
-
-                              {onDuplicate && (
-                                <DropdownMenuItem onClick={() => onDuplicate(timetable.id)} className="rounded-xl">
-                                  <Copy className="mr-2 h-4 w-4" />
-                                  {t('viewTimetables.actions.duplicate')}
+                              <DropdownMenuContent align="end" className="w-52 rounded-2xl">
+                                <DropdownMenuItem onClick={() => onView(timetable)} className="rounded-xl">
+                                  <Eye className="mr-2 h-4 w-4" />
+                                  {t('viewTimetables.actions.view')}
                                 </DropdownMenuItem>
-                              )}
 
-                              <DropdownMenuItem
-                                className="rounded-xl text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400"
-                                onClick={() => handleDelete(timetable.id)}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                {t('viewTimetables.actions.delete')}
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
+                                <DropdownMenuItem onClick={() => handleExport(timetable, 'csv')} className="rounded-xl">
+                                  <FileText className="mr-2 h-4 w-4" />
+                                  {t('viewTimetables.actions.exportCsv')}
+                                </DropdownMenuItem>
 
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 text-center dark:border-slate-800 dark:bg-slate-900/40">
-                            <Calendar className="mx-auto mb-2 h-4 w-4 text-blue-700 dark:text-blue-400" />
-                            <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                              {t('viewTimetables.stats.sessions')}
+                                <DropdownMenuItem onClick={() => handleExport(timetable, 'json')} className="rounded-xl">
+                                  <FileJson className="mr-2 h-4 w-4" />
+                                  {t('viewTimetables.actions.exportJson')}
+                                </DropdownMenuItem>
+
+                                <DropdownMenuItem onClick={() => handleExport(timetable, 'pdf')} className="rounded-xl">
+                                  <Download className="mr-2 h-4 w-4" />
+                                  {t('viewTimetables.actions.exportPdf')}
+                                </DropdownMenuItem>
+
+                                {onDuplicate && (
+                                  <DropdownMenuItem onClick={() => onDuplicate(timetable.id)} className="rounded-xl">
+                                    <Copy className="mr-2 h-4 w-4" />
+                                    {t('viewTimetables.actions.duplicate')}
+                                  </DropdownMenuItem>
+                                )}
+
+                                <DropdownMenuItem
+                                  className="rounded-xl text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400"
+                                  onClick={() => handleDelete(timetable.id)}
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  {t('viewTimetables.actions.delete')}
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 text-center dark:border-slate-800 dark:bg-slate-900/40">
+                              <Calendar className="mx-auto mb-2 h-4 w-4 text-blue-700 dark:text-blue-400" />
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                                {t('viewTimetables.stats.sessions')}
+                              </div>
+                              <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
+                                {sessionCount}
+                              </div>
                             </div>
-                            <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
-                              {sessionCount}
+
+                            <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 text-center dark:border-slate-800 dark:bg-slate-900/40">
+                              <BookOpen className="mx-auto mb-2 h-4 w-4 text-blue-700 dark:text-blue-400" />
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                                {t('viewTimetables.stats.subjects')}
+                              </div>
+                              <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
+                                {subjectCount}
+                              </div>
+                            </div>
+
+                            <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 text-center dark:border-slate-800 dark:bg-slate-900/40">
+                              <Clock className="mx-auto mb-2 h-4 w-4 text-blue-700 dark:text-blue-400" />
+                              <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                                {t('viewTimetables.stats.hoursPerDay')}
+                              </div>
+                              <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
+                                {timetable.studyHoursPerDay ? `${timetable.studyHoursPerDay}h` : '--'}
+                              </div>
                             </div>
                           </div>
 
-                          <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 text-center dark:border-slate-800 dark:bg-slate-900/40">
-                            <BookOpen className="mx-auto mb-2 h-4 w-4 text-blue-700 dark:text-blue-400" />
-                            <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                              {t('viewTimetables.stats.subjects')}
-                            </div>
-                            <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
-                              {subjectCount}
-                            </div>
+                          <div className="min-h-4 text-xs text-slate-500 dark:text-slate-400">
+                            {timetable.breakInterval
+                              ? t('viewTimetables.card.breakEvery', { minutes: timetable.breakInterval })
+                              : ''}
                           </div>
 
-                          <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 text-center dark:border-slate-800 dark:bg-slate-900/40">
-                            <Clock className="mx-auto mb-2 h-4 w-4 text-blue-700 dark:text-blue-400" />
-                            <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                              {t('viewTimetables.stats.hoursPerDay')}
-                            </div>
-                            <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
-                              {timetable.studyHoursPerDay ? `${timetable.studyHoursPerDay}h` : '--'}
-                            </div>
+                          <div className="mt-auto grid grid-cols-2 gap-2">
+                            <Button
+                              onClick={() => handleStartTimetable(timetable)}
+                              className="rounded-2xl bg-blue-700 text-white hover:bg-blue-700"
+                            >
+                              <Play className="mr-2 h-4 w-4" />
+                              {t('viewTimetables.actions.start')}
+                            </Button>
+
+                            <Button
+                              variant="outline"
+                              onClick={() => onView(timetable)}
+                              className="rounded-2xl"
+                            >
+                              <Eye className="mr-2 h-4 w-4" />
+                              {t('viewTimetables.actions.preview')}
+                            </Button>
                           </div>
-                        </div>
-
-                        {timetable.breakInterval && (
-                          <div className="text-xs text-slate-500 dark:text-slate-400">
-                            {t('viewTimetables.card.breakEvery', { minutes: timetable.breakInterval })}
-                          </div>
-                        )}
-
-                        <div className="grid grid-cols-2 gap-2">
-                          <Button
-                            onClick={() => handleStartTimetable(timetable)}
-                            className="rounded-2xl bg-blue-700 text-white hover:bg-blue-700"
-                          >
-                            <Play className="mr-2 h-4 w-4" />
-                            {t('viewTimetables.actions.start')}
-                          </Button>
-
-                          <Button
-                            variant="outline"
-                            onClick={() => onView(timetable)}
-                            className="rounded-2xl"
-                          >
-                            <Eye className="mr-2 h-4 w-4" />
-                            {t('viewTimetables.actions.preview')}
-                          </Button>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+
+                {hasMoreTimetables && (
+                  <div className="flex justify-center pt-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setVisibleCount((count) => Math.min(count + TIMETABLE_PAGE_SIZE, totalTimetables))}
+                      className="rounded-2xl"
+                    >
+                      {t('viewTimetables.paging.showMore', {
+                        count: Math.min(TIMETABLE_PAGE_SIZE, hiddenTimetableCount),
+                        defaultValue: `Show ${Math.min(TIMETABLE_PAGE_SIZE, hiddenTimetableCount)} more`,
+                      })}
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
         </Card>
       </div>
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete saved timetable"
+        description={`This permanently deletes "${deleteTarget?.name || t('viewTimetables.card.untitled')}" from your saved timetables.`}
+        confirmLabel={t('viewTimetables.actions.delete')}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

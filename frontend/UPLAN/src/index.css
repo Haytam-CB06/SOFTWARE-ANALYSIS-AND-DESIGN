@@ -528,7 +528,7 @@
     background-color: var(--card) !important;
   }
 
-  .dark .bg-white.dark\\:bg-gray-900 {
+  .dark .bg-white.dark\:bg-gray-900 {
     background-color: var(--card) !important;
   }
 
@@ -537,7 +537,7 @@
     color: var(--primary) !important;
   }
 
-  .dark .bg-white.hover\\:bg-blue-50:hover {
+  .dark .bg-white.hover\:bg-blue-50:hover {
     background-color: var(--muted) !important;
   }
 
@@ -569,15 +569,15 @@
     border-color: var(--border) !important;
   }
 
-  .dark .hover\\:bg-gray-100:hover {
+  .dark .hover\:bg-gray-100:hover {
     background-color: var(--muted) !important;
   }
 
-  .dark .hover\\:bg-gray-200:hover {
+  .dark .hover\:bg-gray-200:hover {
     background-color: #ffffff14 !important;
   }
 
-  .dark .hover\\:bg-white:hover {
+  .dark .hover\:bg-white:hover {
     background-color: var(--accent) !important;
   }
 
@@ -709,19 +709,19 @@
     color: #c9a0fb !important;
   }
 
-  .dark .hover\\:text-gray-700:hover {
+  .dark .hover\:text-gray-700:hover {
     color: #d1d5db !important;
   }
 
-  .dark .hover\\:text-gray-900:hover {
+  .dark .hover\:text-gray-900:hover {
     color: var(--foreground) !important;
   }
 
-  .dark .hover\\:text-blue-700:hover {
+  .dark .hover\:text-blue-700:hover {
     color: #8db1f3 !important;
   }
 
-  .dark .hover\\:text-red-700:hover {
+  .dark .hover\:text-red-700:hover {
     color: #fca5a5 !important;
   }
 
@@ -881,7 +881,7 @@
     border-color: #2d3548 !important;
   }
 
-  .dark .hover\\:border-white:hover {
+  .dark .hover\:border-white:hover {
     border-color: #2d3548 !important;
   }
 
@@ -991,11 +991,11 @@
     background-color: var(--card) !important;
   }
 
-  .dark .bg-white.hover\\:bg-gray-50:hover {
+  .dark .bg-white.hover\:bg-gray-50:hover {
     background-color: var(--card) !important;
   }
 
-  .dark .hover\\:bg-gray-50:hover {
+  .dark .hover\:bg-gray-50:hover {
     background-color: var(--accent) !important;
   }
 
@@ -1003,7 +1003,7 @@
     background-color: #5a86d41a !important;
   }
 
-  .dark .hover\\:bg-blue-100/50:hover {
+  .dark .hover\:bg-blue-100\/50:hover {
     background-color: #5a86d426 !important;
   }
 
@@ -1068,7 +1068,7 @@
     border-color: #5a86d466 !important;
   }
 
-  .dark .hover\\:bg-blue-50:hover {
+  .dark .hover\:bg-blue-50:hover {
     background-color: #5a86d41a !important;
   }
 
@@ -1116,43 +1116,43 @@
     background-color: #9ca3af33 !important;
   }
 
-  .dark .hover\\:from-purple-700:hover {
+  .dark .hover\:from-purple-700:hover {
     --tw-gradient-from: #6d2fa0 !important;
   }
 
-  .dark .hover\\:to-pink-700:hover {
+  .dark .hover\:to-pink-700:hover {
     --tw-gradient-to: #9a2860 !important;
   }
 
-  .dark .hover\\:from-blue-700:hover {
+  .dark .hover\:from-blue-700:hover {
     --tw-gradient-from: #3d5a9e !important;
   }
 
-  .dark .hover\\:to-indigo-700:hover {
+  .dark .hover\:to-indigo-700:hover {
     --tw-gradient-to: #5a4a98 !important;
   }
 
-  .dark .hover\\:from-green-700:hover {
+  .dark .hover\:from-green-700:hover {
     --tw-gradient-from: #1f8761 !important;
   }
 
-  .dark .hover\\:to-emerald-700:hover {
+  .dark .hover\:to-emerald-700:hover {
     --tw-gradient-to: #0a7a4e !important;
   }
 
-  .dark .hover\\:from-orange-700:hover {
+  .dark .hover\:from-orange-700:hover {
     --tw-gradient-from: #a84d0c !important;
   }
 
-  .dark .hover\\:to-red-700:hover {
+  .dark .hover\:to-red-700:hover {
     --tw-gradient-to: #a02626 !important;
   }
 
-  .dark .hover\\:from-purple-800:hover {
+  .dark .hover\:from-purple-800:hover {
     --tw-gradient-from: #5a2680 !important;
   }
 
-  .dark .hover\\:to-pink-800:hover {
+  .dark .hover\:to-pink-800:hover {
     --tw-gradient-to: #7d1f4f !important;
   }
 
@@ -1172,11 +1172,11 @@
     background-color: #4a6db8 !important;
   }
 
-  .dark .hover\\:bg-red-600:hover {
+  .dark .hover\:bg-red-600:hover {
     background-color: #dc2626 !important;
   }
 
-  .dark .hover\\:bg-green-600:hover {
+  .dark .hover\:bg-green-600:hover {
     background-color: #28a675 !important;
   }
 
@@ -1240,7 +1240,7 @@
     box-shadow: 0 10px 15px -3px #00000080, 0 4px 6px -2px #0000004d;
   }
 
-  .dark .hover\\:shadow-md:hover {
+  .dark .hover\:shadow-md:hover {
     box-shadow: 0 4px 6px -1px #00000080, 0 2px 4px -1px #0006;
   }
 
@@ -6637,7 +6637,7 @@
 }
 
 :root {
-  --font-size: 16px;
+  --font-size: 15px;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -7328,6 +7328,78 @@ body {
   100% { transform: translate3d(0,0,0) scale(1); opacity: 1.0; }
 }
 
+@keyframes uplan-page-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@layer base {
+  :root {
+    --uplan-surface-shadow: 0 18px 55px rgba(15, 23, 42, 0.08);
+    --uplan-surface-shadow-hover: 0 24px 75px rgba(15, 23, 42, 0.12);
+  }
+
+  .dark {
+    --uplan-surface-shadow: 0 20px 70px rgba(0, 0, 0, 0.34);
+    --uplan-surface-shadow-hover: 0 26px 90px rgba(0, 0, 0, 0.44);
+  }
+
+  body {
+    background:
+      radial-gradient(circle at 18% 0%, rgba(37, 99, 235, 0.10), transparent 26%),
+      linear-gradient(180deg, #f8fbff 0%, #eef4fb 45%, #f8fafc 100%);
+  }
+
+  .dark body {
+    background:
+      radial-gradient(circle at 18% 0%, rgba(59, 130, 246, 0.17), transparent 26%),
+      linear-gradient(180deg, #05070b 0%, #07111f 52%, #020617 100%);
+  }
+
+  button,
+  a,
+  input,
+  textarea,
+  select,
+  [role="button"],
+  [data-slot="card"],
+  [role="dialog"] {
+    transition: color 180ms ease, background-color 180ms ease, border-color 180ms ease, box-shadow 220ms ease, transform 220ms ease, opacity 180ms ease;
+  }
+
+  button:hover,
+  a:hover,
+  [role="button"]:hover {
+    transform: translateY(-1px);
+  }
+
+  button:active,
+  [role="button"]:active {
+    transform: translateY(0) scale(0.99);
+  }
+
+  input:focus,
+  textarea:focus,
+  select:focus {
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+  }
+
+  [role="dialog"] {
+    box-shadow: var(--uplan-surface-shadow-hover);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
 /*---break--- */
 
 @theme inline {
@@ -7370,4 +7442,77 @@ body {
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* App-wide dark mode compatibility layer.
+   Several legacy components still use light-only Tailwind classes. These
+   selectors keep those components readable while they are migrated to tokens. */
+@layer utilities {
+  .dark body,
+  .dark #root {
+    background: var(--background);
+    color: var(--foreground);
+  }
+
+  .dark :is(main, section, article, aside, nav, header, footer) {
+    color: var(--foreground);
+  }
+
+  .dark :is(.bg-white, .bg-gray-50, .bg-gray-100, .bg-slate-50) {
+    background-color: var(--card) !important;
+  }
+
+  .dark :is(.bg-gray-200, .bg-slate-100, .bg-neutral-100) {
+    background-color: var(--muted) !important;
+  }
+
+  .dark :is(.text-black, .text-gray-900, .text-gray-800, .text-slate-900, .text-neutral-900) {
+    color: var(--foreground) !important;
+  }
+
+  .dark :is(.text-gray-700, .text-gray-600, .text-gray-500, .text-slate-600, .text-neutral-600) {
+    color: var(--muted-foreground) !important;
+  }
+
+  .dark :is(.border-gray-100, .border-gray-200, .border-gray-300, .border-slate-200, .border-neutral-200) {
+    border-color: var(--border) !important;
+  }
+
+  .dark :is(input, textarea, select) {
+    background-color: var(--input-background) !important;
+    border-color: var(--input) !important;
+    color: var(--foreground) !important;
+  }
+
+  .dark :is(input, textarea)::placeholder {
+    color: var(--muted-foreground) !important;
+  }
+
+  .dark :is(table, thead, tbody, tr, th, td) {
+    background-color: transparent;
+    border-color: var(--border);
+    color: var(--foreground);
+  }
+
+  .dark :is([role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"], [data-radix-popper-content-wrapper] > *) {
+    background-color: var(--popover) !important;
+    border-color: var(--border) !important;
+    color: var(--popover-foreground) !important;
+  }
+
+  .dark :is(.shadow, .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl) {
+    box-shadow: var(--uplan-surface-shadow) !important;
+  }
+
+  .dark :is(.bg-gradient-to-r, .bg-gradient-to-br, .bg-gradient-to-l, .bg-gradient-to-t, .bg-gradient-to-b) {
+    --tw-gradient-from: var(--card) !important;
+    --tw-gradient-via: var(--background) !important;
+    --tw-gradient-to: var(--muted) !important;
+  }
+
+  @media (hover: hover) {
+    .dark :is(.hover\:bg-white, .hover\:bg-gray-50, .hover\:bg-gray-100, .hover\:bg-slate-100):hover {
+      background-color: var(--accent) !important;
+    }
+  }
 }

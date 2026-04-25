@@ -1,9 +1,7 @@
 import { Button } from './ui/button';
 import { Calendar, Clock, BarChart3, Brain, BookOpen, Sparkles, Target, Users, Lightbulb, Heart, RefreshCw, TrendingUp, Zap } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
-import timetableImage from 'figma:asset/4f862e6548475cce5869f6352f0b4a1c6377d2df.png';
 import serviceImage from 'figma:asset/46b0b252038157c21ce016662fa615abc3c20802.png';
-import { useState, useEffect } from 'react';
 
 interface HomePageProps {
   onNavigate: (page: string) => void;
@@ -191,7 +189,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                 Start Your Journey
               </Button>
             </div>
-            <div className="rounded-lg overflow-hidden shadow-lg">
+            <div className="overflow-hidden rounded-[24px] shadow-lg">
               <ImageWithFallback
                 src="https://images.unsplash.com/photo-1760351065294-b069f6bcadc4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzdHVkZW50cyUyMHN0dWR5aW5nJTIwdG9nZXRoZXJ8ZW58MXx8fHwxNzYwNzgwMDE0fDA&ixlib=rb-4.1.0&q=80&w=1080"
                 alt="Students studying together"
@@ -212,7 +210,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-              <div className="bg-card p-6 rounded-lg shadow-sm text-center border border-border">
+              <div className="rounded-[24px] border border-border bg-card p-6 text-center shadow-sm">
                 <div className="bg-blue-100 dark:bg-blue-950/30 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Target className="w-8 h-8 text-blue-700 dark:text-blue-400" />
                 </div>
@@ -222,7 +220,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                 </p>
               </div>
 
-              <div className="bg-card p-6 rounded-lg shadow-sm text-center border border-border">
+              <div className="rounded-[24px] border border-border bg-card p-6 text-center shadow-sm">
                 <div className="bg-blue-100 dark:bg-blue-950/30 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Users className="w-8 h-8 text-blue-700 dark:text-blue-400" />
                 </div>
@@ -232,7 +230,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                 </p>
               </div>
 
-              <div className="bg-card p-6 rounded-lg shadow-sm text-center border border-border">
+              <div className="rounded-[24px] border border-border bg-card p-6 text-center shadow-sm">
                 <div className="bg-blue-100 dark:bg-blue-950/30 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Lightbulb className="w-8 h-8 text-blue-700 dark:text-blue-400" />
                 </div>
@@ -242,7 +240,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                 </p>
               </div>
 
-              <div className="bg-card p-6 rounded-lg shadow-sm text-center border border-border">
+              <div className="rounded-[24px] border border-border bg-card p-6 text-center shadow-sm">
                 <div className="bg-blue-100 dark:bg-blue-950/30 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Heart className="w-8 h-8 text-blue-700 dark:text-blue-400" />
                 </div>
@@ -256,7 +254,7 @@ export default function HomePage({ onNavigate }: HomePageProps) {
 
           {/* Story Section */}
           <div className="max-w-4xl mx-auto">
-            <div className="bg-blue-50 dark:bg-blue-950/30 p-8 sm:p-12 rounded-lg">
+            <div className="rounded-[28px] bg-blue-50 p-8 dark:bg-blue-950/30 sm:p-12">
               <h2 className="text-3xl text-foreground mb-6 text-center">
                 Our Story
               </h2>
@@ -301,16 +299,21 @@ export default function HomePage({ onNavigate }: HomePageProps) {
               {services.map((service, index) => {
                 const Icon = service.icon;
                 const isEven = index % 2 === 0;
+                const hasImage = Boolean(service.image);
                 
                 return (
                   <div
                     key={index}
-                    className={`grid lg:grid-cols-2 gap-8 lg:gap-12 items-center ${
-                      !isEven ? 'lg:grid-flow-dense' : ''
-                    }`}
+                    className={
+                      hasImage
+                        ? `grid items-center gap-8 lg:grid-cols-2 lg:gap-12 ${
+                            !isEven ? 'lg:grid-flow-dense' : ''
+                          }`
+                        : "rounded-[24px] border border-border bg-card p-6 shadow-sm sm:p-8"
+                    }
                   >
-                    <div className={isEven ? '' : 'lg:col-start-2'}>
-                      <div className="bg-blue-100 dark:bg-blue-950/30 w-16 h-16 rounded-lg flex items-center justify-center mb-6">
+                    <div className={hasImage && !isEven ? 'lg:col-start-2' : ''}>
+                      <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-100 dark:bg-blue-950/30">
                         <Icon className="w-8 h-8 text-blue-700 dark:text-blue-400" />
                       </div>
                       <h4 className="text-2xl sm:text-3xl text-foreground mb-4">
@@ -340,21 +343,17 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                         ))}
                       </ul>
                     </div>
-                    <div className={`${isEven ? '' : 'lg:col-start-1 lg:row-start-1'}`}>
-                      {service.image ? (
-                        <div className="bg-white dark:bg-gray-900 rounded-lg overflow-hidden shadow-lg border border-border h-64 lg:h-80">
+                    {service.image && (
+                      <div className={`${isEven ? '' : 'lg:col-start-1 lg:row-start-1'}`}>
+                        <div className="h-64 overflow-hidden rounded-[24px] border border-border bg-white shadow-lg dark:bg-gray-900 lg:h-80">
                           <img 
                             src={service.image} 
                             alt={service.title}
                             className="w-full h-full object-contain"
                           />
                         </div>
-                      ) : (
-                        <div className="bg-blue-700 from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-lg p-8 h-64 flex items-center justify-center border border-border">
-                          <Icon className="w-32 h-32 text-blue-700 dark:text-blue-400 opacity-20" />
-                        </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -381,9 +380,9 @@ export default function HomePage({ onNavigate }: HomePageProps) {
                 return (
                   <div
                     key={index}
-                    className="bg-card p-8 rounded-lg shadow-sm border-2 border-dashed border-blue-200 dark:border-blue-800"
+                    className="rounded-[24px] border-2 border-dashed border-blue-200 bg-card p-8 shadow-sm dark:border-blue-800"
                   >
-                    <div className="bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-950/30 dark:to-indigo-950/30 w-16 h-16 rounded-lg flex items-center justify-center mb-4">
+                    <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-950/30 dark:to-indigo-950/30">
                       <Icon className="w-8 h-8 text-blue-700 dark:text-blue-400" />
                     </div>
                     <h4 className="text-xl text-foreground mb-2">

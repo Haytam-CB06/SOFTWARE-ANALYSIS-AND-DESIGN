@@ -1,9 +1,10 @@
 # routers/board.py
-from fastapi import APIRouter, Depends, HTTPException, status, Header
+from fastapi import APIRouter, Depends, HTTPException, status, Header, Query
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from uuid import UUID
 from datetime import datetime
+from typing import Mapping
 
 from ..db import get_db
 from ..models.board import BoardTask, BoardComment
@@ -16,6 +17,14 @@ from app.schemas import (
 from app.routers.workspace_access import require_workspace_member, require_workspace_admin
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/board", tags=["board"])
+
+
+def _deadline_locked(task: BoardTask) -> bool:
+    if not getattr(task, "due_date", None):
+        return False
+    if getattr(task, "status", None) == "done":
+        return False
+    return task.due_date >= datetime.utcnow()
 
 def get_current_user_id(x_user_id: UUID | None = Header(default=None)):
     if not x_user_id:
@@ -31,11 +40,13 @@ def get_current_user_id_id(
         raise HTTPException(status_code=401, detail="Invalid User")
     return user.id
 
-def task_to_out(task: BoardTask, db: Session) -> TaskOut:
+def task_to_out(task: BoardTask, db: Session, users_by_id: Mapping[UUID, User] | None = None) -> TaskOut:
     assignee_out = None
 
     if task.assignee_id:
-        assignee_user = db.query(User).filter(User.id == task.assignee_id).first()
+        assignee_user = users_by_id.get(task.assignee_id) if users_by_id is not None else None
+        if assignee_user is None and users_by_id is None:
+            assignee_user = db.query(User).filter(User.id == task.assignee_id).first()
         if assignee_user:
             assignee_out = {
                 "id": str(assignee_user.id),
@@ -53,9 +64,21 @@ def task_to_out(task: BoardTask, db: Session) -> TaskOut:
         createdAt=task.created_at,
         updatedAt=task.updated_at,
         createdBy=task.created_by,
+        dueDate=task.due_date,
         comments=[],
         attachments=getattr(task, "attachments_count", 0),
     )
+
+def tasks_to_out(tasks: list[BoardTask], db: Session) -> list[TaskOut]:
+    assignee_ids = {task.assignee_id for task in tasks if task.assignee_id}
+    users_by_id = {}
+    if assignee_ids:
+        users_by_id = {
+            user.id: user
+            for user in db.query(User).filter(User.id.in_(assignee_ids)).all()
+        }
+    return [task_to_out(task, db, users_by_id) for task in tasks]
+
 @router.delete("/tasks/archived")
 def delete_all_archived(
     workspace_id: int,
@@ -75,6 +98,8 @@ def delete_all_archived(
 @router.get("/tasks", response_model=list[TaskOut])
 def list_tasks(
     workspace_id: int,
+    limit: int = Query(default=100, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     user_id: UUID = Depends(get_current_user_id),
 ):
@@ -87,9 +112,11 @@ def list_tasks(
             BoardTask.archived == False
         )        
         .order_by(BoardTask.updated_at.desc())
+        .offset(offset)
+        .limit(limit)
         .all()
     )
-    return [task_to_out(t, db) for t in tasks]
+    return tasks_to_out(tasks, db)
 
 @router.post("/tasks", response_model=TaskOut, status_code=status.HTTP_201_CREATED)
 def create_task(
@@ -108,6 +135,7 @@ def create_task(
         priority=payload.priority,
         created_by=user_id,
         assignee_id=payload.assigneeId,
+        due_date=payload.dueDate,
         labels=payload.labels or [],
         attachments_count=0,
     )
@@ -143,6 +171,8 @@ def update_task(
     # only update assignee if field provided (depends on your schema)
     if payload.assigneeId is not None:
         t.assignee_id = payload.assigneeId
+    if payload.dueDate is not None:
+        t.due_date = payload.dueDate
 
     t.updated_at = datetime.utcnow()
     db.commit()
@@ -206,6 +236,11 @@ def delete_task(
         raise HTTPException(
             status_code=403,
             detail="Only admin or task creator can delete this task",
+        )
+    if _deadline_locked(task):
+        raise HTTPException(
+            status_code=409,
+            detail="Deadline tasks can only be deleted after the due date passes",
         )
 
     db.delete(task)
@@ -281,6 +316,11 @@ def archive_task(
 
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+    if _deadline_locked(task):
+        raise HTTPException(
+            status_code=409,
+            detail="Deadline tasks can only be archived after the due date passes",
+        )
 
     task.archived = True
     task.updated_at = datetime.utcnow()
@@ -304,7 +344,7 @@ def get_archived_tasks(
         BoardTask.archived == True
     ).order_by(BoardTask.updated_at.desc()).all()
 
-    return [task_to_out(t,db) for t in tasks]
+    return tasks_to_out(tasks, db)
 @router.patch("/tasks/{task_id}/restore", response_model=TaskOut)
 def restore_task(
     workspace_id: int,

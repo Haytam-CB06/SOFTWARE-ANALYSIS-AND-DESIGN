@@ -1,10 +1,11 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle2, Sparkles, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { useTour, TourStep } from '../../contexts/TourContext';
 import { Button } from '../ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Card, CardContent } from '../ui/card';
 
 type Props = {
   /**
@@ -33,8 +34,8 @@ export const TOUR_STEPS: TourStep[] = [
   {
     page: 'dashboard',
     selector: '[data-tour="profile-dropdown"]',
-    title: 'Your profile & settings',
-    body: 'Tap your name/avatar to open Profile Settings. This is where you can edit your details and keep your account up to date.',
+    title: 'tourOverlay.steps.profile.title',
+    body: 'tourOverlay.steps.profile.body',
     placement: 'bottom',
     align: 'right',
     // NOTE: Rect highlight avoids an oversized circle around the whole top bar area.
@@ -46,51 +47,42 @@ export const TOUR_STEPS: TourStep[] = [
     // Step 2 should NOT focus the Edit Profile button (it can steal focus/click and cause the modal state to change).
     // Keep the user oriented via the sidebar only.
     selector: '[data-tour="sidebar-settings"]',
-    title: 'Edit your profile',
-    body: 'Open **Settings** from the sidebar, then use **Edit Profile** to update your name, bio, picture and other details.',
+    title: 'tourOverlay.steps.settings.title',
+    body: 'tourOverlay.steps.settings.body',
     placement: 'right',
     align: 'right',
   },
   {
-    page: 'auto-generate',
-    selector: '[data-tour="auto-study-window"]',
-    title: 'Study Window',
+    page: 'create-timetable',
+    selector: '[data-tour="create-timetable-details"]',
+    title: 'tourOverlay.steps.studyWindow.title',
     highlightOffsetY: -64,
-    body: 'Set the time range you’re available to study. This guides the generator so your timetable matches your real routine (and exam periods).',
+    body: 'tourOverlay.steps.studyWindow.body',
     placement: 'top',
     align: 'center',
   },
   {
-    page: 'auto-generate',
-    selector: '[data-tour="auto-class-schedule"]',
-    title: 'Class Schedule & Priority',
+    page: 'create-timetable',
+    selector: '[data-tour="create-course-setup"]',
+    title: 'tourOverlay.steps.classSchedule.title',
     highlightOffsetY: -64,
-    body: 'Add your classes and set priority so important courses get better study coverage. You can edit this anytime.',
+    body: 'tourOverlay.steps.classSchedule.body',
     placement: 'top',
     align: 'center',
   },
   {
-    page: 'auto-generate',
-    selector: '[data-tour="auto-busy-time"]',
-    title: 'Busy Time',
-    body: 'Block out work, errands, or personal time. These become “busy blocks” so the generator won’t schedule sessions on top of them.',
+    page: 'create-timetable',
+    selector: '[data-tour="create-timetable-summary"]',
+    title: 'tourOverlay.steps.busyTime.title',
+    body: 'tourOverlay.steps.busyTime.body',
     placement: 'top',
     align: 'center',
   },
   {
-    page: 'auto-generate',
-    selector: '[data-tour="auto-shuffle"]',
-    title: 'Shuffle',
-    body: 'Shuffle gives a different layout while respecting your study window, classes, priorities, and busy time.',
-    placement: 'top',
-    align: 'center',
-    highlightPad: 10,
-  },
-  {
-    page: 'auto-generate',
-    selector: '[data-tour="auto-generate"]',
-    title: 'Generate',
-    body: 'Generate creates your study sessions for the week based on all the rules you set above.',
+    page: 'create-timetable',
+    selector: '[data-tour="create-generate"]',
+    title: 'tourOverlay.steps.generate.title',
+    body: 'tourOverlay.steps.generate.body',
     placement: 'top',
     align: 'center',
     highlightPad: 10,
@@ -100,17 +92,17 @@ export const TOUR_STEPS: TourStep[] = [
     // Step 8 quick-fix: avoid focusing the timetable grid (it can be scroll/virtualized and produce a 1px highlight).
     // The sidebar highlight is enough context for this step.
     selector: '[data-tour="sidebar-my-timetable"]',
-    title: 'My Timetable',
-    body: 'This is your weekly study plan. You can drag & drop sessions and manually edit time blocks to perfect your routine.',
+    title: 'tourOverlay.steps.timetable.title',
+    body: 'tourOverlay.steps.timetable.body',
     placement: 'right',
     align: 'right',
   },
   {
     page: 'dashboard',
     selector: '[data-tour="dashboard-today-panel"]',
-    title: 'Today’s sessions',
+    title: 'tourOverlay.steps.today.title',
     highlightOffsetY: -56,
-    body: 'Your day view keeps you on track. Start the current session and manage what you do next so you stay consistent.',
+    body: 'tourOverlay.steps.today.body',
     // Keep the message clearly visible without covering the big "Today" panel.
     placement: 'top',
     align: 'center',
@@ -118,8 +110,8 @@ export const TOUR_STEPS: TourStep[] = [
   {
     page: 'dashboard',
     selector: '[data-tour="sidebar-assessments-deadlines"]',
-    title: 'Assessments',
-    body: 'Track your tests, exams, and assignments here. Deadlines automatically influence planning so busy weeks are protected.',
+    title: 'tourOverlay.steps.assessments.title',
+    body: 'tourOverlay.steps.assessments.body',
     placement: 'right',
     align: 'right',
   },
@@ -127,41 +119,41 @@ export const TOUR_STEPS: TourStep[] = [
   {
     page: 'goals-achievements',
     selector: '[data-tour="goals-this-week"]',
-    title: 'This Week',
-    body: 'See how many sessions you have scheduled this week (pulled from My Timetable).',
+    title: 'tourOverlay.steps.goalsWeek.title',
+    body: 'tourOverlay.steps.goalsWeek.body',
     placement: 'bottom',
     align: 'left',
   },
   {
     page: 'goals-achievements',
     selector: '[data-tour="goals-upcoming-deadlines"]',
-    title: 'Upcoming deadlines',
+    title: 'tourOverlay.steps.deadlines.title',
     highlightOffsetY: -56,
-    body: 'A quick view of what’s due soon so you can stay ahead.',
+    body: 'tourOverlay.steps.deadlines.body',
     placement: 'bottom',
     align: 'left',
   },
   {
     page: 'goals-achievements',
     selector: '[data-tour="goals-progress-streak"]',
-    title: 'Progress & streak',
-    body: 'Track completed hours and your streak. Consistency here is what builds long-term improvement.',
+    title: 'tourOverlay.steps.progress.title',
+    body: 'tourOverlay.steps.progress.body',
     placement: 'bottom',
     align: 'left',
   },
   {
     page: 'goals-achievements',
     selector: '[data-tour="goals-today-session"]',
-    title: 'Today’s Session',
-    body: 'See today’s sessions and expand to manage them in detail.',
+    title: 'tourOverlay.steps.todaySession.title',
+    body: 'tourOverlay.steps.todaySession.body',
     placement: 'top',
     align: 'center',
   },
   {
     page: 'goals-achievements',
     selector: '[data-tour="goals-weekly-goals"]',
-    title: 'Weekly goals & completions',
-    body: 'Set weekly goals, keep your streak, and track completed deadlines as you progress.',
+    title: 'tourOverlay.steps.weeklyGoals.title',
+    body: 'tourOverlay.steps.weeklyGoals.body',
     placement: 'top',
     align: 'center',
   },
@@ -169,8 +161,8 @@ export const TOUR_STEPS: TourStep[] = [
     page: 'workspace',
     // Highlight the *header region* (blue bar) as requested.
     selector: '[data-tour="workspace-header-region"]',
-    title: 'Workspace header',
-    body: 'This header shows your active Workspace, members, and quick actions. Use it to switch workspaces or create a new one, then use the tabs below to navigate within the workspace.',
+    title: 'tourOverlay.steps.workspace.title',
+    body: 'tourOverlay.steps.workspace.body',
     placement: 'bottom',
     align: 'center',
     highlightPad: 10,
@@ -248,6 +240,46 @@ function buildMaskDataUrl(holes: Spotlight[], vw: number, vh: number) {
   return `url("data:image/svg+xml,${encoded}")`;
 }
 
+function fallbackSelectorForStep(step: TourStep) {
+  const sidebar = `[data-tour="sidebar-${step.page}"]`;
+  if (document.querySelector(sidebar)) return sidebar;
+  if (document.querySelector('main')) return 'main';
+  return 'body';
+}
+
+function renderRichText(text: string) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, index) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return (
+        <strong key={index} className="font-semibold text-slate-950 dark:text-white">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    return <span key={index}>{part}</span>;
+  });
+}
+
+function pageLabel(page?: string) {
+  switch (page) {
+    case 'dashboard':
+      return 'tourOverlay.pages.dashboard';
+    case 'settings':
+      return 'tourOverlay.pages.settings';
+    case 'create-timetable':
+      return 'tourOverlay.pages.autoGenerate';
+    case 'my-timetable':
+      return 'tourOverlay.pages.myTimetable';
+    case 'goals-achievements':
+      return 'tourOverlay.pages.goals';
+    case 'workspace':
+      return 'tourOverlay.pages.workspace';
+    default:
+      return 'tourOverlay.pages.default';
+  }
+}
+
 async function waitForSelector(selector: string, cancelled: () => boolean) {
   // fast path
   const first = document.querySelector(selector) as HTMLElement | null;
@@ -270,6 +302,7 @@ async function sleep(ms: number) {
 
 export default function TourOverlay({ onNavigate, autoStart, onFinishOnboarding }: Props) {
   const { active, steps, stepIndex, currentStep, open, close, next, prev } = useTour();
+  const { t } = useTranslation();
 
   const resolvedSteps = useMemo(() => (steps.length > 0 ? steps : TOUR_STEPS), [steps.length]);
   const resolvedCurrent = useMemo(
@@ -291,9 +324,6 @@ export default function TourOverlay({ onNavigate, autoStart, onFinishOnboarding 
     } catch {
       // ignore (don't block closing UI)
     }
-    // Badges are out-of-scope for now, but we hint the value prop right at the end.
-    // (Toaster is currently configured globally.)
-    toast.info('Tip: Study longer and stay consistent to unlock badges (coming soon).');
     close();
   };
 
@@ -329,6 +359,9 @@ export default function TourOverlay({ onNavigate, autoStart, onFinishOnboarding 
     let cancelledFlag = false;
     const cancelled = () => cancelledFlag;
 
+    setTargetRect(null);
+    setCardPos(null);
+
     // Trigger navigation first (keeps overlay mounted).
     if (onNavigate && step.page) {
       onNavigate(step.page);
@@ -336,14 +369,15 @@ export default function TourOverlay({ onNavigate, autoStart, onFinishOnboarding 
 
     // Then wait for the target to appear and measure it.
     (async () => {
-      const el = await waitForSelector(step.selector, cancelled);
+      let el = await waitForSelector(step.selector, cancelled);
       if (cancelled()) return;
 
       if (!el) {
-        setTargetRect(null);
-        setCardPos(null);
-        return;
+        const fallbackSelector = fallbackSelectorForStep(step);
+        el = document.querySelector(fallbackSelector) as HTMLElement | null;
       }
+
+      if (!el) return;
 
       // If target is outside viewport, bring it into view.
       try {
@@ -364,7 +398,7 @@ export default function TourOverlay({ onNavigate, autoStart, onFinishOnboarding 
     return () => {
       cancelledFlag = true;
     };
-  }, [active, resolvedCurrent?.page, resolvedCurrent?.selector]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [active, resolvedCurrent?.page, resolvedCurrent?.selector, onNavigate]);
 
   // Re-measure ONLY on screen resize.
   // We deliberately avoid scroll-driven reflow to prevent jitter.
@@ -390,10 +424,9 @@ export default function TourOverlay({ onNavigate, autoStart, onFinishOnboarding 
     const vw = window.innerWidth;
     const vh = window.innerHeight;
 
-    // Keep a stable long-rectangle card size so the UI doesn't jitter.
-    const CARD_W = Math.min(520, Math.max(320, vw * 0.94));
-    // Slightly taller card so the final message fits without requiring scroll (Step 16/16 request).
-    const CARD_H = 320;
+    // Keep a stable card size so the UI doesn't jitter between steps.
+    const CARD_W = Math.min(420, Math.max(316, vw * 0.92));
+    const CARD_H = 318;
 
     const margin = 16;
 
@@ -519,6 +552,8 @@ export default function TourOverlay({ onNavigate, autoStart, onFinishOnboarding 
   // So the tour itself becomes steps 2..N+1.
   const progressOffset = autoStart ? 1 : 0;
   const progressTotal = resolvedSteps.length + progressOffset;
+  const currentProgressStep = clamp(stepIndex + 1 + progressOffset, 1, progressTotal);
+  const progressPct = Math.max(6, Math.round((currentProgressStep / progressTotal) * 100));
 
   // Spotlight behavior:
   // Keep ONLY 3 things "in focus" at any time:
@@ -537,8 +572,8 @@ export default function TourOverlay({ onNavigate, autoStart, onFinishOnboarding 
         return '[data-tour="sidebar-dashboard"]';
       case 'my-timetable':
         return '[data-tour="sidebar-my-timetable"]';
-      case 'auto-generate':
-        return '[data-tour="sidebar-auto-generate"]';
+      case 'create-timetable':
+        return '[data-tour="sidebar-create-timetable"]';
       case 'goals-achievements':
         return '[data-tour="sidebar-goals-achievements"]';
       case 'settings':
@@ -577,14 +612,14 @@ export default function TourOverlay({ onNavigate, autoStart, onFinishOnboarding 
         e.stopPropagation();
       }}
     >
-      {/* Backdrop + spotlight (dim + blur everywhere EXCEPT the target) */}
+      {/* Backdrop + spotlight (dim + blur everywhere except the target) */}
       <div className="absolute inset-0" aria-hidden>
         <div
           className="absolute inset-0"
           style={{
-            background: 'var(--tour-backdrop)',
-            backdropFilter: 'blur(6px)',
-            WebkitBackdropFilter: 'blur(6px)',
+            background: 'rgba(2,6,23,0.52)',
+            backdropFilter: 'blur(3px)',
+            WebkitBackdropFilter: 'blur(3px)',
             pointerEvents: 'none',
             WebkitMaskImage: spotlights.length
               ? buildMaskDataUrl(spotlights, window.innerWidth, window.innerHeight)
@@ -610,8 +645,8 @@ export default function TourOverlay({ onNavigate, autoStart, onFinishOnboarding 
               width: s.width,
               height: s.height,
               borderRadius: s.radius,
-              border: '2px solid var(--tour-highlight-border)',
-              boxShadow: '0 10px 32px rgba(0,0,0,0.25)',
+              border: '1px solid rgba(255,255,255,0.9)',
+              boxShadow: '0 18px 42px rgba(0,0,0,0.24), 0 0 0 4px rgba(59,130,246,0.14)',
               pointerEvents: 'none',
             }}
           />
@@ -623,70 +658,108 @@ export default function TourOverlay({ onNavigate, autoStart, onFinishOnboarding 
         ref={cardRef}
         className="absolute pointer-events-auto"
         style={{
-          width: 'min(94vw, 520px)',
-          height: '320px',
+          width: 'min(92vw, 420px)',
+          height: '318px',
           left: cardPos?.left ?? '50%',
           top: cardPos?.top ?? '50%',
           transform: cardPos ? 'none' : 'translate(-50%, -50%)',
         }}
       >
         <Card
-          // Opaque + "lit" so the explanation always reads as a primary focus (light & dark mode).
-          className="bg-white dark:bg-slate-950 border border-white/30 dark:border-white/15 ring-4 ring-white/80 dark:ring-white/30 shadow-[0_22px_80px_rgba(0,0,0,0.55)] animate-[tour-pop_180ms_ease-out]"
+          className="h-full gap-0 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-[0_20px_70px_rgba(15,23,42,0.34)] animate-[tour-card-enter_220ms_cubic-bezier(.2,.9,.2,1)] dark:border-slate-800 dark:bg-slate-950"
         >
-          <CardHeader className="relative">
-            <CardTitle className="pr-8 text-3xl leading-tight">{resolvedCurrent?.title ?? 'Onboarding'}</CardTitle>
-            <button
-              onClick={closeTour}
-              className="absolute right-3 top-3 rounded-md p-2 hover:bg-muted"
-              aria-label="Close tour"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </CardHeader>
-
-          <CardContent className="space-y-4" style={{ height: 'calc(320px - 96px)', overflowY: 'auto' }}>
-            <p className="text-xl leading-relaxed text-slate-900 dark:text-slate-50">
-              {resolvedCurrent?.body ?? ''}
-            </p>
-
-            <div className="flex items-center justify-between">
-              <div className="text-xs text-muted-foreground">
-                Step {clamp(stepIndex + 1 + progressOffset, 1, progressTotal)} / {progressTotal}
+          <div className="relative border-b border-slate-100 px-5 pb-4 pt-5 dark:border-slate-800">
+            <div className="flex items-start justify-between gap-4 pr-9">
+              <div>
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                  <Sparkles className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                  {t(pageLabel(resolvedCurrent?.page))}
+                </div>
+                <h3 className="mt-2 text-xl font-semibold leading-tight tracking-[-0.025em] text-slate-950 dark:text-white">
+                  {resolvedCurrent?.title ? t(resolvedCurrent.title) : t('tourOverlay.title')}
+                </h3>
               </div>
 
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={prev} disabled={isFirst}>
-                  Back
+              <div className="rounded-md border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:border-slate-800 dark:text-slate-300">
+                {currentProgressStep}/{progressTotal}
+              </div>
+            </div>
+
+            <div className="mt-4 h-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+              <div
+                className="h-full rounded-full bg-blue-600 transition-all duration-500 ease-out dark:bg-blue-400"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+
+            <button
+              onClick={closeTour}
+              className="absolute right-3 top-3 inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white"
+              aria-label={t('tourOverlay.actions.close')}
+            >
+              <X className="h-4 w-4" />
+              <span>{t('tourOverlay.actions.skip')}</span>
+            </button>
+          </div>
+
+          <CardContent className="flex flex-1 flex-col px-5 pb-5 pt-4">
+            <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+              <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
+                {resolvedCurrent?.body ? renderRichText(t(resolvedCurrent.body)) : ''}
+              </p>
+
+              <div className="mt-4 flex items-start gap-2 rounded-md bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600 dark:bg-slate-900/70 dark:text-slate-300">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+                <span>{t('tourOverlay.note')}</span>
+              </div>
+            </div>
+
+            <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+              <Button variant="outline" onClick={closeTour} className="rounded-md border-slate-300 bg-white px-4 text-slate-700 shadow-sm hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800">
+                {t('tourOverlay.actions.skip')}
+              </Button>
+
+              <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={prev} disabled={isFirst} className="rounded-md">
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  {t('common.back')}
                 </Button>
 
                 <Button
-                  variant="outline"
-                  onClick={closeTour}
-                  aria-label="Skip onboarding"
-                >
-                  Skip
-                </Button>
-
-                <Button
+                  className="rounded-md bg-blue-600 text-white shadow-sm hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400"
                   onClick={(e) => {
                     // Make sure this click does not pass through to underlying UI.
                     e.preventDefault();
                     e.stopPropagation();
                     if (isLast) {
-                      toast.info('Tip: Study longer to unlock badges (coming soon).');
+                      toast.success(t('tourOverlay.success'));
                       closeTour();
                     }
                     else next();
                   }}
                 >
-                  {isLast ? 'Done' : 'Next'}
+                  {isLast ? t('tourOverlay.actions.done') : t('common.next')}
+                  {!isLast && <ArrowRight className="ml-2 h-4 w-4" />}
                 </Button>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
+      <style>{`
+        @keyframes tour-card-enter {
+          from { opacity: 0; transform: translateY(8px) scale(.99); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          * {
+            animation-duration: 1ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 1ms !important;
+          }
+        }
+      `}</style>
     </div>
   );
 

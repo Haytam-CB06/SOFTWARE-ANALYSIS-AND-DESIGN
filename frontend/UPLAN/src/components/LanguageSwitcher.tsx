@@ -2,30 +2,54 @@ import { useTranslation } from "react-i18next";
 import { Globe, Check } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useInlineText } from "../i18n/inlineText";
 
 type Lang = "en" | "fr" | "es" | "it";
+const supportedLanguages: Lang[] = ["en", "fr", "es", "it"];
 
 export default function LanguageSwitcher() {
   const { i18n } = useTranslation();
+  const tt = useInlineText();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [isChanging, setIsChanging] = useState(false);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const wrapperRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   const languages: { code: Lang; label: string }[] = [
     { code: "en", label: "English" },
-    { code: "fr", label: "Français" },
-    { code: "es", label: "Español" },
+    { code: "fr", label: "Francais" },
+    { code: "es", label: "Espanol" },
     { code: "it", label: "Italiano" },
   ];
 
-  const currentLang = (i18n.language?.slice(0, 2) as Lang) || "en";
+  const currentLangValue = i18n.resolvedLanguage || i18n.language || "en";
+  const currentLangSlice = currentLangValue.slice(0, 2) as Lang;
+  const currentLang = supportedLanguages.includes(currentLangSlice) ? currentLangSlice : "en";
 
   const changeLanguage = (lang: Lang) => {
-    i18n.changeLanguage(lang);
-    localStorage.setItem("appLanguage", lang);
+    if (lang === currentLang || isChanging) {
+      setOpen(false);
+      return;
+    }
+
+    setIsChanging(true);
     setOpen(false);
+    localStorage.setItem("appLanguage", lang);
+    document.documentElement.lang = lang;
+    i18n.changeLanguage(lang);
+
+    const notifyLanguageRefresh = () => {
+      window.dispatchEvent(
+        new CustomEvent("uplan:language-refresh", {
+          detail: { language: lang },
+        }),
+      );
+    };
+
+    notifyLanguageRefresh();
+    window.location.reload();
   };
 
   useEffect(() => {
@@ -105,7 +129,7 @@ export default function LanguageSwitcher() {
           }`}
         >
           <div className="mb-1 px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
-            Language
+            {tt('Language')}
           </div>
 
           <div className="space-y-1">
@@ -116,6 +140,7 @@ export default function LanguageSwitcher() {
                 <button
                   key={lang.code}
                   onClick={() => changeLanguage(lang.code)}
+                  disabled={isChanging}
                   className={`flex w-full items-center justify-between rounded-xl px-3 py-3 text-left text-sm transition-all duration-200 ${
                     active
                       ? "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
@@ -126,7 +151,7 @@ export default function LanguageSwitcher() {
                     <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-[11px] font-bold uppercase text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                       {lang.code}
                     </span>
-                    <span className="font-medium">{lang.label}</span>
+                    <span className="font-medium">{tt(lang.label)}</span>
                   </div>
 
                   {active ? (

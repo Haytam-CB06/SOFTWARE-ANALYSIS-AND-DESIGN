@@ -26,7 +26,9 @@ const en = {
   minimize: 'Minimize',
   total: 'Total',
   today: 'Today',
-  pin: 'Pin'
+  pin: 'Pin',
+  next: 'Next',
+  skip: 'Skip'
 },
   
   
@@ -751,6 +753,10 @@ notifications: {
   empty: 'No notifications',
   new: 'New',
   clear: 'Clear',
+  studyReminder: 'Study session reminder',
+  studyReminderBody: '{{subject}} starts in {{minutes}} minutes',
+  studyStarted: 'Study session started',
+  studyStartedBody: '{{subject}} is starting now',
 },
 
 
@@ -1008,6 +1014,7 @@ navigation: {
   about: 'About Us',
   services: 'Services',
   login: 'Log In',
+  seePlans: 'See plans',
   subtitle: 'Academic Planning',
   logoAlt: 'PLAN Logo',
   switchToLight: 'Switch to Light Mode',
@@ -1153,17 +1160,6 @@ createTimetable: {
   readySummary_other: 'Ready to generate. You have {{courses}} courses and {{hours}} hours of planned study time per week.',
 },
 
-days: {
-  short: {
-    Monday: 'Mon',
-    Tuesday: 'Tue',
-    Wednesday: 'Wed',
-    Thursday: 'Thu',
-    Friday: 'Fri',
-    Saturday: 'Sat',
-    Sunday: 'Sun',
-  },
-},
 settings: {
   title: 'Settings',
   subtitle: 'Manage your account, reminders, and workspace preferences',
@@ -1181,13 +1177,30 @@ settings: {
     uploadPicture: 'Upload picture',
     pictureHint: 'JPG, PNG, or GIF. Max size 5MB.',
     fields: {
+      username: 'Username',
+      profileTitle: 'Profile title',
+      role: 'Role',
       department: 'Department',
     },
     placeholders: {
       fullName: 'Enter your full name',
       email: 'Enter your email',
+      role: 'Select your role',
+      otherRole: 'Enter your role information',
       department: 'Enter your department',
       dateOfBirth: 'Enter your date of birth',
+    },
+    hints: {
+      fullNameLocked: 'Your full name is saved during signup and cannot be changed later.',
+      username: 'This appears on your public profile only.',
+      profileTitle: 'This appears under your name on your profile.',
+      otherRole: 'Add the role information you want shown on your profile.',
+    },
+    roleOptions: {
+      student: 'Student',
+      administrator: 'Administrator',
+      teacher: 'Teacher',
+      other: 'Other',
     },
     actions: {
       edit: 'Edit Profile',
@@ -1288,6 +1301,7 @@ settings: {
 
   errors: {
     notLoggedIn: 'You are not logged in',
+    roleDetailsRequired: 'Enter your role information before saving.',
     uploadImageOnly: 'Please upload an image file',
     uploadImageFailedWithReason: 'Failed to upload image: {{reason}}',
     profilePictureUploadFailed: 'Failed to upload profile picture',
@@ -1396,8 +1410,121 @@ courseEdit: {
   }
 },
   calendar:{
-    title:"Study Timetable",
-    subtitle:"this timetable is for my exam week",
+    title: "Study Timetable",
+    subtitle: "Plan and organize your study sessions - each week has its own schedule",
+    add: "Add",
+    aiPlan: "AI Plan",
+    import: "Import",
+    copyWeek: "Copy week",
+    google: "Google",
+    pdf: "PDF",
+    excel: "Excel",
+    deleteAll: "Delete all",
+    currentWeek: "Go to current week",
+    importTimetable: "Import timetable",
+    importTargetPrompt: "Where are you importing to?",
+    myTimetable: "My Timetable",
+    showDetails: "Show details",
+    hideDetails: "Hide details",
+    weeklyView: "Weekly view",
+    time: "Time",
+    conflict: "Conflict",
+    loading: "Loading...",
+    loadingStatuses: "Loading statuses...",
+    dismiss: "Dismiss",
+    copy: "Copy",
+    view: "View",
+    deadlineCount: "{{count}} deadline",
+    deadlineCount_other: "{{count}} deadlines",
+    status: {
+      completed: "completed",
+      missed: "missed",
+      skipped: "skipped",
+      planned: "planned",
+    },
+    actions: {
+      markCompleted: "Mark completed",
+      markMissed: "Mark missed",
+      markSkipped: "Mark skipped",
+      resetPlanned: "Reset to planned",
+    },
+    confirm: {
+      confirm: "Confirm",
+      deleteAllTitle: "Delete all courses",
+      deleteAllMessage: "Are you sure you want to delete all courses and sessions for this week?",
+      copyNextWeekTitle: "Copy to Next Week",
+      copyNextWeekMessage: "Copy all {{count}} session(s) from this week to the next week?",
+      googleOverwrite: "You already exported a timetable to Google Calendar.\n\nOK = Overwrite (replace previous export)\nCancel = Add on top (keep previous export)",
+    },
+    export: {
+      page: "Page {{page}}",
+      deadline: "Deadline: {{date}}",
+      noSessions: "No sessions",
+      continued: "Continued on next page",
+      week: "Week: {{range}}",
+      day: "Day",
+      subject: "Subject",
+      startTime: "Start Time",
+      endTime: "End Time",
+      type: "Type",
+      deadlineHeader: "Deadline",
+      sheetName: "Timetable",
+      googleDescription: "SmartStudy session: {{type}}",
+    },
+    toasts: {
+      editAssessmentFromAssessments: "Edit this from Assessments & Deadlines",
+      deleteAssessmentFromAssessments: "Delete this from Assessments & Deadlines",
+      timeConflictDetected: "Time conflict detected",
+      cannotAdd: "Cannot add \"{{subject}}\"",
+      alreadyScheduledOn: "\"{{subject}}\" is already scheduled on {{day}}",
+      timeRange: "Time: {{start}} - {{end}}",
+      chooseDifferentTimeSlot: "Please choose a different time slot",
+      chooseDifferentSlot: "Please choose a different slot",
+      sessionDeadlineUpdated: "Session & deadline updated!",
+      sessionUpdated: "Session updated successfully",
+      sessionAddedWithDeadline: "Session added with deadline!",
+      sessionAdded: "Session added successfully",
+      sessionDeleted: "Session deleted successfully",
+      allSessionsCleared: "Done! All sessions have been cleared successfully.",
+      emptyTimetable: "Empty timetable",
+      emptyBeforeCopy: "Your timetable is empty. Please add some sessions before copying to the next week.",
+      sessionsCopied: "Sessions copied successfully!",
+      sessionsCopiedDescription: "{{count}} session(s) copied to next week (Week {{week}})",
+      pdfLayoutFailed: "PDF layout failed: content is too large to fit on page.",
+      exportedPdf: "Timetable exported as PDF",
+      pdfExportFailed: "PDF export failed",
+      unknownError: "Unknown error",
+      exportedExcel: "Timetable exported as Excel",
+      backendUrlMissing: "Backend URL not configured (VITE_API_BASE_URL)",
+      noSessionsToExport: "No sessions to export",
+      notLoggedIn: "You are not logged in",
+      googleStatusFailed: "Could not check Google Calendar status",
+      connectGoogleToExport: "Connect Google Calendar to export...",
+      exportingGoogle: "Exporting to Google Calendar...",
+      reconnectingGoogle: "Reconnecting Google Calendar...",
+      exportFailedWithMessage: "Export failed: {{message}}",
+      exportedGoogle: "Exported {{count}} session(s) to Google Calendar",
+      exportFailed: "Export failed",
+      importConflictsDetected: "Import conflicts detected",
+      conflictsFound: "{{count}} conflict(s) found",
+      importConflictPair: "\"{{imported}}\" conflicts with \"{{existing}}\"",
+      onDay: "on {{day}}",
+      moreConflicts: "and {{count}} more...",
+      importedWithAvailability: "Successfully imported {{count}} session(s) with availability settings!",
+      imported: "Successfully imported {{count}} session(s)!",
+      dragDropConflict: "Drag & drop conflict",
+      cannotMove: "Cannot move \"{{subject}}\"",
+      alreadyInSlot: "\"{{subject}}\" is already in this time slot",
+      onDayTimeRange: "on {{day}}: {{start}} - {{end}}",
+      anotherSessionExists: "Another session already exists at this time. Please choose a different slot.",
+      sessionMoved: "Session moved successfully",
+      sessionMovedDescription: "Moved to {{day}} at {{time}}",
+      navigationUnavailable: "Navigation is not available",
+      importFromAutoGenerate: "Import is done from Auto Generate for non-admin users.",
+      statusSaveFailed: "Failed to save workspace session statuses",
+      onlyAdminsCanEdit: "Only workspace admins can edit this timetable",
+      selectWorkspaceImport: "Select the workspace, then upload/import in Workspace Auto Generate.",
+    },
   },
   sessionCard: {
   confirmDelete: 'Delete "{{name}}"?',
@@ -1759,6 +1886,11 @@ sharedTimetable: {
 
   info: {
     viewingWithCount: 'Viewing {{name}} - {{count}} sessions',
+  },
+  confirmDelete: {
+    title: 'Delete shared timetable',
+    description: 'This permanently deletes "{{name}}" from the shared workspace timetables.',
+    fallbackName: 'this timetable',
   },
 
   history: {
@@ -2467,16 +2599,16 @@ terms: {
     roles: {
       admin: {
         label: "Admin",
-        description: "Can manage members and settings",
+        description: "Can manage members, roles, workspace settings, and any task including other members' tasks",
       },
       member: {
         label: "Member",
-        description: "Can view and edit content",
+        description: "Can create, edit, move, and comment on tasks, and can archive or delete only their own tasks",
       },
     },
     rolesGuide: {
       title: "Roles & Permissions",
-      description: "Understanding workspace roles",
+      description: "Admins can manage everything. Members can collaborate on content, but they cannot archive or delete other members' tasks.",
     },
     permissions: {
       manage_members: "Manage members",
@@ -2578,10 +2710,13 @@ terms: {
 
     stats: {
       total: "Total tasks",
+      totalCount: "{{count}} tasks",
       todo: "To do",
       inProgress: "In progress",
+      inProgressCount: "{{count}} in progress",
       review: "In review",
       done: "Done",
+      doneCount: "{{count}} done",
       overdue: "Overdue",
     },
 
@@ -2591,9 +2726,50 @@ terms: {
       createTask: "Create task",
       updateTask: "Update task",
       cancel: "Cancel",
+      processing: "Processing...",
       archive: "Archive task",
       restore: "Restore",
       deletePermanent: "Delete permanently",
+    },
+    rules: {
+      description: "Compact workflow rules for shared project work.",
+      ownership: {
+        title: "Task ownership",
+        label: "Shared by default",
+        body: "Any workspace member can create tasks, assign work, comment, and move tasks across columns.",
+      },
+      workflow: {
+        title: "Workflow stages",
+        label: "Todo -> Done",
+        body: "Move work from To do to In progress, then Review, then Done so the board reflects the real project state.",
+      },
+      archive: {
+        title: "Archiving",
+        label: "Own tasks only",
+        body: "Members can archive or permanently delete only the tasks they created. Archived tasks can still be restored.",
+      },
+      admin: {
+        title: "Admin control",
+        label: "Workspace governance",
+        body: "Workspace admins can clean the board, archive all tasks, delete any task, and manage workspace-level access.",
+      },
+    },
+    dialogs: {
+      archiveTaskTitle: "Archive task",
+      archiveTaskDescription: "This task will be moved to the archive. To continue, type {{phrase}} below.",
+      deleteAllActiveTitle: "Delete all active tasks",
+      deleteAllActiveDescription: "This permanently removes every active task in this workspace. Type {{phrase}} to confirm.",
+      deleteArchivedTitle: "Delete archived task",
+      deleteArchivedDescription: "This permanently deletes the archived task and cannot be undone. Type {{phrase}} to continue.",
+      archiveAllTitle: "Archive all tasks",
+      archiveAllDescription: "All active tasks will be moved to the archive. Type {{phrase}} to confirm this bulk action.",
+      deleteAllArchivedTitle: "Delete all archived tasks",
+      deleteAllArchivedDescription: "This permanently deletes every archived task. This action cannot be undone. Type {{phrase}} to continue.",
+    },
+
+    delete: {
+      confirmationPhrase: "Confirmation phrase",
+      typePhraseToContinue: "Type the phrase to continue",
     },
 
     filters: {
@@ -2630,6 +2806,7 @@ terms: {
       noTasks: "No tasks yet",
       selectAssignee: "Select assignee...",
       you: "You",
+      deadlineLocked: "Deadline locked",
     },
 
     dates: {
@@ -2644,6 +2821,7 @@ terms: {
       empty: "No archived tasks",
 
       archiveAll: "Archive all",
+      deleteAllActive: "Delete all tasks",
       deleteAll: "Delete all",
 
       restore: "Restore",
@@ -2653,6 +2831,7 @@ terms: {
       restored: "Task restored to To do",
       deleted: "Task permanently deleted",
 
+      allActiveDeleted: "All active tasks deleted",
       allArchived: "All tasks archived",
       allDeleted: "All archived tasks deleted",
 
@@ -2673,10 +2852,19 @@ terms: {
       errorDelete: "Failed to delete task",
       errorRestore: "Failed to restore task",
       errorArchiveAll: "Failed to archive all tasks",
-      errorDeletePermission: "Only admins or creators can delete tasks",
+      errorDeleteAllArchived: "Failed to delete all archived tasks",
+      errorAdminOnly: "Only admins can run this workspace-wide action",
+      errorDeletePermission: "Only admins or creators can archive or delete this task",
+      errorDeadlineLocked: "Deadline tasks can only be archived or deleted after the due date passes.",
     },
   },
   homepage: {
+    product: {
+  heading: "A sharper way to plan, adapt, and win",
+  description:
+    "UPLAN is designed like a modern productivity system: structured, adaptive, and focused on real progress.",
+},
+
     hero: {
       badge: "Built for students who want clarity, not chaos",
       titleLine1: "Plan smarter.",
@@ -2734,6 +2922,9 @@ terms: {
     values: {
       title: "What We Stand For",
       subtitle: "The principles behind every feature we build",
+      phoneAlt: "U PLAN mobile app",
+      mobilePreview: "Mobile preview",
+      clearDailyPlan: "Clear daily planning at a glance",
       vision: {
         title: "Vision",
         description: "Smart time management for every student",
@@ -2934,6 +3125,69 @@ terms: {
       averageRating: "Average Rating",
     },
 
+    actions: {
+      seePlans: "See plans",
+    },
+
+    errors: {
+      planLinkMissing: "Payment/contact link is not configured yet. Add it in frontend/UPLAN/.env.",
+    },
+
+    phone: {
+      kicker: "Study Timetable",
+      today: "Today",
+      nextFocus: "Next focus",
+      chemistryReview: "Chemistry Review",
+      weekdays: {
+        mon: "M",
+        tue: "T",
+        wed: "W",
+        thu: "T",
+        fri: "F",
+      },
+      sessions: {
+        math: {
+          title: "Math Revision",
+          label: "High priority",
+        },
+        physics: {
+          title: "Physics Quiz Prep",
+          label: "Due tomorrow",
+        },
+        essay: {
+          title: "Essay Draft",
+          label: "Writing block",
+        },
+      },
+      nav: {
+        plan: "Plan",
+        progress: "Progress",
+        tasks: "Tasks",
+      },
+    },
+
+    demo: {
+      badge: "Premium Demo Access",
+      title: "Book Your Demo",
+      description1:
+        "This demo is designed to give users the complete UPLAN experience. During the session, they will discover the platform in the same way a top-tier customer would, with a full walkthrough of all major features, premium workflows, and advanced capabilities.",
+      description2:
+        "Rather than a limited preview, the demo is structured to showcase the real value of the product across planning, progress tracking, collaboration, and smart academic organization.",
+      includedTitle: "What is included",
+      includes: {
+        walkthrough: "Full application walkthrough",
+        premium: "Access-style premium experience",
+        advanced: "Advanced features and workflows",
+        useCases: "Real academic use cases",
+      },
+      replyTime: "Usually replies within 24h",
+      emailLabel: "Email",
+      contactMeta: "No commitment. Quick response. Direct access.",
+      requestDemo: "Request Demo",
+      contactNote:
+        "You can request a personalized demo, ask product questions, or discuss partnership opportunities directly.",
+    },
+
     finalCta: {
       title: "Start Your Academic Transformation Today",
       description:
@@ -2941,6 +3195,303 @@ terms: {
       startFreeTrial: "Start Free Trial",
       bookDemo: "Book a Demo",
       footer: "No credit card required • Free for 14 days • Cancel anytime",
+    },
+  },
+  directMessages: {
+    title: 'Messages',
+    subtitle: 'Private conversations with friends.',
+    loading: {
+      conversations: 'Loading conversations...',
+      conversation: 'Loading conversation...',
+      profile: 'Loading profile...',
+    },
+    empty: {
+      noConversations: 'Open your profile, copy your profile link, and share it with the person you want to message.',
+      noMessages: 'Send the first private message.',
+      chooseConversation: 'Choose a conversation',
+      chooseConversationDescription: 'Accepted friends appear here. Use your profile link to connect with someone new.',
+    },
+    actions: {
+      profile: 'Profile',
+      profileShort: 'Profile',
+      info: 'Info',
+      pin: 'Pin',
+      pinned: 'Pinned',
+      saveNickname: 'Save nickname',
+      addFriend: 'Add friend',
+      acceptRequest: 'Accept request',
+      accept: 'Accept',
+      message: 'Message',
+      copyProfileLink: 'Copy profile link',
+      editSharedProfile: 'Edit shared profile',
+      copyAgain: 'Copy again',
+      saveSharedProfile: 'Save shared profile',
+    },
+    placeholders: {
+      nickname: 'Add a nickname for this friend',
+      message: 'Message your friend...',
+      fullName: 'Your name',
+      username: 'username',
+    },
+    quickReplies: {
+      label: 'Quick replies',
+      ok: 'OK',
+      nice: 'Nice',
+      done: 'Done',
+      thanks: 'Thanks',
+    },
+    templates: {
+      studyCheckIn: 'Can we review the plan for this week?',
+      meetup: 'Are you free to study together later today?',
+      followUp: 'Quick follow-up on the last message.',
+    },
+    presence: {
+      online: 'Online',
+      offline: 'Offline',
+      justNow: 'Just now',
+      minutesAgo: '{{count}}m ago',
+      hoursAgo: '{{count}}h ago',
+      daysAgo: '{{count}}d ago',
+    },
+    defaults: {
+      friend: 'Friend',
+      profileTitle: 'Student Planner',
+      username: 'uplan-user',
+      noSessions: 'No completed sessions',
+      recently: 'Recently',
+    },
+    states: {
+      sending: 'Sending',
+      saving: 'Saving...',
+    },
+    status: {
+      self: 'You',
+      none: 'Not connected',
+      friends: 'Friends',
+      pendingSent: 'Request sent',
+      pendingReceived: 'Request received',
+    },
+    profile: {
+      title: 'Profile',
+      description: 'Picture, background, connection status, and study productivity.',
+      joined: 'Joined UPLAN',
+      hoursCompleted: 'Hours completed',
+      mostProductiveWeek: 'Most productive week',
+      mostProductiveMonth: 'Most productive month',
+      connection: 'Connection',
+    },
+    edit: {
+      title: 'Profile settings shared with friends',
+      description: 'These details appear when friends open your profile from messages.',
+      profileTitle: 'Profile title',
+      backgroundTitle: 'Background design',
+      backgroundDescription: 'Choose a hand-built pattern for the profile card.',
+    },
+    backgrounds: {
+      blueprint: 'Blueprint desk',
+      constellation: 'Night notes',
+      paperplane: 'Paper flight',
+      rings: 'Study rings',
+      lab: 'Lab board',
+    },
+    friends: {
+      title: 'Friends',
+      description: 'Accepted friends and pending requests connected to this account.',
+      empty: 'No friends yet. Copy your profile link and share it.',
+      since: 'Friends since {{date}}',
+      requestSent: 'Request sent',
+      requestReceived: 'Request received',
+    },
+    success: {
+      profileLinkCopied: 'Profile link copied.',
+      friendRequestSent: 'Friend request sent.',
+      friendRequestAccepted: 'Friend request accepted.',
+      profileUpdated: 'Shared profile updated.',
+      friendAdded: 'Friend added.',
+      chatHidden: 'Chat hidden from your list.',
+    },
+    errors: {
+      loginRequired: 'Please log in again to continue.',
+      friendsOnly: 'Messaging is only available with accepted friends.',
+      loadMessages: 'Unable to load messages right now.',
+      loadProfile: 'Unable to open this profile right now.',
+      createProfileLink: 'Unable to create your profile link right now.',
+      sendFriendRequest: 'Unable to send the friend request right now.',
+      acceptFriendRequest: 'Unable to accept the friend request right now.',
+      updateProfile: 'Unable to save your shared profile right now.',
+      loadConversation: 'Unable to load this conversation right now.',
+      sendMessage: 'Unable to send your message right now.',
+      updateConversation: 'Unable to update this conversation right now.',
+      acceptProfileLink: 'Unable to use this profile link right now.',
+    },
+  },
+  postSignupQuestionnaire: {
+    kicker: 'Profile setup',
+    title: 'Complete your profile',
+    description: 'Welcome to U PLAN. Answer a few quick questions so your profile looks complete from the start. These details will appear on your profile.',
+    noteTitle: 'Visible on your profile',
+    noteBody: 'Your full name stays fixed after signup. You can update the rest later from Profile settings or from your shared profile in Messages.',
+    questionsBadge: 'Question {{current}} of {{total}}',
+    inputTitle: 'Your answer',
+    actions: {
+      skipQuestion: 'Skip question',
+      skipQuestionnaire: 'Skip questionnaire',
+      nextQuestion: 'Next question',
+      saveAndContinue: 'Save and continue',
+      saving: 'Saving...',
+    },
+    questions: {
+      fullName: {
+        label: 'Full name',
+        helper: 'Welcome. This is the full name saved during signup and shown on your profile. It cannot be changed after registration.',
+        placeholder: 'Your full name',
+      },
+      profileTitle: {
+        label: 'Profile title',
+        helper: 'Add a short line that helps people understand who you are when they open your profile.',
+        placeholder: 'For example: Computer Science Student',
+      },
+      role: {
+        label: 'Role',
+        helper: 'Choose the role that best matches you. This will appear on your profile.',
+        placeholder: 'Select your role',
+      },
+      otherRoleInfo: {
+        label: 'Tell us more',
+        helper: 'If none of the standard roles fit, enter the role information you want shown on your profile.',
+        placeholder: 'For example: Research assistant',
+      },
+    },
+    roleOptions: {
+      student: 'Student',
+      administrator: 'Administrator',
+      teacher: 'Teacher',
+      other: 'Other',
+    },
+    preview: {
+      kicker: 'Profile preview',
+      defaultName: 'Your name',
+      defaultTitle: 'Your profile title',
+      defaultDepartment: 'Your role',
+      visibilityTitle: 'How it will appear',
+      visibilityBody: 'These details appear on your profile card and in profile views across the app.',
+      editLaterTitle: 'You can edit this later',
+      editLaterBody: 'You can refine your profile details later whenever your role or title changes.',
+    },
+    success: {
+      saved: 'Profile details saved.',
+    },
+    errors: {
+      notLoggedIn: 'You need to be logged in to save your profile details.',
+      otherRoleRequired: 'Enter the role information you want to show on your profile.',
+      saveFailed: 'Unable to save your profile details right now.',
+    },
+  },
+  welcomeOverlay: {
+    alt: 'Welcome',
+    close: 'Close welcome',
+    badge: 'Guided setup',
+    headline: 'Set up your study workspace in under one minute.',
+    step: 'Step',
+    body: 'We will guide you through the essentials in a quick walkthrough so you can generate a clean study timetable in minutes.',
+    cards: {
+      profile: 'Profile ready',
+      schedule: 'Schedule setup',
+      progress: 'Progress tracking',
+    },
+  },
+  tourOverlay: {
+    title: 'Onboarding',
+    note: 'The highlighted area is the action to review before continuing.',
+    success: 'Walkthrough complete. You are ready to use U PLAN.',
+    actions: {
+      close: 'Close tour',
+      skip: 'Skip',
+      done: 'Done',
+    },
+    pages: {
+      dashboard: 'Dashboard',
+      settings: 'Settings',
+      autoGenerate: 'Auto Generate',
+      myTimetable: 'My Timetable',
+      goals: 'Goals',
+      workspace: 'Workspace',
+      default: 'U PLAN',
+    },
+    steps: {
+      profile: {
+        title: 'Your profile and settings',
+        body: 'Open your name and avatar menu to access your profile settings and keep your account details up to date.',
+      },
+      settings: {
+        title: 'Edit your profile',
+        body: 'Open **Settings** from the sidebar, then use **Edit Profile** to update your name, professional details, picture, and account information.',
+      },
+      studyWindow: {
+        title: 'Study window',
+        body: 'Set the hours when you are available to study so the generated timetable matches your real routine and exam periods.',
+      },
+      classSchedule: {
+        title: 'Class schedule and priority',
+        body: 'Add your classes and assign priority so important courses receive stronger study coverage.',
+      },
+      busyTime: {
+        title: 'Busy time',
+        body: 'Block work, errands, and personal commitments so the generator does not place study sessions on top of them.',
+      },
+      generate: {
+        title: 'Generate your plan',
+        body: 'Generate creates your study sessions for the week using the rules and preferences you set above.',
+      },
+      timetable: {
+        title: 'My timetable',
+        body: 'This is your weekly study plan. You can drag sessions, refine time blocks, and keep the week aligned with your routine.',
+      },
+      today: {
+        title: "Today's sessions",
+        body: 'Your daily view keeps you focused. Start the current session and manage what comes next without losing momentum.',
+      },
+      assessments: {
+        title: 'Assessments and deadlines',
+        body: 'Track exams, tests, and assignments here so deadlines shape your planning during busy weeks.',
+      },
+      goalsWeek: {
+        title: 'This week',
+        body: 'Review how many sessions are scheduled this week based on your timetable.',
+      },
+      deadlines: {
+        title: 'Upcoming deadlines',
+        body: 'Use this area to review what is due soon and stay ahead of the next important submission or exam.',
+      },
+      progress: {
+        title: 'Progress and streak',
+        body: 'Track completed hours and your streak so progress stays visible over time.',
+      },
+      todaySession: {
+        title: "Today's session",
+        body: 'Review today’s sessions and expand them when you need more detail or quick actions.',
+      },
+      weeklyGoals: {
+        title: 'Weekly goals and completions',
+        body: 'Set weekly goals, protect your streak, and monitor completed deadlines as you progress.',
+      },
+      workspace: {
+        title: 'Workspace header',
+        body: 'This header shows your active workspace, members, and quick actions. Switch workspaces here, then use the tabs below to navigate inside the workspace.',
+      },
+    },
+  },
+  app: {
+    toasts: {
+      signedInWithGoogle: "Signed in with Google",
+      freePlanSelected: "Free plan selected",
+      paymentLinkMissing: "Payment link is not configured yet. Add it in frontend/UPLAN/.env.",
+      noAdminAccess: "You do not have access to Admin.",
+    },
+    welcome: {
+      title: "Welcome to U PLAN",
+      body:
+        "Ready to turn school stress into a clear plan?\n\nIn the next 60 seconds, we'll show you where to:\n- update your profile\n- generate a clean timetable\n- track today's sessions\n\nTap Next to start the walkthrough.",
     },
   },
 };

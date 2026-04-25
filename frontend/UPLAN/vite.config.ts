@@ -56,6 +56,22 @@ export default defineConfig({
   build: {
     target: 'esnext',
     outDir: 'build',
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined;
+          if (id.includes('react') || id.includes('react-dom')) return 'vendor-react';
+          if (id.includes('@radix-ui')) return 'vendor-radix';
+          if (id.includes('lucide-react')) return 'vendor-icons';
+          if (id.includes('i18next') || id.includes('react-i18next')) return 'vendor-i18n';
+          if (id.includes('recharts')) return 'vendor-charts';
+          if (id.includes('xlsx')) return 'vendor-xlsx';
+          if (id.includes('jspdf')) return 'vendor-pdf';
+          if (id.includes('html2canvas') || id.includes('html-to-image')) return 'vendor-capture';
+          return 'vendor';
+        },
+      },
+    },
   },
   server: {
     port: 3000,

@@ -40,6 +40,7 @@ import { Alert, AlertDescription } from './ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { toast } from 'sonner';
 import CollaborativeTimetable from './CollaborativeTimetable';
+import ConfirmDeleteDialog from './ConfirmDeleteDialog';
 
 interface Member {
   id: string;
@@ -94,6 +95,7 @@ export default function SharedTimetable({ workspace, currentUser }: SharedTimeta
   const { t, i18n } = useTranslation();
 
   const [sharedTimetables, setSharedTimetables] = useState<SharedTimetable[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<SharedTimetable | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTimetable, setSelectedTimetable] = useState<SharedTimetable | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -256,10 +258,14 @@ export default function SharedTimetable({ workspace, currentUser }: SharedTimeta
       return;
     }
 
-    if (confirm(t('sharedTimetable.confirm.delete', { name: timetable.name }))) {
-      saveToStorage(sharedTimetables.filter(t => t.id !== timetableId));
-      toast.success(t('sharedTimetable.success.deleted'));
-    }
+    setDeleteTarget(timetable);
+  };
+
+  const confirmDeleteTimetable = () => {
+    if (!deleteTarget) return;
+    saveToStorage(sharedTimetables.filter(t => t.id !== deleteTarget.id));
+    toast.success(t('sharedTimetable.success.deleted'));
+    setDeleteTarget(null);
   };
 
   const handleUpdatePermissions = (timetableId: string) => {
@@ -372,6 +378,17 @@ export default function SharedTimetable({ workspace, currentUser }: SharedTimeta
     editable: sharedTimetables.filter(t => canEdit(t) && t.ownerId !== currentUser.id).length,
     viewOnly: sharedTimetables.filter(t => canView(t) && !canEdit(t)).length
   };
+
+  if (isCollaborativeEditorOpen && selectedTimetable) {
+    return (
+      <CollaborativeTimetable
+        workspace={workspace}
+        currentUser={currentUser}
+        timetableId={selectedTimetable.id}
+        onClose={() => setIsCollaborativeEditorOpen(false)}
+      />
+    );
+  }
 
   return (
     <div className="h-full flex flex-col bg-gray-50">
@@ -571,7 +588,7 @@ export default function SharedTimetable({ workspace, currentUser }: SharedTimeta
                     className="w-full border-blue-300 hover:bg-blue-50"
                     onClick={() => {
                       setSelectedTimetable(timetable);
-                      setIsViewTimetableOpen(true);
+                      setIsCollaborativeEditorOpen(true);
                       toast.info(t('sharedTimetable.info.viewingWithCount', { name: timetable.name, count: timetable.sessions.length }));
                     }}
                   >
@@ -652,7 +669,7 @@ export default function SharedTimetable({ workspace, currentUser }: SharedTimeta
 
             <div className="space-y-2">
               <Label>{t('sharedTimetable.fields.editors')}</Label>
-              <div className="border rounded-lg p-3 max-h-40 overflow-y-auto space-y-2">
+              <div className="max-h-40 space-y-2 overflow-y-auto rounded-2xl border p-3">
                 {workspace.members
                   .filter((m: Member) => m.id !== currentUser.id)
                   .map((member: Member) => (
@@ -770,7 +787,7 @@ export default function SharedTimetable({ workspace, currentUser }: SharedTimeta
 
             <div className="space-y-2">
               <Label>{t('sharedTimetable.fields.editorsSimple')}</Label>
-              <div className="border rounded-lg p-3 max-h-60 overflow-y-auto space-y-2">
+              <div className="max-h-60 space-y-2 overflow-y-auto rounded-2xl border p-3">
                 {workspace.members
                   .filter((m: Member) => m.id !== selectedTimetable?.ownerId)
                   .map((member: Member) => (
@@ -854,7 +871,7 @@ export default function SharedTimetable({ workspace, currentUser }: SharedTimeta
             {selectedTimetable && (
               <div className="space-y-2">
                 <Label>{t('sharedTimetable.fields.sessions')}</Label>
-                <div className="border rounded-lg p-3 max-h-60 overflow-y-auto space-y-2">
+                <div className="max-h-60 space-y-2 overflow-y-auto rounded-2xl border p-3">
                   {selectedTimetable.sessions.map((session: Session) => (
                     <div key={session.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
                       <Calendar className="h-4 w-4 text-blue-700" />
@@ -876,6 +893,14 @@ export default function SharedTimetable({ workspace, currentUser }: SharedTimeta
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title={t('sharedTimetable.confirmDelete.title')}
+        description={t('sharedTimetable.confirmDelete.description', { name: deleteTarget?.name || t('sharedTimetable.confirmDelete.fallbackName') })}
+        confirmLabel={t('common.delete')}
+        onConfirm={confirmDeleteTimetable}
+      />
     </div>
   );
 }

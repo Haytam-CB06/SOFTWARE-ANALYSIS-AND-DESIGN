@@ -22,7 +22,7 @@ export default function PrivacyPolicy({ onBack }: PrivacyPolicyProps) {
           {t('privacyPolicy.back')}
         </Button>
 
-        <div className="bg-card rounded-lg shadow-sm border border-border p-8">
+        <div className="rounded-[28px] border border-border bg-card p-8 shadow-sm">
           <h1 className="text-4xl text-foreground mb-4">
             {t('privacyPolicy.title')}
           </h1>
@@ -235,7 +235,7 @@ export default function PrivacyPolicy({ onBack }: PrivacyPolicyProps) {
             </section>
 
             {/* Commitment */}
-            <section className="bg-blue-50 dark:bg-blue-950/20 p-6 rounded-lg border border-blue-200 dark:border-blue-900">
+            <section className="rounded-[24px] border border-blue-200 bg-blue-50 p-6 dark:border-blue-900 dark:bg-blue-950/20">
               <h3 className="text-xl mb-3">
                 {t('privacyPolicy.sections.commitment.title')}
               </h3>

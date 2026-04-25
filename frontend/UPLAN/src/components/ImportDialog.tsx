@@ -9,6 +9,24 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Checkbox } from './ui/checkbox';
 
+const API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8000';
+
+interface TimetableExtractItem {
+  day_of_week?: number;
+  day_label?: string;
+  start_time?: string;
+  end_time?: string;
+  rrule?: string;
+  subject_title?: string;
+  subject_code?: string;
+  raw_line?: string;
+}
+
+interface TimetableExtractResponse {
+  text: string;
+  items: TimetableExtractItem[];
+}
+
 interface ImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -83,71 +101,85 @@ export default function ImportDialog({ open, onOpenChange, onImport, buttonText 
   };
 
   const processExcelFile = async (file: File) => {
-    const reader = new FileReader();
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
 
-    reader.onload = async (e) => {
-      try {
-        const text = e.target?.result as string;
-        const lines = text.split('\n').filter(line => line.trim());
-        const sessions: any[] = [];
+      const response = await fetch(`${API_BASE_URL}/timetable/extract-file`, {
+        method: 'POST',
+        body: formData,
+      });
 
-        let startIndex = 0;
-        for (let i = 0; i < lines.length; i++) {
-          if (
-            lines[i].toLowerCase().includes('time') ||
-            lines[i].toLowerCase().includes('monday') ||
-            lines[i].toLowerCase().includes('subject')
-          ) {
-            startIndex = i + 1;
-            break;
-          }
-        }
-
-        for (let i = startIndex; i < lines.length; i++) {
-          const cells = lines[i].split(',').map(cell => cell.trim().replace(/['"]/g, ''));
-
-          if (cells.length >= 4) {
-            const [subject, day, startTime, endTime, type] = cells;
-
-            const dayIndex = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday']
-              .indexOf(day.toLowerCase());
-
-            if (dayIndex !== -1 && subject && startTime && endTime) {
-              sessions.push({
-                id: `import-${Date.now()}-${i}`,
-                subject,
-                day: dayIndex,
-                startTime,
-                endTime,
-                type: type || 'lecture',
-              });
-            }
-          }
-        }
-
-        if (sessions.length > 0) {
-          setPreviewSessions(sessions);
-          toast.success(t('import.success.found', { count: sessions.length }));
-        } else {
-          setPreviewSessions(generateSampleSessions());
-          toast.info(t('import.info.sample'));
-        }
-      } catch {
-        toast.error(t('import.errors.parse'));
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Failed to process file' }));
+        throw new Error(error.detail || 'Failed to process file');
       }
-    };
 
-    reader.readAsText(file);
+      const data: TimetableExtractResponse = await response.json();
+      
+      const sessions = data.items
+        .filter(item => item.day_of_week !== undefined && item.start_time && item.end_time && item.subject_title)
+        .map((item, index) => ({
+          id: `import-${Date.now()}-${index}`,
+          subject: item.subject_title,
+          day: item.day_of_week,
+          startTime: item.start_time,
+          endTime: item.end_time,
+          type: 'lecture',
+        }));
+
+      if (sessions.length > 0) {
+        setPreviewSessions(sessions);
+        toast.success(t('import.success.found', { count: sessions.length }));
+      } else {
+        setPreviewSessions(generateSampleSessions());
+        toast.info(t('import.info.sample'));
+      }
+    } catch (err: any) {
+      toast.error(err.message || t('import.errors.parse'));
+      setPreviewSessions(generateSampleSessions());
+    }
   };
 
-  const processImageFile = async () => {
-    toast.info(t('import.info.analyzing'));
+  const processImageFile = async (file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
 
-    setTimeout(() => {
-      const sampleSessions = generateSampleSessions();
-      setPreviewSessions(sampleSessions);
-      toast.success(t('import.success.detected', { count: sampleSessions.length }));
-    }, 2000);
+      const response = await fetch(`${API_BASE_URL}/timetable/extract-file`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Failed to process image' }));
+        throw new Error(error.detail || 'Failed to process image');
+      }
+
+      const data: TimetableExtractResponse = await response.json();
+      
+      const sessions = data.items
+        .filter(item => item.day_of_week !== undefined && item.start_time && item.end_time && item.subject_title)
+        .map((item, index) => ({
+          id: `import-${Date.now()}-${index}`,
+          subject: item.subject_title,
+          day: item.day_of_week,
+          startTime: item.start_time,
+          endTime: item.end_time,
+          type: 'lecture',
+        }));
+
+      if (sessions.length > 0) {
+        setPreviewSessions(sessions);
+        toast.success(t('import.success.detected', { count: sessions.length }));
+      } else {
+        setPreviewSessions(generateSampleSessions());
+        toast.info(t('import.info.sample'));
+      }
+    } catch (err: any) {
+      toast.error(err.message || t('import.errors.process'));
+      setPreviewSessions(generateSampleSessions());
+    }
   };
 
   const generateSampleSessions = () => [

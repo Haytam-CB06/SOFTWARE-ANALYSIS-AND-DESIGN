@@ -1,0 +1,1 @@
+"""Collaboration service package."""

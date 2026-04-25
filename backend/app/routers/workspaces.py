@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from datetime import date, datetime, time, timedelta, timezone
 
 from fileinput import filename
@@ -35,6 +36,7 @@ from pydantic import BaseModel
 from enum import Enum as PyEnum
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
+ONLINE_WINDOW = timedelta(minutes=2)
 
 # -----------------------------
 # Join Request Status Enum
@@ -80,6 +82,17 @@ def _get_user_workspace_role(db: Session, workspace_id: int, user_id: UUID) -> O
     )
     return member.role if member else None
 
+def _presence_from(last_seen: datetime | None) -> tuple[str | None, bool]:
+    if not last_seen:
+        return None, False
+    if last_seen.tzinfo is None:
+        last_seen = last_seen.replace(tzinfo=timezone.utc)
+    return last_seen.isoformat(), datetime.now(timezone.utc) - last_seen <= ONLINE_WINDOW
+
+def _member_presence(member: WorkspaceMember, user: User | None = None) -> tuple[str | None, bool]:
+    last_seen = getattr(user, "last_seen_at", None) or getattr(member, "last_seen_at", None)
+    return _presence_from(last_seen)
+
 def _member_out(db: Session, m: WorkspaceMember) -> dict:
     u = db.query(User).filter(User.id == m.user_id).first()
     name = None
@@ -87,6 +100,7 @@ def _member_out(db: Session, m: WorkspaceMember) -> dict:
     if u is not None:
         name = getattr(u, "full_name", None) or getattr(u, "username", None) or u.email
         email = u.email
+    last_seen_at, is_online = _member_presence(m, u)
     return {
         "id": m.id,
         "workspace_id": m.workspace_id,
@@ -95,7 +109,42 @@ def _member_out(db: Session, m: WorkspaceMember) -> dict:
         "email": email or "",
         "role": m.role or "member",
         "joined_at": m.joined_at.isoformat() if getattr(m, "joined_at", None) else None,
+        "last_seen_at": last_seen_at,
+        "is_online": is_online,
     }
+
+def _members_out(db: Session, members: List[WorkspaceMember]) -> List[dict]:
+    user_ids = [m.user_id for m in members if m.user_id]
+    users_by_id = {}
+    if user_ids:
+        users_by_id = {
+            u.id: u
+            for u in db.query(User).filter(User.id.in_(user_ids)).all()
+        }
+
+    out = []
+    for m in members:
+        u = users_by_id.get(m.user_id)
+        name = None
+        email = None
+        if u is not None:
+            name = getattr(u, "full_name", None) or getattr(u, "username", None) or u.email
+            email = u.email
+        last_seen_at, is_online = _member_presence(m, u)
+        out.append(
+            {
+                "id": m.id,
+                "workspace_id": m.workspace_id,
+                "user_id": str(m.user_id),
+                "name": name or str(m.user_id),
+                "email": email or "",
+                "role": m.role or "member",
+                "joined_at": m.joined_at.isoformat() if getattr(m, "joined_at", None) else None,
+                "last_seen_at": last_seen_at,
+                "is_online": is_online,
+            }
+        )
+    return out
 
 # -----------------------------
 # Subworkspace helpers (NEW)
@@ -490,6 +539,78 @@ def list_my_workspaces(
     )
     return workspaces
 
+@router.get("/overview")
+def list_my_workspaces_overview(
+    current_user_id: UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    """Return workspaces and their members in one request for the workspace page."""
+    workspaces = (
+        db.query(Workspace)
+        .join(WorkspaceMember, WorkspaceMember.workspace_id == Workspace.id)
+        .filter(WorkspaceMember.user_id == current_user_id)
+        .order_by(Workspace.created_at.desc())
+        .all()
+    )
+    workspace_ids = [w.id for w in workspaces]
+
+    members_by_workspace: dict[int, list[WorkspaceMember]] = defaultdict(list)
+    users_by_id = {}
+    if workspace_ids:
+        members = (
+            db.query(WorkspaceMember)
+            .filter(WorkspaceMember.workspace_id.in_(workspace_ids))
+            .all()
+        )
+        for member in members:
+            members_by_workspace[int(member.workspace_id)].append(member)
+
+        user_ids = [m.user_id for m in members if m.user_id]
+        if user_ids:
+            users_by_id = {
+                u.id: u
+                for u in db.query(User).filter(User.id.in_(user_ids)).all()
+            }
+
+    result = []
+    for workspace in workspaces:
+        members_out = []
+        for member in members_by_workspace.get(int(workspace.id), []):
+            user = users_by_id.get(member.user_id)
+            name = None
+            email = None
+            if user is not None:
+                name = getattr(user, "full_name", None) or getattr(user, "username", None) or user.email
+                email = user.email
+            last_seen_at, is_online = _member_presence(member, user)
+            members_out.append(
+                {
+                    "id": member.id,
+                    "workspace_id": member.workspace_id,
+                    "user_id": str(member.user_id),
+                    "name": name or str(member.user_id),
+                    "email": email or "",
+                    "role": member.role or "member",
+                    "joined_at": member.joined_at.isoformat() if getattr(member, "joined_at", None) else None,
+                    "last_seen_at": last_seen_at,
+                    "is_online": is_online,
+                }
+            )
+
+        result.append(
+            {
+                "id": workspace.id,
+                "name": workspace.name,
+                "description": workspace.description,
+                "created_at": workspace.created_at.isoformat() if getattr(workspace, "created_at", None) else None,
+                "parent_id": getattr(workspace, "parent_id", None),
+                "image_url": getattr(workspace, "image_url", None),
+                "members": members_out,
+            }
+        )
+
+    return result
+
 @router.get("/{workspace_id}", response_model=WorkspaceResponse)
 def get_workspace(workspace_id: int, db: Session = Depends(get_db)):
     workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
@@ -600,7 +721,37 @@ def list_members(
         .order_by(WorkspaceMember.joined_at.asc())
         .all()
     )
-    return [_member_out(db, m) for m in members]
+    return _members_out(db, members)
+
+@router.post("/{workspace_id}/presence")
+def touch_workspace_presence(
+    workspace_id: int,
+    current_user_id: UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    member = (
+        db.query(WorkspaceMember)
+        .filter(
+            WorkspaceMember.workspace_id == workspace_id,
+            WorkspaceMember.user_id == current_user_id,
+        )
+        .first()
+    )
+    if not member:
+        raise HTTPException(status_code=403, detail="Not a workspace member")
+
+    now = datetime.now(timezone.utc)
+    member.last_seen_at = now
+    current_user = db.query(User).filter(User.id == current_user_id).first()
+    if current_user:
+        current_user.last_seen_at = now
+    db.commit()
+    return {
+        "workspace_id": workspace_id,
+        "user_id": str(current_user_id),
+        "last_seen_at": member.last_seen_at.isoformat(),
+        "is_online": True,
+    }
 
 @router.post("/{workspace_id}/members")
 def add_member(
@@ -627,6 +778,22 @@ def add_member(
     )
     if existing:
         raise HTTPException(status_code=400, detail="User already a member")
+
+    workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+    if workspace and workspace.parent_id:
+        parent_membership = (
+            db.query(WorkspaceMember)
+            .filter(
+                WorkspaceMember.workspace_id == workspace.parent_id,
+                WorkspaceMember.user_id == user.id,
+            )
+            .first()
+        )
+        if not parent_membership:
+            raise HTTPException(
+                status_code=400,
+                detail="User must be a member of the parent workspace before joining this subworkspace",
+            )
 
     member = WorkspaceMember(workspace_id=workspace_id, user_id=user.id, role=request.role)
     db.add(member)
@@ -1065,20 +1232,63 @@ def workspace_progress(
     )
 
     now = datetime.now(timezone.utc)
+    member_ids = [m.user_id for m in members if m.user_id]
+    today = (now - off).date()
+    streak_start_dt = datetime.combine(today - timedelta(days=60), time.min, tzinfo=timezone.utc)
 
-    out = []
-    for m in members:
-        uid = m.user_id
+    users_by_id = {}
+    sessions_by_user = defaultdict(list)
+    streak_sessions_by_user = defaultdict(list)
+    goals_by_user = defaultdict(list)
 
-        sess = (
+    if member_ids:
+        users_by_id = {
+            u.id: u
+            for u in db.query(User).filter(User.id.in_(member_ids)).all()
+        }
+
+        period_sessions = (
             db.query(StudySession)
             .filter(
-                StudySession.user_id == uid,
+                StudySession.user_id.in_(member_ids),
                 StudySession.start_at >= start_dt,
                 StudySession.start_at < end_dt,
             )
             .all()
         )
+        for session in period_sessions:
+            sessions_by_user[session.user_id].append(session)
+
+        streak_sessions = (
+            db.query(StudySession)
+            .filter(
+                StudySession.user_id.in_(member_ids),
+                StudySession.status == "completed",
+                StudySession.start_at >= streak_start_dt,
+                StudySession.start_at < now,
+            )
+            .all()
+        )
+        for session in streak_sessions:
+            streak_sessions_by_user[session.user_id].append(session)
+
+        period_goals = (
+            db.query(Goal)
+            .filter(
+                Goal.user_id.in_(member_ids),
+                Goal.period_start == ps,
+                Goal.period_end == pe,
+            )
+            .all()
+        )
+        for goal in period_goals:
+            goals_by_user[goal.user_id].append(goal)
+
+    out = []
+    for m in members:
+        uid = m.user_id
+
+        sess = sessions_by_user.get(uid, [])
         total_sessions = len(sess)
         completed_sessions = sum(1 for s in sess if (s.status or "").lower() == "completed")
         upcoming_sessions = sum(1 for s in sess if (s.status or "").lower() == "planned" and s.start_at >= now)
@@ -1098,19 +1308,8 @@ def workspace_progress(
 
         streak_days = 0
         try:
-            today = (datetime.now(timezone.utc) - off).date()
             streak_cursor = today
-            streak_start_dt = datetime.combine(today - timedelta(days=60), time.min, tzinfo=timezone.utc)
-            streak_rows = (
-                db.query(StudySession)
-                .filter(
-                    StudySession.user_id == uid,
-                    StudySession.status == "completed",
-                    StudySession.start_at >= streak_start_dt,
-                    StudySession.start_at < datetime.now(timezone.utc),
-                )
-                .all()
-            )
+            streak_rows = streak_sessions_by_user.get(uid, [])
             completed_by_day = {}
             for s in streak_rows:
                 seconds = (
@@ -1135,11 +1334,7 @@ def workspace_progress(
 
         goal_target_hours = 0.0
         try:
-            goal_rows = (
-                db.query(Goal)
-                .filter(Goal.user_id == uid, Goal.period_start == ps, Goal.period_end == pe)
-                .all()
-            )
+            goal_rows = goals_by_user.get(uid, [])
             for g in goal_rows:
                 th = float(g.target_hours) if getattr(g, "target_hours", None) is not None else 0.0
                 goal_target_hours += th
@@ -1154,7 +1349,7 @@ def workspace_progress(
 
         completion_rate = int(round((completed_sessions / total_sessions) * 100)) if total_sessions > 0 else 0
 
-        u = db.query(User).filter(User.id == str(uid)).first()
+        u = users_by_id.get(uid)
         name = None
         email = None
         if u is not None:

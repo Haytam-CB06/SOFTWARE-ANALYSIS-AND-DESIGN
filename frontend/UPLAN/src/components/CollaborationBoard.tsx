@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { TouchBackend } from 'react-dnd-touch-backend';
@@ -21,7 +21,9 @@ import {
   Flag,
   MessageSquare,
   Eye,
-  BarChart3
+  BarChart3,
+  AlertTriangle,
+  Shield
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -116,10 +118,19 @@ const LABEL_COLORS = [
   'border-zinc-200 bg-zinc-100 text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300',
 ];
 
+const DELETE_CONFIRMATION_TEXT = 'UPLAN DELETE';
 
-const TaskCard = ({ task, onEdit, onDelete, moveTask,currentUser }: any) => {
+const isTaskDeadlineLocked = (task?: { dueDate?: string; status?: string } | null) => {
+  if (!task?.dueDate) return false;
+  const dueTime = new Date(task.dueDate).getTime();
+  if (Number.isNaN(dueTime)) return false;
+  return dueTime >= Date.now() && task.status !== 'done';
+};
+
+const TaskCard = ({ task, onEdit, onDelete, moveTask,currentUser, isAdmin }: any) => {
   const isAssignedToMe = task.assignee?.id === currentUser?.id;
   const { t } = useTranslation();
+  const canArchiveTask = isAdmin || String(task.createdBy) === String(currentUser?.id);
   const [{ isDragging }, drag] = useDrag({
     type: 'TASK',
     item: { id: task.id, status: task.status },
@@ -194,10 +205,12 @@ const TaskCard = ({ task, onEdit, onDelete, moveTask,currentUser }: any) => {
 
             <DropdownMenuSeparator />
 
-            <DropdownMenuItem onClick={() => onDelete(task.id)} className="text-red-600">
-              <Trash2 className="h-4 w-4 mr-2" />
-              {t("board.actions.archive")}
-            </DropdownMenuItem>
+            {canArchiveTask && (
+              <DropdownMenuItem onClick={() => onDelete(task.id)} className="text-red-600">
+                <Trash2 className="h-4 w-4 mr-2" />
+                {t("board.actions.archive")}
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -244,6 +257,11 @@ const TaskCard = ({ task, onEdit, onDelete, moveTask,currentUser }: any) => {
               {formatDate(task.dueDate)}
             </Badge>
           )}
+          {isTaskDeadlineLocked(task) && (
+            <Badge variant="outline" className="text-xs border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-300">
+              {t("board.task.deadlineLocked")}
+            </Badge>
+          )}
         </div>
 
         {/* RIGHT: ASSIGNEE */}
@@ -278,7 +296,7 @@ const TaskCard = ({ task, onEdit, onDelete, moveTask,currentUser }: any) => {
   );
 };
 
-const Column = ({ column, tasks, onAddTask, onEdit, onDelete, moveTask,currentUser }: any) => {
+const Column = ({ column, tasks, onAddTask, onEdit, onDelete, moveTask,currentUser, isAdmin }: any) => {
   const { t } = useTranslation();
   const [{ isOver }, drop] = useDrop({
     accept: 'TASK',
@@ -326,6 +344,7 @@ const Column = ({ column, tasks, onAddTask, onEdit, onDelete, moveTask,currentUs
             task={task}
             onEdit={onEdit}
             currentUser={currentUser}
+            isAdmin={isAdmin}
             onDelete={onDelete}
             moveTask={moveTask}
           />
@@ -343,6 +362,32 @@ const Column = ({ column, tasks, onAddTask, onEdit, onDelete, moveTask,currentUs
 
 export default function CollaborationBoard({ workspace, currentUser, onUnseenCountChange }: CollaborationBoardProps) {
   const { t } = useTranslation();
+  const BOARD_RULES = [
+    {
+      icon: User,
+      title: t("board.rules.ownership.title"),
+      label: t("board.rules.ownership.label"),
+      body: t("board.rules.ownership.body"),
+    },
+    {
+      icon: CheckCircle2,
+      title: t("board.rules.workflow.title"),
+      label: t("board.rules.workflow.label"),
+      body: t("board.rules.workflow.body"),
+    },
+    {
+      icon: Trash2,
+      title: t("board.rules.archive.title"),
+      label: t("board.rules.archive.label"),
+      body: t("board.rules.archive.body"),
+    },
+    {
+      icon: Shield,
+      title: t("board.rules.admin.title"),
+      label: t("board.rules.admin.label"),
+      body: t("board.rules.admin.body"),
+    },
+  ];
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -366,22 +411,100 @@ export default function CollaborationBoard({ workspace, currentUser, onUnseenCou
     newLabel: ''
   });
 
+  const [deleteDialog, setDeleteDialog] = useState<{
+    open: boolean;
+    title: string;
+    description: string;
+    confirmLabel: string;
+    isDanger?: boolean;
+    action: null | (() => Promise<void>);
+  }>({
+    open: false,
+    title: '',
+    description: '',
+    confirmLabel: '',
+    isDanger: true,
+    action: null,
+  });
+  const [deleteConfirmationInput, setDeleteConfirmationInput] = useState('');
+  const [isDeleteSubmitting, setIsDeleteSubmitting] = useState(false);
 
+  const isDeletePhraseValid = deleteConfirmationInput.trim() === DELETE_CONFIRMATION_TEXT;
 
-  const handleArchiveTask = async (taskId: string) => {
+  const closeDeleteDialog = () => {
+    if (isDeleteSubmitting) return;
+    setDeleteDialog((prev) => ({ ...prev, open: false, action: null }));
+    setDeleteConfirmationInput('');
+  };
+
+  const openDeleteDialog = ({
+    title,
+    description,
+    confirmLabel,
+    action,
+    isDanger = true,
+  }: {
+    title: string;
+    description: string;
+    confirmLabel: string;
+    action: () => Promise<void>;
+    isDanger?: boolean;
+  }) => {
+    setDeleteConfirmationInput('');
+    setDeleteDialog({
+      open: true,
+      title,
+      description,
+      confirmLabel,
+      isDanger,
+      action,
+    });
+  };
+
+  const handleConfirmDeleteDialog = async () => {
+    if (!deleteDialog.action || !isDeletePhraseValid) return;
+
     try {
-      await apiFetch(`/workspaces/${workspace.id}/board/tasks/${taskId}/archive`, {
-        method: 'PATCH',
-      });
-
-      setTasks(prev => prev.filter(t => t.id !== taskId));
-      loadArchivedTasks();
-
-      toast.success(t("board.archive.archived"));
-    } catch (e) {
-      console.error(e);
-      toast.error(t("board.messages.errorMove"));
+      setIsDeleteSubmitting(true);
+      await deleteDialog.action();
+      setDeleteDialog((prev) => ({ ...prev, open: false, action: null }));
+      setDeleteConfirmationInput('');
+    } finally {
+      setIsDeleteSubmitting(false);
     }
+  };
+
+  const handleArchiveTask = (taskId: string) => {
+    const task = tasks.find((item) => item.id === taskId);
+    if (!task) return;
+    if (isTaskDeadlineLocked(task)) {
+      toast.error(t("board.messages.errorDeadlineLocked"));
+      return;
+    }
+    if (!isAdmin && String(task.createdBy) !== String(currentUser.id)) {
+      toast.error(t("board.messages.errorDeletePermission"));
+      return;
+    }
+    openDeleteDialog({
+      title: t("board.dialogs.archiveTaskTitle"),
+      description: t("board.dialogs.archiveTaskDescription", { phrase: DELETE_CONFIRMATION_TEXT }),
+      confirmLabel: t("board.actions.archive"),
+      action: async () => {
+        try {
+          await apiFetch(`/workspaces/${workspace.id}/board/tasks/${taskId}/archive`, {
+            method: 'PATCH',
+          });
+
+          setTasks(prev => prev.filter(t => t.id !== taskId));
+          loadArchivedTasks();
+          toast.success(t("board.archive.archived"));
+        } catch (e) {
+          console.error(e);
+          toast.error(t("board.messages.errorMove"));
+          throw e;
+        }
+      },
+    });
   };
   // --- Backend helpers (ONLY linking logic) ---
   const apiFetch = async (path: string, init: RequestInit = {}) => {
@@ -433,70 +556,114 @@ export default function CollaborationBoard({ workspace, currentUser, onUnseenCou
         console.error(e);
       }
   };
-  const deleteAllTasks = async () => {
-    if (!confirm(t("board.archive.confirmDeleteAllActive"))) return;
-
-    try {
-      await apiFetch(`/workspaces/${workspace.id}/board/tasks`, {
-        method: 'DELETE',
-      });
-
-      setTasks([]);
-      toast.success(t("board.archive.allActiveDeleted"));
-    } catch (e) {
-      console.error(e);
-      toast.error(t("board.messages.errorDelete"));
+  const deleteAllTasks = () => {
+    if (!isAdmin) {
+      toast.error(t("board.messages.errorAdminOnly"));
+      return;
     }
+    openDeleteDialog({
+      title: t("board.dialogs.deleteAllActiveTitle"),
+      description: t("board.dialogs.deleteAllActiveDescription", { phrase: DELETE_CONFIRMATION_TEXT }),
+      confirmLabel: t("board.archive.deleteAllActive"),
+      action: async () => {
+        try {
+          await apiFetch(`/workspaces/${workspace.id}/board/tasks`, {
+            method: 'DELETE',
+          });
+
+          setTasks([]);
+          toast.success(t("board.archive.allActiveDeleted"));
+        } catch (e) {
+          console.error(e);
+          toast.error(t("board.messages.errorDelete"));
+          throw e;
+        }
+      },
+    });
   };
-  const deleteArchivedTask = async (taskId: string) => {
-    if (!confirm(t("board.archive.confirmDelete"))) return;
-
-    try {
-      await apiFetch(`/workspaces/${workspace.id}/board/tasks/${taskId}`, {
-        method: 'DELETE',
-      });
-
-      setArchivedTasks(prev => prev.filter(t => t.id !== taskId));
-      toast.success(t("board.archive.deleted"));
-    } catch (e) {
-      console.error(e);
-      toast.error(t("board.messages.errorDelete"));
+  const deleteArchivedTask = (taskId: string) => {
+    const task = archivedTasks.find((item) => item.id === taskId);
+    if (!task) return;
+    if (isTaskDeadlineLocked(task)) {
+      toast.error(t("board.messages.errorDeadlineLocked"));
+      return;
     }
+    if (!isAdmin && String(task.createdBy) !== String(currentUser.id)) {
+      toast.error(t("board.messages.errorDeletePermission"));
+      return;
+    }
+    openDeleteDialog({
+      title: t("board.dialogs.deleteArchivedTitle"),
+      description: t("board.dialogs.deleteArchivedDescription", { phrase: DELETE_CONFIRMATION_TEXT }),
+      confirmLabel: t("board.actions.deletePermanent"),
+      action: async () => {
+        try {
+          await apiFetch(`/workspaces/${workspace.id}/board/tasks/${taskId}`, {
+            method: 'DELETE',
+          });
+
+          setArchivedTasks(prev => prev.filter(t => t.id !== taskId));
+          toast.success(t("board.archive.deleted"));
+        } catch (e) {
+          console.error(e);
+          toast.error(t("board.messages.errorDelete"));
+          throw e;
+        }
+      },
+    });
   };
-  const archiveAllTasks = async () => {
-    try {
-      await apiFetch(`/workspaces/${workspace.id}/board/tasks/archive-all`, {
-        method: 'POST',
-      });
-
-      setTasks([]);
-      loadArchivedTasks();
-
-      toast.success(t("board.archive.allArchived"));
-    } catch (e) {
-      console.error(e);
-      toast.error(t("board.messages.errorArchiveAll"));
+  const archiveAllTasks = () => {
+    if (!isAdmin) {
+      toast.error(t("board.messages.errorAdminOnly"));
+      return;
     }
+    openDeleteDialog({
+      title: t("board.dialogs.archiveAllTitle"),
+      description: t("board.dialogs.archiveAllDescription", { phrase: DELETE_CONFIRMATION_TEXT }),
+      confirmLabel: t("board.archive.archiveAll"),
+      action: async () => {
+        try {
+          await apiFetch(`/workspaces/${workspace.id}/board/tasks/archive-all`, {
+            method: 'POST',
+          });
+
+          setTasks([]);
+          loadArchivedTasks();
+          toast.success(t("board.archive.allArchived"));
+        } catch (e) {
+          console.error(e);
+          toast.error(t("board.messages.errorArchiveAll"));
+          throw e;
+        }
+      },
+    });
   };
 
-  const deleteAllArchivedTasks = async () => {
-    
-
-    if (!confirm(t("board.archive.confirmDeleteAll"))) return;
-
-    try {
-      await apiFetch(`/workspaces/${workspace.id}/board/tasks/archived`, {
-        method: 'DELETE',
-      });
-
-      setArchivedTasks([]);
-      loadArchivedTasks();
-
-      toast.success(t("board.archive.allDeleted"));
-    } catch (e) {
-      console.error(e);
-      toast.error(e.message || "Failed to delete all archived tasks");
+  const deleteAllArchivedTasks = () => {
+    if (!isAdmin) {
+      toast.error(t("board.messages.errorAdminOnly"));
+      return;
     }
+    openDeleteDialog({
+      title: t("board.dialogs.deleteAllArchivedTitle"),
+      description: t("board.dialogs.deleteAllArchivedDescription", { phrase: DELETE_CONFIRMATION_TEXT }),
+      confirmLabel: t("board.archive.deleteAll"),
+      action: async () => {
+        try {
+          await apiFetch(`/workspaces/${workspace.id}/board/tasks/archived`, {
+            method: 'DELETE',
+          });
+
+          setArchivedTasks([]);
+          loadArchivedTasks();
+          toast.success(t("board.archive.allDeleted"));
+        } catch (e: any) {
+          console.error(e);
+          toast.error(e.message || t("board.messages.errorDeleteAllArchived"));
+          throw e;
+        }
+      },
+    });
   };
   
   const normalizeTask = (t: any): Task => {
@@ -538,6 +705,7 @@ export default function CollaborationBoard({ workspace, currentUser, onUnseenCou
       status: newTask.status,
       priority: newTask.priority,
       assigneeId: newTask.assignee?.id ?? null, // ✅ FIX
+      dueDate: newTask.dueDate || null,
       labels: newTask.labels ?? [],
     };
   };
@@ -549,6 +717,7 @@ export default function CollaborationBoard({ workspace, currentUser, onUnseenCou
       description: newTask.description,
       priority: newTask.priority,
       assigneeId: newTask.assignee?.id ?? null,
+      dueDate: newTask.dueDate || null,
     };
   };
   // --- End helpers ---
@@ -674,22 +843,32 @@ export default function CollaborationBoard({ workspace, currentUser, onUnseenCou
     }
   };
 
-  const handleDeleteTask = async (taskId: string) => {
-    if (!confirm(t("board.archive.confirmDelete"))) return;
-
-    try {
-      await apiFetch(`/workspaces/${workspace.id}/board/tasks/${taskId}`, {
-        method: 'DELETE',
-      });
-
-      setTasks((prev) => prev.filter((t) => t.id !== taskId));
-      loadArchivedTasks();
-      toast.success(t("board.messages.deleted"));
-    } catch (e: any) {
-      
-      console.error(e);
-      toast.error(t("board.messages.errorDeletePermission"));
+  const handleDeleteTask = (taskId: string) => {
+    const task = tasks.find((item) => item.id === taskId);
+    if (isTaskDeadlineLocked(task)) {
+      toast.error(t("board.messages.errorDeadlineLocked"));
+      return;
     }
+    openDeleteDialog({
+      title: 'Delete task permanently',
+      description: `This permanently deletes the task and cannot be undone. Type ${DELETE_CONFIRMATION_TEXT} to continue.`,
+      confirmLabel: t("board.actions.deletePermanent"),
+      action: async () => {
+        try {
+          await apiFetch(`/workspaces/${workspace.id}/board/tasks/${taskId}`, {
+            method: 'DELETE',
+          });
+
+          setTasks((prev) => prev.filter((t) => t.id !== taskId));
+          loadArchivedTasks();
+          toast.success(t("board.messages.deleted"));
+        } catch (e: any) {
+          console.error(e);
+          toast.error(t("board.messages.errorDeletePermission"));
+          throw e;
+        }
+      },
+    });
   };
 
   const moveTask = async (taskId: string, newStatus: Task['status']) => {
@@ -804,10 +983,10 @@ export default function CollaborationBoard({ workspace, currentUser, onUnseenCou
                   {!showDetails && (
                     <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                       <Badge variant="secondary" className="text-xs">
-                        {stats.total} tasks
+                        {t("board.stats.totalCount", { count: stats.total })}
                       </Badge>
                       <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                        {stats.inProgress} {t("board.stats.inProgress")}
+                        {t("board.stats.inProgressCount", { count: stats.inProgress })}
                       </Badge>
                       
                     </div>
@@ -824,7 +1003,7 @@ export default function CollaborationBoard({ workspace, currentUser, onUnseenCou
                     <div className="relative">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-400" />
                     <Input
-                      placeholder={t("      board.filters.search")}
+                      placeholder={t("board.filters.search")}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="pl-9"
@@ -837,7 +1016,7 @@ export default function CollaborationBoard({ workspace, currentUser, onUnseenCou
                       variant="ghost"
                       size="sm"
                       onClick={() => setShowDetails(!showDetails)}
-                      className="h-9 w-full justify-between rounded-lg text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-900 dark:hover:text-neutral-100 sm:w-auto"
+                      className="h-9 w-full justify-between rounded-2xl text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-900 dark:hover:text-neutral-100 sm:w-auto"
                     >
                   <BarChart3 className="h-4 w-4 mr-2" />
                   {showDetails ? t("board.view.compact") : t("board.view.detailed")}
@@ -849,7 +1028,7 @@ export default function CollaborationBoard({ workspace, currentUser, onUnseenCou
                 </Button>
                 <Button
                   onClick={() => handleAddTask()}
-                 className="w-full rounded-lg bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-900 dark:text-neutral-900 dark:hover:bg-neutral-200-200 sm:w-auto"
+                 className="w-full rounded-2xl bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-white dark:text-neutral-900 dark:text-neutral-900 dark:hover:bg-neutral-200-200 sm:w-auto"
                 >
                   <Plus className="mr-2 h-4 w-4" />
                   {t("board.actions.newTask")}
@@ -857,6 +1036,7 @@ export default function CollaborationBoard({ workspace, currentUser, onUnseenCou
                 <Button
                   variant="outline"
                   onClick={archiveAllTasks}
+                  disabled={!isAdmin}
                   className="w-full sm:w-auto"
                 >
                   {t("board.archive.archiveAll")}
@@ -889,7 +1069,7 @@ export default function CollaborationBoard({ workspace, currentUser, onUnseenCou
                           </p>
                         </div>
 
-                        <div className="rounded-lg bg-blue-50 p-2 dark:bg-blue-950/30">
+                        <div className="rounded-2xl bg-blue-50 p-2 dark:bg-blue-950/30">
                           <BarChart3 className="h-4 w-4 text-blue-700 dark:text-blue-400" />
                         </div>
 
@@ -907,7 +1087,7 @@ export default function CollaborationBoard({ workspace, currentUser, onUnseenCou
                           </p>
                         </div>
 
-                        <div className="rounded-lg bg-blue-50 p-2 dark:bg-blue-950/30">
+                        <div className="rounded-2xl bg-blue-50 p-2 dark:bg-blue-950/30">
                           <Circle className="h-4 w-4 text-blue-700 dark:text-blue-400" />
                         </div>
 
@@ -925,7 +1105,7 @@ export default function CollaborationBoard({ workspace, currentUser, onUnseenCou
                           </p>
                         </div>
 
-                        <div className="rounded-lg bg-blue-50 p-2 dark:bg-blue-950/30">
+                        <div className="rounded-2xl bg-blue-50 p-2 dark:bg-blue-950/30">
                           <Clock className="h-4 w-4 text-blue-700 dark:text-blue-400" /> 
                         </div>
 
@@ -943,7 +1123,7 @@ export default function CollaborationBoard({ workspace, currentUser, onUnseenCou
                           </p>
                         </div>
 
-                        <div className="rounded-lg bg-blue-50 p-2 dark:bg-blue-950/30">
+                        <div className="rounded-2xl bg-blue-50 p-2 dark:bg-blue-950/30">
                           <Eye className="h-4 w-4 text-blue-700 dark:text-blue-400" />
                         </div>
 
@@ -961,7 +1141,7 @@ export default function CollaborationBoard({ workspace, currentUser, onUnseenCou
                         </p>
                       </div>
 
-                      <div className="rounded-lg bg-blue-50 p-2 dark:bg-blue-950/30">
+                      <div className="rounded-2xl bg-blue-50 p-2 dark:bg-blue-950/30">
                         <CheckCircle2 className="h-4 w-4 text-blue-700 dark:text-blue-400" />
                       </div>
 
@@ -1021,6 +1201,64 @@ export default function CollaborationBoard({ workspace, currentUser, onUnseenCou
                   </Select>
                 </div>
               </div>
+
+              <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+                <div className="border-b border-slate-100 px-4 py-3 dark:border-slate-800">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0">
+                      <div className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        Board governance
+                      </div>
+                      <h3 className="mt-3 text-base font-semibold tracking-tight text-slate-950 dark:text-white">
+                        Collaboration board rules
+                      </h3>
+                      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                        {t("board.rules.description")}
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+                      <Badge variant="outline" className="justify-center rounded-md border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+                        {stats.total} tasks
+                      </Badge>
+                      <Badge variant="outline" className="justify-center rounded-md border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300">
+                        {t("board.stats.doneCount", { count: stats.done })}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2 p-3 sm:grid-cols-2 xl:grid-cols-4">
+                  {BOARD_RULES.map((rule, index) => {
+                    const Icon = rule.icon;
+                    return (
+                      <div key={rule.title} className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/70">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200">
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500">
+                                0{index + 1}
+                              </span>
+                              <p className="truncate text-sm font-semibold text-slate-950 dark:text-white">
+                                {rule.title}
+                              </p>
+                            </div>
+                            <p className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">
+                              {rule.label}
+                            </p>
+                          </div>
+                        </div>
+                        <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                          {rule.body}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
             </CollapsibleContent>
           </Collapsible>
         </div>
@@ -1038,6 +1276,7 @@ export default function CollaborationBoard({ workspace, currentUser, onUnseenCou
                 onDelete={handleArchiveTask}
                 moveTask={moveTask}
                 currentUser={currentUser}
+                isAdmin={isAdmin}
               />
             ))}
             </div>
@@ -1089,9 +1328,11 @@ export default function CollaborationBoard({ workspace, currentUser, onUnseenCou
                   <Button size="sm" variant="outline" onClick={() => restoreTask(task.id)}>
                     {t("board.actions.restore")}
                   </Button>
-                  <Button size="sm" variant="destructive" onClick={() => handleDeleteTask(task.id)}>
-                    {t("board.actions.deletePermanent")}
-                  </Button>
+                  {(isAdmin || String(task.createdBy) === String(currentUser.id)) && (
+                    <Button size="sm" variant="destructive" onClick={() => deleteArchivedTask(task.id)}>
+                      {t("board.actions.deletePermanent")}
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}
@@ -1221,13 +1462,76 @@ export default function CollaborationBoard({ workspace, currentUser, onUnseenCou
               </Button>
               <Button
               onClick={handleSaveTask}
-              className="w-full rounded-lg bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-white  dark:text-neutral-900 dark:hover:bg-neutral-200 sm:w-auto"
+              className="w-full rounded-2xl bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-white  dark:text-neutral-900 dark:hover:bg-neutral-200 sm:w-auto"
             >
               {editingTask ? t("board.actions.updateTask") : t("board.actions.createTask")}
             </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <Dialog open={deleteDialog.open} onOpenChange={(open) => !open && closeDeleteDialog()}>
+          <DialogContent className="max-w-md rounded-2xl border border-neutral-200 bg-white p-0 shadow-2xl dark:border-neutral-800 dark:bg-neutral-950">
+            <div className="border-b border-neutral-200 p-6 dark:border-neutral-800">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <DialogHeader className="space-y-2 text-left">
+                <DialogTitle className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">
+                  {deleteDialog.title}
+                </DialogTitle>
+                <DialogDescription className="text-sm leading-6 text-neutral-500 dark:text-neutral-400">
+                  {deleteDialog.description}
+                </DialogDescription>
+              </DialogHeader>
+            </div>
+
+            <div className="space-y-4 p-6">
+              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/60">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500 dark:text-neutral-400">
+                  {t("board.delete.confirmationPhrase")}
+                </p>
+                <p className="mt-2 text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                  {DELETE_CONFIRMATION_TEXT}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="delete-confirmation-input">{t("board.delete.typePhraseToContinue")}</Label>
+                <Input
+                  id="delete-confirmation-input"
+                  value={deleteConfirmationInput}
+                  onChange={(e) => setDeleteConfirmationInput(e.target.value)}
+                  placeholder={DELETE_CONFIRMATION_TEXT}
+                  autoComplete="off"
+                  className="h-11 rounded-xl border-neutral-200 dark:border-neutral-800"
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="flex-col gap-2 border-t border-neutral-200 px-6 py-4 dark:border-neutral-800 sm:flex-row">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={closeDeleteDialog}
+                disabled={isDeleteSubmitting}
+                className="w-full sm:w-auto"
+              >
+                {t("board.actions.cancel")}
+              </Button>
+              <Button
+                type="button"
+                variant={deleteDialog.isDanger ? "destructive" : "default"}
+                onClick={handleConfirmDeleteDialog}
+                disabled={!isDeletePhraseValid || isDeleteSubmitting}
+                className="w-full sm:w-auto"
+              >
+                {isDeleteSubmitting ? t("board.actions.processing") : deleteDialog.confirmLabel}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
       </div>
     </DndProvider>
   );

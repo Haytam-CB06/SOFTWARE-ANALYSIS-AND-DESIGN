@@ -52,7 +52,7 @@ export default function SessionCard({ session, onEdit, onDelete, onDragStart, is
       onDragStart={onDragStart}
       onClick={() => onEdit(session)}
       className={`
-        h-full rounded-lg shadow-md p-2.5
+        h-full rounded-2xl p-2.5 shadow-md
         border-l-4 hover:shadow-lg transition-all
         flex flex-col relative
         group

@@ -32,12 +32,20 @@ def init_engine() -> None:
     if not db_url:
         raise RuntimeError("DATABASE_URL is not set")
 
-    _ENGINE = create_engine(
-        db_url,
-        future=True,
-        pool_pre_ping=True,
-        echo=False,
-    )
+    engine_kwargs = {
+        "future": True,
+        "pool_pre_ping": True,
+        "echo": False,
+    }
+
+    if db_url.startswith("sqlite"):
+        engine_kwargs["connect_args"] = {"check_same_thread": False}
+    elif db_url.startswith("postgres"):
+        engine_kwargs["pool_size"] = int(os.getenv("DB_POOL_SIZE", "5"))
+        engine_kwargs["max_overflow"] = int(os.getenv("DB_MAX_OVERFLOW", "10"))
+        engine_kwargs["pool_recycle"] = int(os.getenv("DB_POOL_RECYCLE_SECONDS", "1800"))
+
+    _ENGINE = create_engine(db_url, **engine_kwargs)
     _SessionLocal = sessionmaker(
         bind=_ENGINE,
         autoflush=False,
@@ -151,11 +159,95 @@ def init_engine() -> None:
                     "ALTER TABLE IF EXISTS users "
                     "ADD COLUMN IF NOT EXISTS is_banned BOOLEAN NOT NULL DEFAULT FALSE"
                 ))
+                conn.execute(text(
+                    "ALTER TABLE IF EXISTS users "
+                    "ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ NULL"
+                ))
+                conn.execute(text(
+                    "ALTER TABLE IF EXISTS workspace_members "
+                    "ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ NULL"
+                ))
+                conn.execute(text(
+                    "ALTER TABLE IF EXISTS user_profiles "
+                    "ADD COLUMN IF NOT EXISTS profile_title TEXT NULL"
+                ))
+                conn.execute(text(
+                    "ALTER TABLE IF EXISTS user_profiles "
+                    "ADD COLUMN IF NOT EXISTS background_theme TEXT NULL"
+                ))
             elif db_url.startswith("sqlite"):
                 cols = conn.execute(text("PRAGMA table_info(users)")).all()
                 names = {c[1] for c in cols}
                 if cols and "is_banned" not in names:
                     conn.execute(text("ALTER TABLE users ADD COLUMN is_banned BOOLEAN NOT NULL DEFAULT 0"))
+                if cols and "last_seen_at" not in names:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN last_seen_at DATETIME"))
+                workspace_member_cols = conn.execute(text("PRAGMA table_info(workspace_members)")).all()
+                workspace_member_names = {c[1] for c in workspace_member_cols}
+                if workspace_member_cols and "last_seen_at" not in workspace_member_names:
+                    conn.execute(text("ALTER TABLE workspace_members ADD COLUMN last_seen_at DATETIME"))
+                user_profile_cols = conn.execute(text("PRAGMA table_info(user_profiles)")).all()
+                user_profile_names = {c[1] for c in user_profile_cols}
+                if user_profile_cols and "profile_title" not in user_profile_names:
+                    conn.execute(text("ALTER TABLE user_profiles ADD COLUMN profile_title TEXT"))
+                if user_profile_cols and "background_theme" not in user_profile_names:
+                    conn.execute(text("ALTER TABLE user_profiles ADD COLUMN background_theme TEXT"))
+
+            # Performance indexes for the high-traffic dashboard/workspace reads.
+            if db_url.startswith("postgres"):
+                index_statements = [
+                    "CREATE INDEX IF NOT EXISTS ix_friendships_requester_status ON friendships (requester_id, status)",
+                    "CREATE INDEX IF NOT EXISTS ix_friendships_addressee_status ON friendships (addressee_id, status)",
+                    "CREATE INDEX IF NOT EXISTS ix_direct_messages_sender_recipient_created ON direct_messages (sender_id, recipient_id, created_at DESC)",
+                    "CREATE INDEX IF NOT EXISTS ix_direct_messages_recipient_sender_created ON direct_messages (recipient_id, sender_id, created_at DESC)",
+                    "CREATE UNIQUE INDEX IF NOT EXISTS uq_direct_conversation_preference_user_friend ON direct_conversation_preferences (user_id, friend_id)",
+                    "CREATE INDEX IF NOT EXISTS ix_direct_conversation_preferences_user_pinned ON direct_conversation_preferences (user_id, pinned)",
+                    "CREATE INDEX IF NOT EXISTS ix_workspace_members_user_workspace ON workspace_members (user_id, workspace_id)",
+                    "CREATE INDEX IF NOT EXISTS ix_workspace_members_workspace_user ON workspace_members (workspace_id, user_id)",
+                    "CREATE INDEX IF NOT EXISTS ix_workspaces_created_at ON workspaces (created_at DESC)",
+                    "CREATE INDEX IF NOT EXISTS ix_board_tasks_workspace_archived_updated ON board_tasks (workspace_id, archived, updated_at DESC)",
+                    "CREATE INDEX IF NOT EXISTS ix_board_tasks_workspace_status ON board_tasks (workspace_id, status)",
+                    "CREATE INDEX IF NOT EXISTS ix_workspace_messages_workspace_created ON workspace_messages (workspace_id, created_at DESC)",
+                    "CREATE INDEX IF NOT EXISTS ix_workspace_message_reads_user_message ON workspace_message_reads (user_id, message_id)",
+                    "CREATE INDEX IF NOT EXISTS ix_study_sessions_user_start ON study_sessions (user_id, start_at)",
+                    "CREATE INDEX IF NOT EXISTS ix_study_sessions_user_status_start ON study_sessions (user_id, status, start_at)",
+                    "CREATE INDEX IF NOT EXISTS ix_assessments_subject_due ON assessments (subject_id, due_at)",
+                    "CREATE INDEX IF NOT EXISTS ix_notifications_user_send ON notifications (user_id, send_at DESC)",
+                    "CREATE INDEX IF NOT EXISTS ix_notifications_status_send ON notifications (status, send_at)",
+                    "CREATE INDEX IF NOT EXISTS ix_study_timetables_user_created ON study_timetables (user_id, created_at DESC)",
+                    "CREATE INDEX IF NOT EXISTS ix_study_timetables_user_active_updated ON study_timetables (user_id, is_active, updated_at DESC)",
+                    "CREATE INDEX IF NOT EXISTS ix_goals_user_period ON goals (user_id, period_start, period_end)",
+                    "CREATE INDEX IF NOT EXISTS ix_workspace_join_requests_workspace_status_requested ON workspace_join_requests (workspace_id, status, requested_at)",
+                ]
+                for statement in index_statements:
+                    conn.execute(text(statement))
+            elif db_url.startswith("sqlite"):
+                index_statements = [
+                    "CREATE INDEX IF NOT EXISTS ix_friendships_requester_status ON friendships (requester_id, status)",
+                    "CREATE INDEX IF NOT EXISTS ix_friendships_addressee_status ON friendships (addressee_id, status)",
+                    "CREATE INDEX IF NOT EXISTS ix_direct_messages_sender_recipient_created ON direct_messages (sender_id, recipient_id, created_at)",
+                    "CREATE INDEX IF NOT EXISTS ix_direct_messages_recipient_sender_created ON direct_messages (recipient_id, sender_id, created_at)",
+                    "CREATE UNIQUE INDEX IF NOT EXISTS uq_direct_conversation_preference_user_friend ON direct_conversation_preferences (user_id, friend_id)",
+                    "CREATE INDEX IF NOT EXISTS ix_direct_conversation_preferences_user_pinned ON direct_conversation_preferences (user_id, pinned)",
+                    "CREATE INDEX IF NOT EXISTS ix_workspace_members_user_workspace ON workspace_members (user_id, workspace_id)",
+                    "CREATE INDEX IF NOT EXISTS ix_workspace_members_workspace_user ON workspace_members (workspace_id, user_id)",
+                    "CREATE INDEX IF NOT EXISTS ix_workspaces_created_at ON workspaces (created_at)",
+                    "CREATE INDEX IF NOT EXISTS ix_board_tasks_workspace_archived_updated ON board_tasks (workspace_id, archived, updated_at)",
+                    "CREATE INDEX IF NOT EXISTS ix_board_tasks_workspace_status ON board_tasks (workspace_id, status)",
+                    "CREATE INDEX IF NOT EXISTS ix_workspace_messages_workspace_created ON workspace_messages (workspace_id, created_at)",
+                    "CREATE INDEX IF NOT EXISTS ix_workspace_message_reads_user_message ON workspace_message_reads (user_id, message_id)",
+                    "CREATE INDEX IF NOT EXISTS ix_study_sessions_user_start ON study_sessions (user_id, start_at)",
+                    "CREATE INDEX IF NOT EXISTS ix_study_sessions_user_status_start ON study_sessions (user_id, status, start_at)",
+                    "CREATE INDEX IF NOT EXISTS ix_assessments_subject_due ON assessments (subject_id, due_at)",
+                    "CREATE INDEX IF NOT EXISTS ix_notifications_user_send ON notifications (user_id, send_at)",
+                    "CREATE INDEX IF NOT EXISTS ix_notifications_status_send ON notifications (status, send_at)",
+                    "CREATE INDEX IF NOT EXISTS ix_study_timetables_user_created ON study_timetables (user_id, created_at)",
+                    "CREATE INDEX IF NOT EXISTS ix_study_timetables_user_active_updated ON study_timetables (user_id, is_active, updated_at)",
+                    "CREATE INDEX IF NOT EXISTS ix_goals_user_period ON goals (user_id, period_start, period_end)",
+                    "CREATE INDEX IF NOT EXISTS ix_workspace_join_requests_workspace_status_requested ON workspace_join_requests (workspace_id, status, requested_at)",
+                ]
+                for statement in index_statements:
+                    conn.execute(text(statement))
     except Exception:
         # Best-effort only; ignore if database/user lacks permissions.
         pass
@@ -190,7 +282,11 @@ def get_db() -> Generator:
     db = _SessionLocal()
     try:
         yield db
-        db.commit()
+        # Most routes commit explicitly when they mutate data. Avoid issuing a
+        # database COMMIT for pure read requests, because it adds latency to the
+        # high-traffic dashboard/list endpoints without changing state.
+        if db.new or db.dirty or db.deleted:
+            db.commit()
     except Exception:
         db.rollback()
         raise

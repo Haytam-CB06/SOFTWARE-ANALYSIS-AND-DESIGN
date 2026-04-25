@@ -1,0 +1,1 @@
+"""Chat microservice package."""

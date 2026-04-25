@@ -3,6 +3,7 @@ import { Slot } from "@radix-ui/react-slot@1.1.2";
 import { ChevronRight, MoreHorizontal } from "lucide-react@0.487.0";
 
 import { cn } from "./utils";
+import { useInlineText } from "../../i18n/inlineText";
 
 function Breadcrumb({ ...props }: React.ComponentProps<"nav">) {
   return <nav aria-label="breadcrumb" data-slot="breadcrumb" {...props} />;
@@ -84,6 +85,7 @@ function BreadcrumbEllipsis({
   className,
   ...props
 }: React.ComponentProps<"span">) {
+  const tt = useInlineText();
   return (
     <span
       data-slot="breadcrumb-ellipsis"
@@ -93,7 +95,7 @@ function BreadcrumbEllipsis({
       {...props}
     >
       <MoreHorizontal className="size-4" />
-      <span className="sr-only">More</span>
+      <span className="sr-only">{tt('More')}</span>
     </span>
   );
 }

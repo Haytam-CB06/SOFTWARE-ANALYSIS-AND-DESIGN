@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from './ui/dialog';
 import { toast } from 'sonner@2.0.3';
+import ConfirmDeleteDialog from './ConfirmDeleteDialog';
 
 interface Exam {
   id: string;
@@ -24,6 +25,7 @@ export default function ExamTracker() {
 
   const [exams, setExams] = useState<Exam[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Exam | null>(null);
   const [newExam, setNewExam] = useState<Exam>({
     id: '',
     subject: '',
@@ -75,6 +77,12 @@ export default function ExamTracker() {
   const handleDeleteExam = (id: string) => {
     setExams(exams.filter(e => e.id !== id));
     toast.success(t('examTracker.success.deleted'));
+  };
+
+  const confirmDeleteExam = () => {
+    if (!deleteTarget) return;
+    handleDeleteExam(deleteTarget.id);
+    setDeleteTarget(null);
   };
 
   const getDaysUntilExam = (examDate: string): number => {
@@ -229,7 +237,7 @@ export default function ExamTracker() {
                           {new Date(exam.date).toLocaleDateString()}
                         </CardDescription>
                       </div>
-                      <Button onClick={() => handleDeleteExam(exam.id)}>
+                      <Button onClick={() => setDeleteTarget(exam)}>
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
@@ -254,6 +262,14 @@ export default function ExamTracker() {
           </div>
         )}
       </div>
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete exam"
+        description={`This permanently deletes "${deleteTarget?.subject || 'this exam'}".`}
+        confirmLabel={t('common.delete')}
+        onConfirm={confirmDeleteExam}
+      />
     </div>
   );
 }

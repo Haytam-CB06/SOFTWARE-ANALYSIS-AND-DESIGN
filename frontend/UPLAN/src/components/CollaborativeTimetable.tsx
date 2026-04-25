@@ -22,6 +22,7 @@ import { Avatar, AvatarFallback } from './ui/avatar';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { toast } from 'sonner';
+import ConfirmDeleteDialog from './ConfirmDeleteDialog';
 
 interface Member {
   id: string;
@@ -111,6 +112,7 @@ export default function CollaborativeTimetable({
   const [isAddSessionOpen, setIsAddSessionOpen] = useState(false);
   const [isEditSessionOpen, setIsEditSessionOpen] = useState(false);
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Session | null>(null);
   const [showActivities, setShowActivities] = useState(false);
   const [newSession, setNewSession] = useState<Partial<Session>>({
     title: '',
@@ -306,11 +308,15 @@ export default function CollaborativeTimetable({
   };
 
   const handleDeleteSession = (session: Session) => {
-    if (confirm(t('collaborativeTimetable.confirm.deleteSession', { title: session.title }))) {
-      const updated = sessions.filter((s) => s.id !== session.id);
-      saveTimetableData(updated, t('collaborativeTimetable.activity.deletedAction'), session.title);
-      toast.success(t('collaborativeTimetable.success.sessionDeleted'));
-    }
+    setDeleteTarget(session);
+  };
+
+  const confirmDeleteSession = () => {
+    if (!deleteTarget) return;
+    const updated = sessions.filter((s) => s.id !== deleteTarget.id);
+    saveTimetableData(updated, t('collaborativeTimetable.activity.deletedAction'), deleteTarget.title);
+    toast.success(t('collaborativeTimetable.success.sessionDeleted'));
+    setDeleteTarget(null);
   };
 
   const openEditSession = (session: Session) => {
@@ -482,7 +488,7 @@ export default function CollaborativeTimetable({
 
         {showActivities && (
           <div className="mt-4 border-t pt-4">
-            <div className="bg-gray-50 rounded-lg p-4 max-h-48 overflow-y-auto">
+            <div className="max-h-48 overflow-y-auto rounded-2xl bg-gray-50 p-4">
               <div className="flex items-center gap-2 mb-3">
                 <Activity className="h-4 w-4 text-gray-600" />
                 <h3 className="text-sm font-semibold text-gray-900">{t('collaborativeTimetable.activity.title')}</h3>
@@ -518,7 +524,7 @@ export default function CollaborativeTimetable({
       </div>
 
       <div className="flex-1 overflow-auto p-6" ref={containerRef}>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="overflow-hidden rounded-[24px] border border-gray-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
@@ -553,7 +559,7 @@ export default function CollaborativeTimetable({
                             return (
                               <div
                                 key={session.id}
-                                className="rounded-lg p-2 mb-1 text-white text-xs shadow-sm hover:shadow-md transition-all cursor-pointer group relative"
+                                className="group relative mb-1 cursor-pointer rounded-2xl p-2 text-xs text-white shadow-sm transition-all hover:shadow-md"
                                 style={{
                                   backgroundColor: PRESENCE_COLORS,
                                   minHeight: `${duration * 60}px`,
@@ -785,6 +791,14 @@ export default function CollaborativeTimetable({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete timetable session"
+        description={`This permanently deletes "${deleteTarget?.title || 'this session'}" from the collaborative timetable.`}
+        confirmLabel={t('common.delete')}
+        onConfirm={confirmDeleteSession}
+      />
     </div>
   );
 }
